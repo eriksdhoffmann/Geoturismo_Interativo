@@ -76,14 +76,13 @@ window.TOUR_SC_DATA = {
 
       labels3D: [
         { text: "Casa do Schroeder Platz", pitch: -44, yaw: -121, scale: 1.15, tilt: 18 },
-        { text: "Casa Rux (Enxaimel 1915) [1] ↗", pitch: -12, yaw: 68, scale: 1.15, tilt: 10 },
-        { text: "Casa Rux de Cima (Voo de Topo) ⬆", pitch: -4, yaw: 62, scale: 1.05, tilt: 6 },
+        { text: "Casa Rux (Enxaimel 1915)", pitch: -1.5, yaw: -34, scale: 1.15, tilt: 10 },
         { text: "Rio da Luz (Corredor Ecológico)", pitch: -22, yaw: 8, scale: 1.1, tilt: 20 },
         { text: "Pico Malwee (550m) ⛰️", pitch: 8, yaw: -145, scale: 1.1, tilt: -6 }
       ],
 
       hotspots: [
-        // Portal para Schroeder Platz (JDS_360_03) - Posicionado exatamente na propriedade indicada
+        // Portal para Schroeder Platz (JDS_360_02) - Posicionado exatamente na propriedade indicada
         {
           id: "hs_v04_to_schroeder",
           type: "scene",
@@ -96,33 +95,20 @@ window.TOUR_SC_DATA = {
           transitionLabel: "Descendo em direção à Casa do Schroeder Platz..."
         },
 
-        // Portal para Casa Rux (JDS_360_05)
+        // Portal único para Casa Rux 1915 (JDS_360_05) - Movido para o outro lado conforme seta
         {
           id: "hs_v04_to_rux",
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: -14,
-          yaw: 68,
+          pitch: -8,
+          yaw: -34,
           targetSceneId: "casa_rux_05",
-          tooltip: "🌐 Ir para Foto Drone 360°: Casa Rux térreo (JDS_360_05)",
-          transitionLabel: "Sobrevoando o vale até a Casa Rux..."
+          tooltip: "🌐 Casa Rux (Enxaimel 1915)",
+          transitionLabel: "Sobrevoando o vale até a Casa Rux (1915)..."
         },
 
-        // Portal para Casa Rux de Cima (JDS_360_07)
-        {
-          id: "hs_v04_to_rux_cima",
-          type: "scene",
-          category: "portal360",
-          iconStyle: "portal-thumb",
-          pitch: -6,
-          yaw: 62,
-          targetSceneId: "casa_rux_cima_07",
-          tooltip: "🌐 Ir para Foto Drone 360°: Casa Rux de Cima (JDS_360_07)",
-          transitionLabel: "Subindo para a visão aérea de topo da Casa Rux..."
-        },
-
-        // Modelo 3D do Relevo de Jaraguá do Sul e Rio da Luz (Movido para a abertura do vale à direita conforme seta)
+        // Modelo 3D Oficial (.GLB) do Relevo do Vale do Rio da Luz (GeoLab)
         {
           id: "hs_v04_3d_relevo",
           type: "3d",
@@ -130,18 +116,20 @@ window.TOUR_SC_DATA = {
           iconStyle: "yellow-oval",
           pitch: -2,
           yaw: 43,
-          tooltip: "🧊 Modelo 3D: Relevo de Jaraguá do Sul e Vale do Rio da Luz (IFSC)",
-          title: "Topografia 3D do Vale do Rio da Luz",
-          subtitleLead: "Observe a geomorfologia que fez do Vale do Rio da Luz uma paisagem cultural protegida em nível nacional.",
+          tooltip: "🧊 Maquete 3D Interativa (.GLB): Vale do Rio da Luz (GeoLab)",
+          title: "Maquete 3D do Vale do Rio da Luz (GeoLab)",
+          subtitleLead: "Explore o modelo tridimensional real (.GLB) com relevo, encostas da Serra do Mar e uso do solo da paisagem cultural.",
           paragraphs: [
-            "O Vale do Rio da Luz desenvolveu-se em um vale em 'U' suave encaixado entre os maciços do Morro Boa Vista e os contrafortes da Serra do Mar em Jaraguá do Sul.",
-            "A ocupação humana respeitou minuciosamente a dinâmica do relevo: as várzeas planas junto ao rio foram destinadas às plantações de arroz e pastagens, as meias-encostas receberam as casas enxaimel e os topos das serras mantiveram a cobertura da Mata Atlântica Ombrófila Densa."
+            "Esta maquete digital em 3D representa o Vale do Rio da Luz encaixado entre os maciços cristalinos e os contrafortes da Serra do Mar em Jaraguá do Sul.",
+            "Gire, dê zoom e inspecione como a ocupação humana seguiu a dinâmica geomorfológica: as várzeas planas junto ao rio concentram agricultura e pastagens, enquanto as casas enxaimel se distribuem ao longo da estrada protegidas pelas encostas de Mata Atlântica."
           ],
           didYouKnow: "Em 2007, o IPHAN reconheceu o Conjunto Rural do Rio da Luz como a primeira Paisagem Cultural tombada do Brasil dentro do projeto Roteiros Nacionais de Imigração!",
+          glbKey: "rio_da_luz_glb",
+          glbUrl: "assets/modelos/3D_RIO_DA_LUZ_logado.glb",
           sketchfabUid: "a8786ad611d443e193a8b5af123588cd",
           embedUrl: "https://sketchfab.com/models/a8786ad611d443e193a8b5af123588cd/embed?autostart=1&ui_infos=0",
-          externalLink: "https://sketchfab.com/3d-models/jaragua-do-sul-sc-a8786ad611d443e193a8b5af123588cd",
-          author3D: "IFSC - Câmpus Garopaba (Sketchfab)",
+          externalLink: "assets/modelos/3D_RIO_DA_LUZ_logado.glb",
+          author3D: "GeoLab • 3D_RIO_DA_LUZ_logado.glb",
           fallback3DType: "rio_da_luz_valley"
         },
 

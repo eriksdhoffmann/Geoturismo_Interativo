@@ -739,6 +739,85 @@ html, body {
   display: block;
 }
 
+/* Visualizador Nativo de Modelos .GLB */
+.glb-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  background: radial-gradient(circle at center, #1b242c 0%, #0d1216 100%);
+  overflow: hidden;
+  cursor: grab;
+}
+
+.glb-stage:active {
+  cursor: grabbing;
+}
+
+.glb-canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.glb-loading-badge {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  padding: 5px 11px;
+  background: rgba(12, 18, 22, 0.84);
+  border: 1px solid rgba(246, 185, 77, 0.45);
+  border-radius: 999px;
+  color: #fde68a;
+  font-size: 11.5px;
+  font-weight: 700;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.glb-controls-hud {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 5;
+}
+
+.glb-hud-btn {
+  padding: 5px 10px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(14, 20, 26, 0.85);
+  color: #e2e8f0;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.glb-hud-btn:hover,
+.glb-hud-btn.active {
+  background: #137547;
+  color: #ffffff;
+  border-color: #4ade80;
+}
+
+.glb-interaction-hint {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 5px 12px;
+  background: rgba(10, 14, 18, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  color: #cbd5e1;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
 .sketchfab-badge-footer {
   display: flex;
   align-items: center;
