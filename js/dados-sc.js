@@ -68,14 +68,14 @@ window.TOUR_SC_DATA = {
       region: "Paisagem Cultural do Rio da Luz (Tombamento Federal IPHAN)",
       altitude: "280 m (Voo Aéreo Panorâmico Central)",
       coordinates: { lat: -26.538882, lng: -49.149148 },
-      initialView: { pitch: -10, yaw: 0, hfov: 95 },
+      initialView: { pitch: -35, yaw: -80, hfov: 105 },
       customPanoramaUrl: "assets/panoramas/drone360/vale_tombado_principal.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_vale_tombado.jpg",
       originalRawFile: "Imagem Drone 360/JDS_360_04.jpg",
       ecosystemSummary: "Foto Drone 360° central do Vale do Rio da Luz. Daqui você visualiza as montanhas da Serra do Mar, as várzeas agrícolas e navega diretamente para a Casa do Schroeder Platz e a Casa Rux!",
 
       labels3D: [
-        { text: "Casa do Schroeder Platz [2] ↘", pitch: -16, yaw: -35, scale: 1.15, tilt: 14 },
+        { text: "Casa do Schroeder Platz", pitch: -44, yaw: -121, scale: 1.15, tilt: 18 },
         { text: "Casa Rux (Enxaimel 1915) [1] ↗", pitch: -12, yaw: 68, scale: 1.15, tilt: 10 },
         { text: "Casa Rux de Cima (Voo de Topo) ⬆", pitch: -4, yaw: 62, scale: 1.05, tilt: 6 },
         { text: "Rio da Luz (Corredor Ecológico)", pitch: -22, yaw: 8, scale: 1.1, tilt: 20 },
@@ -83,16 +83,16 @@ window.TOUR_SC_DATA = {
       ],
 
       hotspots: [
-        // Portal para Schroeder Platz (JDS_360_03)
+        // Portal para Schroeder Platz (JDS_360_03) - Posicionado exatamente na propriedade indicada
         {
           id: "hs_v04_to_schroeder",
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: -18,
-          yaw: -35,
+          pitch: -51,
+          yaw: -121,
           targetSceneId: "schroeder_platz_03",
-          tooltip: "🌐 Ir para Foto Drone 360°: Casa do Schroeder Platz (JDS_360_03)",
+          tooltip: "🌐 Casa do Schroeder Platz",
           transitionLabel: "Descendo em direção à Casa do Schroeder Platz..."
         },
 
