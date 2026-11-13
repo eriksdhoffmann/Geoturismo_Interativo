@@ -75,7 +75,6 @@
     modalLeftContent = document.getElementById("modalLeftMedia");
     modalRightContent = document.getElementById("modalRightEditorial");
 
-    preloadAllSceneImages();
     initWebGL();
     bindWebGLContextRecovery();
     buildTopThumbnails();
@@ -86,29 +85,33 @@
 
     const startId = window.TOUR_SC_DATA.defaultScene || Object.keys(window.TOUR_SC_DATA.scenes)[0];
     loadScene(startId, false);
+    preloadAllSceneImages(startId);
 
     requestAnimationFrame(renderLoop);
   }
 
   /**
-   * Pré-carrega e mantém em cache na memória RAM todas as fotos 360° do passeio
-   * para evitar telas brancas, piscadas ou recarregamentos ao trocar de cena.
+   * Pré-carrega de forma escalonada as demais fotos 360° em cache na memória
+   * após a cena principal carregar, evitando travamentos ou telas brancas.
    */
-  function preloadAllSceneImages() {
+  function preloadAllSceneImages(skipSceneId) {
     if (!window.TOUR_SC_DATA || !window.TOUR_SC_DATA.scenes) return;
-    Object.values(window.TOUR_SC_DATA.scenes).forEach(sc => {
-      const b64 = (window.DRONE_PANOS_B64 && window.DRONE_PANOS_B64[sc.id])
-        ? window.DRONE_PANOS_B64[sc.id]
-        : null;
-      const src = b64 || sc.customPanoramaUrl;
-      if (src && !imageCache[sc.id]) {
-        const img = new Image();
-        if (!b64 && location.protocol !== "file:") {
-          img.crossOrigin = "anonymous";
+    const others = Object.values(window.TOUR_SC_DATA.scenes).filter(sc => sc.id !== skipSceneId);
+    others.forEach((sc, idx) => {
+      setTimeout(() => {
+        const b64 = (window.DRONE_PANOS_B64 && window.DRONE_PANOS_B64[sc.id])
+          ? window.DRONE_PANOS_B64[sc.id]
+          : null;
+        const src = b64 || sc.customPanoramaUrl;
+        if (src && !imageCache[sc.id]) {
+          const img = new Image();
+          if (!b64 && location.protocol !== "file:") {
+            img.crossOrigin = "anonymous";
+          }
+          img.src = src;
+          imageCache[sc.id] = img;
         }
-        img.src = src;
-        imageCache[sc.id] = img;
-      }
+      }, 400 + idx * 350);
     });
   }
 
@@ -137,9 +140,8 @@
       alpha: false,
       depth: false,
       stencil: false,
-      antialias: false,
-      preserveDrawingBuffer: true,
-      powerPreference: "high-performance"
+      antialias: true,
+      preserveDrawingBuffer: true
     };
     gl = viewerCanvas.getContext("webgl", ctxOpts) || viewerCanvas.getContext("experimental-webgl", ctxOpts);
     if (!gl) {
@@ -343,7 +345,8 @@
 
     if (panoSrc) {
       let img = imageCache[scene.id];
-      if (!img || img.src !== panoSrc) {
+      const isBrokenCached = img && img.complete && img.naturalWidth === 0 && img.width === 0;
+      if (!img || img.src !== panoSrc || isBrokenCached) {
         img = new Image();
         if (!b64Source && location.protocol !== "file:") {
           img.crossOrigin = "anonymous";
@@ -352,23 +355,21 @@
         imageCache[scene.id] = img;
       }
 
-      if (img.complete && (img.naturalWidth > 0 || img.width > 0)) {
+      const uploadWhenReady = () => {
+        if (myToken !== sceneLoadToken) return;
         const ok = uploadTextureSource(img);
-        if (!ok) {
+        if (!ok && b64Source && img.src !== b64Source) {
+          img.src = b64Source;
+        } else if (!ok) {
           const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
           uploadTextureSource(canvas);
         }
+      };
+
+      if (img.complete && img.naturalWidth > 0) {
+        uploadWhenReady();
       } else {
-        img.onload = () => {
-          if (myToken !== sceneLoadToken) return;
-          const ok = uploadTextureSource(img);
-          if (!ok && b64Source && img.src !== b64Source) {
-            img.src = b64Source;
-          } else if (!ok) {
-            const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
-            uploadTextureSource(canvas);
-          }
-        };
+        img.onload = uploadWhenReady;
         img.onerror = () => {
           if (myToken !== sceneLoadToken) return;
           if (b64Source && img.src !== b64Source) {
@@ -715,13 +716,16 @@
     state.targetHfov = Math.max(38, Math.min(115, state.targetHfov));
     state.hfov += (state.targetHfov - state.hfov) * 0.16;
 
-    // Atualiza dimensões do Canvas WebGL com proteção contra 0x0
-    const w = Math.max(1, viewerCanvas.clientWidth || window.innerWidth);
-    const h = Math.max(1, viewerCanvas.clientHeight || window.innerHeight);
-    if (viewerCanvas.width !== w || viewerCanvas.height !== h) {
-      viewerCanvas.width = w;
-      viewerCanvas.height = h;
-      if (gl) gl.viewport(0, 0, w, h);
+    // Atualiza dimensões do Canvas WebGL em resolução física nativa (HiDPI) com proteção contra 0x0
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const cssW = Math.max(1, viewerCanvas.clientWidth || window.innerWidth);
+    const cssH = Math.max(1, viewerCanvas.clientHeight || window.innerHeight);
+    const pxW = Math.max(1, Math.round(cssW * dpr));
+    const pxH = Math.max(1, Math.round(cssH * dpr));
+    if (viewerCanvas.width !== pxW || viewerCanvas.height !== pxH) {
+      viewerCanvas.width = pxW;
+      viewerCanvas.height = pxH;
+      if (gl) gl.viewport(0, 0, pxW, pxH);
     }
 
     // Desenha a esfera 360° via WebGL mantendo programa e textura vinculados
@@ -729,7 +733,7 @@
       const yawRad = state.yaw * DEG2RAD;
       const pitchRad = state.pitch * DEG2RAD;
       const tanHalfFov = Math.tan((state.hfov * DEG2RAD) * 0.5);
-      const aspect = w / Math.max(1, h);
+      const aspect = cssW / Math.max(1, cssH);
 
       gl.useProgram(shaderProgram);
       gl.bindTexture(gl.TEXTURE_2D, panoTexture);
@@ -740,8 +744,8 @@
       gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
-    // Projeta todos os Hotspots e Rótulos 3D na tela
-    updateProjectedOverlays(w, h);
+    // Projeta todos os Hotspots e Rótulos 3D na tela (coordenadas CSS)
+    updateProjectedOverlays(cssW, cssH);
 
     // Atualiza bússola/coordenadas no rodapé se o Modo Criador estiver ativo
     const liveCoordsEl = document.getElementById("hudLiveCameraCoords");
