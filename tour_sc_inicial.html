@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>GeoSC 360° — Passeio Virtual Interativo pelos Geossítios e Pontos Turísticos de Santa Catarina</title>
+
+  <!-- Fontes Tipográficas (Com fallback nativo caso esteja offline) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Merriweather:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet CSS/JS para o Mapa Interativo de Santa Catarina (com fallback offline automático) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Estilos do Tour Virtual 360° -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ========================================================================
+       1. VIEWPORT ESFÉRICO 360° (WEBGL + CAMADA DE RÓTULOS 3D + CAMADA DE HOTSPOTS)
+       ======================================================================== -->
+  <main id="panoViewport" aria-label="Visualizador Panorâmico 360 Graus">
+    <canvas id="panoCanvas"></canvas>
+    <div id="labels3DContainer"></div>
+    <div id="hotspotsContainer"></div>
+  </main>
+
+  <!-- ========================================================================
+       2. BARRA SUPERIOR DE MINIATURAS DAS FOTOS 360° (IGUAL SCREENSHOTS 1 E 4)
+       ======================================================================== -->
+  <nav id="topThumbsBar" class="top-thumbnails-wrapper ui-layer" aria-label="Índice de Panoramas 360 de Santa Catarina"></nav>
+
+  <!-- ========================================================================
+       3. HUD DE INFORMAÇÃO DA CENA ATUAL (CANTO SUPERIOR ESQUERDO)
+       ======================================================================== -->
+  <header class="scene-hud-header ui-layer">
+    <div class="scene-hud-badge">Passeio Virtual 360° • Santa Catarina</div>
+    <h1 id="hudSceneTitle">Carregando Panorama...</h1>
+    <div id="hudSceneSubtitle"></div>
+    <div id="hudLiveCameraCoords">Pitch: 0.0° | Yaw: 0.0° | Zoom (FOV): 95°</div>
+  </header>
+
+  <!-- ========================================================================
+       4. FILTRO DE SERVIÇOS ECOSSISTÊMICOS / CATEGORIAS (INFERIOR ESQUERDO)
+       ======================================================================== -->
+  <aside class="bottom-left-ecosystem-bar ui-layer">
+    <div class="eco-bar-title">Serviços ecossistêmicos e categorias aqui:</div>
+    <div id="categoryFilterButtons" class="category-chips-row"></div>
+  </aside>
+
+  <!-- ========================================================================
+       5. BARRA INFERIOR DE CONTROLES (DOCK CENTRAL - IGUAL SCREENSHOT 1)
+       ======================================================================== -->
+  <footer class="bottom-center-dock ui-layer" role="toolbar" aria-label="Controles do Passeio Virtual">
+    <button type="button" id="btnOpenLogicGuide" class="dock-btn dock-btn-circle-info" title="Entenda a Lógica de Programação 360° e Créditos">
+      i
+    </button>
+    <button type="button" id="btnToggleAa" class="dock-btn active" title="Mostrar/Ocultar Rótulos Geográficos 3D na Paisagem (Aa)">
+      Aa
+    </button>
+    <button type="button" id="btnOpenScenesGrid" class="dock-btn" title="Índice Geral de Panoramas de Santa Catarina">
+      ▦
+    </button>
+    <button type="button" id="btnOpenSCMap" class="dock-btn" title="Abrir Mapa Interativo de Santa Catarina">
+      📍
+    </button>
+    <button type="button" id="btnToggleEditor" class="dock-btn dock-btn-creator" title="Modo Criador: Clique na foto 360° para adicionar pontos ou trocar a foto!">
+      🛠️ Criar Ponto / Trocar Foto
+    </button>
+    <button type="button" id="btnFullscreen" class="dock-btn" title="Alternar Tela Cheia">
+      ⛶
+    </button>
+    <button type="button" id="btnAutoRotate" class="dock-btn" title="Iniciar/Pausar Giro Automático 360°">
+      ▶
+    </button>
+  </footer>
+
+  <!-- ========================================================================
+       6. POP-UP SPLIT-VIEW (TELA DIVIDIDA: FOTO ANOTADA OU MODELO 3D EXTERNO + TEXTO)
+          IDÊNTICO ÀS SCREENSHOTS 2 E 3 DO GEOHEREDITAS USP!
+       ======================================================================== -->
+  <div id="splitModalBackdrop" class="split-modal-backdrop" role="dialog" aria-modal="true">
+    <div class="split-modal-window">
+      <div id="modalLeftMedia" class="modal-left-media"></div>
+      <div id="modalRightEditorial" class="modal-right-editorial"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       7. PAINEL DO MODO CRIADOR / EDITOR INTERATIVO 360° (REPLICAÇÃO)
+       ======================================================================== -->
+  <aside id="editorSidePanel" class="editor-side-panel ui-layer">
+    <div class="editor-panel-title">🛠️ Estúdio Criador 360° (Pitch & Yaw)</div>
+    <p class="editor-panel-help">
+      <strong>Como usar:</strong> Clique em qualquer ponto da foto 360° para capturar automaticamente suas coordenadas esféricas (<em>Pitch</em> e <em>Yaw</em>) e criar um novo ponto clicável!
+    </p>
+
+    <!-- Upload de foto 360° própria -->
+    <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.25);">
+      <label class="ed-label" for="edUploadPanoInput">📷 Testar sua própria Foto 360° (.jpg/.png):</label>
+      <input type="file" id="edUploadPanoInput" accept="image/*" class="ed-input" style="margin-bottom:0;" />
+    </div>
+
+    <form id="formAddHotspot">
+      <div class="ed-field-row">
+        <div>
+          <label class="ed-label" for="edPitch">Pitch (Vertical °)</label>
+          <input type="number" step="0.1" id="edPitch" class="ed-input" value="-10.0" required />
+        </div>
+        <div>
+          <label class="ed-label" for="edYaw">Yaw (Horizontal °)</label>
+          <input type="number" step="0.1" id="edYaw" class="ed-input" value="15.0" required />
+        </div>
+      </div>
+
+      <label class="ed-label" for="edHotspotType">Tipo de Ação ao Clicar</label>
+      <select id="edHotspotType" class="ed-select">
+        <option value="info">📖 Abrir Pop-up com Foto & Informações</option>
+        <option value="3d">🧊 Abrir Modelo 3D Externo (Sketchfab / Iframe)</option>
+        <option value="scene">🌐 Viajar para outra Foto 360°</option>
+      </select>
+
+      <label class="ed-label" for="edTitle">Título do Ponto Turístico / Geossítio</label>
+      <input type="text" id="edTitle" class="ed-input" placeholder="Ex: Mirante da Serra ou Fortaleza" required />
+
+      <!-- Campos para Pop-up de Informação -->
+      <div id="edGroupInfo">
+        <label class="ed-label" for="edSubtitleLead">Destaque Verde (Subtítulo)</label>
+        <input type="text" id="edSubtitleLead" class="ed-input" placeholder="Resumo em destaque verde..." />
+
+        <label class="ed-label" for="edParagraph">Texto Explicativo</label>
+        <textarea id="edParagraph" rows="2" class="ed-textarea" placeholder="Explicação detalhada do local..."></textarea>
+
+        <label class="ed-label" for="edDidYouKnow">Quadro Amarelo "Você sabia?"</label>
+        <input type="text" id="edDidYouKnow" class="ed-input" placeholder="Curiosidade fascinante sobre o lugar..." />
+
+        <label class="ed-label" for="edImageUrl">URL ou Caminho da Foto do Pop-up</label>
+        <input type="text" id="edImageUrl" class="ed-input" placeholder="assets/fotos/lagoa_conceicao.jpg" />
+      </div>
+
+      <!-- Campos para Modelo 3D Externo -->
+      <div id="edGroup3D" style="display: none;">
+        <label class="ed-label" for="ed3DUrl">Link do Modelo 3D (Sketchfab / Embed URL)</label>
+        <input type="text" id="ed3DUrl" class="ed-input" placeholder="https://sketchfab.com/models/UID/embed" />
+
+        <label class="ed-label" for="ed3DLead">Destaque Verde</label>
+        <input type="text" id="ed3DLead" class="ed-input" placeholder="Explore a maquete 3D interativa ao lado..." />
+
+        <label class="ed-label" for="ed3DDesc">Descrição do Modelo 3D</label>
+        <textarea id="ed3DDesc" rows="2" class="ed-textarea" placeholder="Detalhes sobre o relevo ou monumento 3D..."></textarea>
+      </div>
+
+      <!-- Campos para Transição entre Fotos 360° -->
+      <div id="edGroupScene" style="display: none;">
+        <label class="ed-label" for="edTargetScene">Foto 360° de Destino</label>
+        <select id="edTargetScene" class="ed-select"></select>
+      </div>
+
+      <button type="submit" class="ed-btn-primary">➕ Adicionar Ponto Clicável na Esfera 360°</button>
+    </form>
+
+    <label class="ed-label" for="edExportJsonTextarea">Código JSON dos Hotspots desta Cena (para salvar em dados-sc.js):</label>
+    <textarea id="edExportJsonTextarea" rows="4" class="ed-textarea" readonly style="font-family: monospace; font-size: 11px;"></textarea>
+    <button type="button" id="btnCopyExportJson" class="ed-btn-secondary">📋 Gerar & Copiar Código JSON da Cena</button>
+  </aside>
+
+  <!-- ========================================================================
+       8. MODAL: ÍNDICE DE PANORAMAS 360° DE SANTA CATARINA (GRADE)
+       ======================================================================== -->
+  <div id="scenesGridModal" class="aux-drawer-modal ui-layer">
+    <div class="aux-modal-card">
+      <div class="aux-modal-header">
+        <h3>▦ Índice de Panoramas 360° — Regiões Turísticas e Geológicas de Santa Catarina</h3>
+        <button type="button" class="aux-close-btn" data-close-drawer="scenesGridModal">✕</button>
+      </div>
+      <div class="aux-modal-body">
+        <div id="scenesGridContainer" class="scenes-grid-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       9. MODAL: MAPA INTERATIVO DE SANTA CATARINA (LEAFLET)
+       ======================================================================== -->
+  <div id="scMapModal" class="aux-drawer-modal ui-layer">
+    <div class="aux-modal-card">
+      <div class="aux-modal-header">
+        <h3>📍 Mapa Georreferenciado dos Panoramas 360° em Santa Catarina</h3>
+        <button type="button" class="aux-close-btn" data-close-drawer="scMapModal">✕</button>
+      </div>
+      <div class="aux-modal-body" style="padding: 0; height: 520px;">
+        <div id="leafletSCMap" style="width: 100%; height: 100%;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       10. MODAL: EXPLICAÇÃO DA LÓGICA DE PROGRAMAÇÃO & COMO REPLICAR
+       ======================================================================== -->
+  <div id="logicGuideModal" class="aux-drawer-modal ui-layer">
+    <div class="aux-modal-card">
+      <div class="aux-modal-header">
+        <h3>🧠 Arquitetura & Lógica de Programação do Passeio Virtual 360° (Geohereditas -> GeoSC)</h3>
+        <button type="button" class="aux-close-btn" data-close-drawer="logicGuideModal">✕</button>
+      </div>
+      <div class="aux-modal-body">
+        <h4 style="color:#86efac; margin-bottom:8px;">1. Como funciona a Foto 360° Interativa (Projeção Equiretangular Esférica)</h4>
+        <p style="margin-bottom:14px; font-size:14px; color:#e2e8f0;">
+          Uma foto 360° é uma imagem plana na proporção <strong>2:1</strong> (ex.: <code>4096x2048</code> pixels) onde o eixo horizontal representa os <strong>360° de giro (Yaw: -180° a +180°)</strong> e o eixo vertical representa os <strong>180° de inclinação (Pitch: -90° chão a +90° céu)</strong>. Nosso motor WebGL (<code>js/engine360.js</code>) coloca a câmera no centro <code>(0,0,0)</code> de uma esfera virtual e projeta a textura ao redor do observador.
+        </p>
+
+        <h4 style="color:#86efac; margin-bottom:8px;">2. Como os Pontos Clicáveis (Hotspots) ficam "grudados" no lugar certo da paisagem?</h4>
+        <p style="margin-bottom:14px; font-size:14px; color:#e2e8f0;">
+          Cada ponto clicável guarda sua coordenada esférica <code>{ pitch, yaw }</code> em <code>js/dados-sc.js</code>. A 60 quadros por segundo, convertemos <code>(pitch, yaw)</code> em um vetor 3D unitário:
+          <br/><code style="color:#fde047;">x = cos(pitch) * sin(yaw) | y = sin(pitch) | z = cos(pitch) * cos(yaw)</code><br/>
+          Em seguida, aplicamos a rotação inversa da câmera e projetamos para o pixel <code>(X, Y)</code> da tela. Se <code>z_camera &gt; 0</code>, o botão fica visível na frente do usuário; se o usuário virar de costas (<code>z_camera &lt;= 0</code>), o botão é ocultado automaticamente!
+        </p>
+
+        <h4 style="color:#86efac; margin-bottom:8px;">3. Os 3 Tipos de Ação ao Clicar nos Hotspots</h4>
+        <ul style="margin-left:20px; margin-bottom:14px; font-size:14px; color:#e2e8f0;">
+          <li><strong><code>type: "info"</code> (Pop-up de Informação & Foto Anotada):</strong> Abre o modal dividido com a fotografia anotada à esquerda e o texto explicativo + quadro amarelo <em>"Você sabia?"</em> à direita.</li>
+          <li><strong><code>type: "3d"</code> (Modelo 3D Hospedado Externamente):</strong> Injeta no lado esquerdo do modal um <code>&lt;iframe src="https://sketchfab.com/models/ID/embed?autostart=1"&gt;</code> (ou Polycam / Luma AI / Three.js), permitindo girar a maquete 3D sem sair da foto 360°!</li>
+          <li><strong><code>type: "scene"</code> (Teleporte para outra Foto 360°):</strong> Aplica um zoom suave de câmera na direção do ponto clicado e carrega o próximo panorama 360° do grafo de cenas.</li>
+        </ul>
+
+        <h4 style="color:#86efac; margin-bottom:8px;">4. Como Replicar em Qualquer Outro Computador</h4>
+        <p style="font-size:14px; color:#e2e8f0;">
+          Toda a aplicação é <strong>100% independente de instalações pesadas</strong> (não exige Node.js nem Python). Basta copiar esta pasta ou usar o arquivo <code>GUIA_LOGICA_E_REPLICACAO.md</code> na raiz do projeto. Você também pode clicar em <strong>"🛠️ Criar Ponto / Trocar Foto"</strong> na barra inferior para carregar qualquer foto 360° do seu computador e clicar direto na imagem para gerar novos pontos!
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       11. OVERLAY DE TRANSIÇÃO DE VOO ENTRE FOTOS 360°
+       ======================================================================== -->
+  <div id="sceneTransitionOverlay" class="scene-transition-overlay">
+    <div class="transition-banner" id="transitionTextLabel">Viajando para próxima foto 360°...</div>
+  </div>
+
+  <!-- ========================================================================
+       SCRIPTS DA APLICAÇÃO (ORDEM: DADOS -> GERADOR 360/3D -> MOTOR 360°)
+       ======================================================================== -->
+  <script src="js/dados-sc-inicial.js"></script>
+  <script src="js/panorama-generator.js"></script>
+  <script src="js/engine360.js"></script>
+</body>
+</html>
