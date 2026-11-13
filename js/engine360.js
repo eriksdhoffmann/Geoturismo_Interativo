@@ -437,7 +437,7 @@
         `;
       } else if (hs.type === "scene" || hs.iconStyle === "portal-thumb") {
         const targetScene = window.TOUR_SC_DATA.scenes[hs.targetSceneId];
-        const thumbUrl = targetScene ? targetScene.thumbPhoto : "assets/fotos/lagoa_conceicao.jpg";
+        const thumbUrl = targetScene ? (targetScene.staticPhoto || targetScene.thumbPhoto) : "assets/fotos/lagoa_conceicao.jpg";
         innerHTML = `
           <span class="hs-pulse portal-pulse"></span>
           <span class="hs-portal-ring" style="background-image: url('${thumbUrl}')">
@@ -543,25 +543,54 @@
   function openSplitModalInfo(hs) {
     cleanupPrevious3D();
 
-    // Lado Esquerdo: Imagem anotada com setas indicando feições geológicas/turísticas
-    const annotationsHTML = (hs.imageAnnotations || []).map(ann => `
-      <div class="geo-photo-annotation" style="left: ${ann.x}%; top: ${ann.y}%;">
-        <div class="geo-ann-label">${ann.label}</div>
-        <div class="geo-ann-arrow">↓</div>
-      </div>
-    `).join("");
+    if (hs.showcaseCard) {
+      const sc = hs.showcaseCard;
+      modalLeftContent.innerHTML = `
+        <div class="annotated-photo-wrapper">
+          <div class="showcase-art-panel">
+            <span class="showcase-art-badge">🏛️ ${sc.badge || "Patrimônio Cultural Tombado"}</span>
+            <div class="showcase-art-mat">
+              <img src="${hs.image || 'assets/fotos/riodaluz/casa_rux_aquarela.png'}" alt="${hs.title}" class="showcase-art-img" />
+            </div>
+            <div class="showcase-art-footer">
+              <div class="showcase-art-caption-wrap">
+                <span class="showcase-art-caption">${sc.caption || hs.title}</span>
+                ${sc.address ? `<span class="showcase-art-address">📌 ${sc.address}</span>` : ""}
+              </div>
+              ${sc.realPhoto ? `
+                <div class="showcase-real-card" title="Vista real da Casa Rux no tour 360°">
+                  <img src="${sc.realPhoto}" alt="Foto Real ${hs.title}" />
+                  <span>Foto Real</span>
+                </div>
+              ` : ""}
+            </div>
+          </div>
+          <div class="photo-caption-bar">
+            <span>📍 Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
+          </div>
+        </div>
+      `;
+    } else {
+      // Lado Esquerdo: Imagem anotada com setas indicando feições geológicas/turísticas
+      const annotationsHTML = (hs.imageAnnotations || []).map(ann => `
+        <div class="geo-photo-annotation" style="left: ${ann.x}%; top: ${ann.y}%;">
+          <div class="geo-ann-label">${ann.label}</div>
+          <div class="geo-ann-arrow">↓</div>
+        </div>
+      `).join("");
 
-    modalLeftContent.innerHTML = `
-      <div class="annotated-photo-wrapper">
-        <img src="${hs.image || 'assets/fotos/lagoa_conceicao.jpg'}" alt="${hs.title}" class="modal-main-photo ${hs.fitContain ? 'fit-contain' : ''}" />
-        <div class="annotations-overlay">
-          ${annotationsHTML}
+      modalLeftContent.innerHTML = `
+        <div class="annotated-photo-wrapper">
+          <img src="${hs.image || 'assets/fotos/lagoa_conceicao.jpg'}" alt="${hs.title}" class="modal-main-photo ${hs.fitContain ? 'fit-contain' : ''}" />
+          <div class="annotations-overlay">
+            ${annotationsHTML}
+          </div>
+          <div class="photo-caption-bar">
+            <span>📍 Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
+          </div>
         </div>
-        <div class="photo-caption-bar">
-          <span>📍 Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
-        </div>
-      </div>
-    `;
+      `;
+    }
 
     // Lado Direito: Card Editorial Branco com botão verde [X], título serifado e caixa "Você sabia?"
     renderRightEditorialCard(hs);
@@ -1280,6 +1309,12 @@
     const filterBar = document.getElementById("rdlRegionFilterBar");
     const btnFront = document.getElementById("btnRdlViewFront");
     const btnBack = document.getElementById("btnRdlViewBack");
+    const btnZoomIn = document.getElementById("btnRdlZoomIn");
+    const btnZoomOut = document.getElementById("btnRdlZoomOut");
+    const btnZoomReset = document.getElementById("btnRdlZoomReset");
+    const btnExpandMap = document.getElementById("btnRdlExpandMap");
+    const zoomLabel = document.getElementById("rdlZoomLevelLabel");
+    const layoutEl = document.querySelector("#rdlIllustratedModal .rdl-illustrated-layout");
     if (!mapBox || !listBox) return;
 
     const rotaData = window.ROTA_LUMIAR_DATA;
@@ -1291,15 +1326,86 @@
     let currentRegion = "all";
     let selectedNum = 1;
     let mapSide = "front";
+    let zoomScale = 1;
+    let panX = 0;
+    let panY = 0;
+    let isPanning = false;
+    let panMoved = false;
+    let startClientX = 0;
+    let startClientY = 0;
+    let startPanX = 0;
+    let startPanY = 0;
+    const MIN_ZOOM = 1;
+    const MAX_ZOOM = 4;
+
+    function clampPan() {
+      const rect = mapBox.getBoundingClientRect();
+      const stage = document.getElementById("rdlZoomStage");
+      if (!rect.width || !stage) return;
+      const stageW = stage.offsetWidth * zoomScale;
+      const stageH = stage.offsetHeight * zoomScale;
+      const minX = Math.min(0, rect.width - stageW);
+      const minY = Math.min(0, rect.height - stageH);
+      panX = Math.max(minX, Math.min(0, panX));
+      panY = Math.max(minY, Math.min(0, panY));
+    }
+
+    function applyZoomTransform() {
+      if (zoomScale <= 1.001) {
+        zoomScale = 1;
+        panX = 0;
+        panY = 0;
+      } else {
+        clampPan();
+      }
+      const stage = document.getElementById("rdlZoomStage");
+      if (stage) {
+        stage.style.transform = `translate(${panX.toFixed(1)}px, ${panY.toFixed(1)}px) scale(${zoomScale.toFixed(3)})`;
+        const inv = Math.max(0.42, 1 / Math.pow(zoomScale, 0.65));
+        stage.style.setProperty("--rdl-pin-inv", inv.toFixed(3));
+      }
+      mapBox.classList.toggle("is-zoomed", zoomScale > 1.01);
+      if (zoomLabel) zoomLabel.textContent = `${Math.round(zoomScale * 100)}%`;
+    }
+
+    function setZoomAround(nextScale, focusClientX, focusClientY) {
+      const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextScale));
+      const rect = mapBox.getBoundingClientRect();
+      if (!rect.width) {
+        zoomScale = clamped;
+        applyZoomTransform();
+        return;
+      }
+      const fx = typeof focusClientX === "number" ? (focusClientX - rect.left) : (rect.width / 2);
+      const fy = typeof focusClientY === "number" ? (focusClientY - rect.top) : (rect.height / 2);
+      const imgX = (fx - panX) / zoomScale;
+      const imgY = (fy - panY) / zoomScale;
+      zoomScale = clamped;
+      panX = fx - imgX * zoomScale;
+      panY = fy - imgY * zoomScale;
+      applyZoomTransform();
+    }
+
+    function resetMapZoom() {
+      zoomScale = 1;
+      panX = 0;
+      panY = 0;
+      applyZoomTransform();
+    }
 
     function renderMapSide() {
       const imgUrl = mapSide === "back"
         ? (rotaData.legendImage || "assets/fotos/mapa_rota_lumiar_info.jpg")
         : (rotaData.mapImage || "assets/fotos/mapa_rota_lumiar.jpg");
 
-      mapBox.innerHTML = `<img src="${imgUrl}" alt="Mapa Cultural Turístico Rota Lumiar" />`;
+      mapBox.innerHTML = `<div id="rdlZoomStage" class="rdl-zoom-stage"><img src="${imgUrl}" alt="Mapa Cultural Turístico Rota Lumiar" draggable="false" /></div>`;
+      const stage = document.getElementById("rdlZoomStage");
+      const mapImg = stage ? stage.querySelector("img") : null;
+      if (mapImg) {
+        mapImg.addEventListener("load", applyZoomTransform);
+      }
 
-      if (mapSide === "front") {
+      if (mapSide === "front" && stage) {
         rotaData.points.forEach(p => {
           const pin = document.createElement("button");
           pin.type = "button";
@@ -1309,13 +1415,87 @@
           pin.dataset.pointNum = String(p.num);
           pin.title = `${p.num}. ${p.name} (${p.region})`;
           pin.textContent = String(p.num);
-          pin.addEventListener("click", () => selectRotaPoint(p.num, true));
-          mapBox.appendChild(pin);
+          pin.addEventListener("click", () => {
+            if (panMoved) return;
+            selectRotaPoint(p.num, true);
+          });
+          stage.appendChild(pin);
         });
       }
 
       if (btnFront) btnFront.classList.toggle("active", mapSide === "front");
       if (btnBack) btnBack.classList.toggle("active", mapSide === "back");
+      applyZoomTransform();
+    }
+
+    if (!mapBox.dataset.zoomBound) {
+      mapBox.dataset.zoomBound = "true";
+
+      mapBox.addEventListener("wheel", e => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.24 : 0.8;
+        setZoomAround(zoomScale * factor, e.clientX, e.clientY);
+      }, { passive: false });
+
+      mapBox.addEventListener("dblclick", e => {
+        if (e.target.closest(".rdl-map-pin-btn")) return;
+        const next = zoomScale > 1.3 ? 1 : 2.25;
+        setZoomAround(next, e.clientX, e.clientY);
+      });
+
+      mapBox.addEventListener("mousedown", e => {
+        if (e.button !== 0 || zoomScale <= 1.01) {
+          panMoved = false;
+          return;
+        }
+        isPanning = true;
+        panMoved = false;
+        startClientX = e.clientX;
+        startClientY = e.clientY;
+        startPanX = panX;
+        startPanY = panY;
+        mapBox.classList.add("is-dragging");
+        e.preventDefault();
+      });
+
+      window.addEventListener("mousemove", e => {
+        if (!isPanning) return;
+        const dx = e.clientX - startClientX;
+        const dy = e.clientY - startClientY;
+        if (Math.hypot(dx, dy) > 4) panMoved = true;
+        panX = startPanX + dx;
+        panY = startPanY + dy;
+        applyZoomTransform();
+      });
+
+      window.addEventListener("mouseup", () => {
+        if (!isPanning) return;
+        isPanning = false;
+        mapBox.classList.remove("is-dragging");
+        setTimeout(() => { panMoved = false; }, 60);
+      });
+    }
+
+    if (btnZoomIn && !btnZoomIn.dataset.bound) {
+      btnZoomIn.dataset.bound = "true";
+      btnZoomIn.addEventListener("click", () => setZoomAround(zoomScale * 1.35));
+    }
+    if (btnZoomOut && !btnZoomOut.dataset.bound) {
+      btnZoomOut.dataset.bound = "true";
+      btnZoomOut.addEventListener("click", () => setZoomAround(zoomScale / 1.35));
+    }
+    if (btnZoomReset && !btnZoomReset.dataset.bound) {
+      btnZoomReset.dataset.bound = "true";
+      btnZoomReset.addEventListener("click", resetMapZoom);
+    }
+    if (btnExpandMap && !btnExpandMap.dataset.bound && layoutEl) {
+      btnExpandMap.dataset.bound = "true";
+      btnExpandMap.addEventListener("click", () => {
+        const isExpanded = layoutEl.classList.toggle("expanded");
+        btnExpandMap.classList.toggle("active", isExpanded);
+        btnExpandMap.textContent = isExpanded ? "⊟ Normal" : "⛶ Expandir";
+        setTimeout(applyZoomTransform, 220);
+      });
     }
 
     function buildGoogleMapsHref(p) {
@@ -1439,6 +1619,7 @@
       btnFront.dataset.bound = "true";
       btnFront.addEventListener("click", () => {
         mapSide = "front";
+        resetMapZoom();
         renderMapSide();
       });
     }
@@ -1446,6 +1627,7 @@
       btnBack.dataset.bound = "true";
       btnBack.addEventListener("click", () => {
         mapSide = "back";
+        resetMapZoom();
         renderMapSide();
       });
     }
@@ -1833,9 +2015,19 @@
 
   // Exposição global para chamadas de botões externos / Mapa
   window.GeoSC360 = {
-    goToScene: function (sceneId) {
+    goToScene: function (sceneId, animate = true) {
       closeAuxiliaryDrawers();
-      loadScene(sceneId, true);
+      loadScene(sceneId, animate);
+    },
+    setView: function (pitch, yaw) {
+      if (typeof pitch === "number" && !Number.isNaN(pitch)) {
+        state.pitch = pitch;
+        state.targetPitch = pitch;
+      }
+      if (typeof yaw === "number" && !Number.isNaN(yaw)) {
+        state.yaw = yaw;
+        state.targetYaw = yaw;
+      }
     }
   };
 })();

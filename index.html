@@ -216,7 +216,17 @@
               <button type="button" id="btnRdlViewFront" class="rdl-mode-btn active">🗺️ Mapa Ilustrado (Pinos 1–26)</button>
               <button type="button" id="btnRdlViewBack" class="rdl-mode-btn">📄 Guia Oficial (Verso)</button>
             </div>
-            <div id="rdlInteractiveMapBox" class="rdl-map-canvas-box"></div>
+            <div class="rdl-zoom-toolbar" id="rdlZoomToolbar">
+              <span class="rdl-zoom-hint">🔍 Scroll ou arraste para dar zoom:</span>
+              <div class="rdl-zoom-controls">
+                <button type="button" id="btnRdlZoomOut" class="rdl-zoom-btn" title="Diminuir zoom">−</button>
+                <span id="rdlZoomLevelLabel" class="rdl-zoom-badge">100%</span>
+                <button type="button" id="btnRdlZoomIn" class="rdl-zoom-btn" title="Aumentar zoom">+</button>
+                <button type="button" id="btnRdlZoomReset" class="rdl-zoom-btn rdl-zoom-reset" title="Voltar para 100%">100%</button>
+                <button type="button" id="btnRdlExpandMap" class="rdl-zoom-btn rdl-zoom-expand" title="Expandir área do mapa">⛶ Expandir</button>
+              </div>
+            </div>
+            <div id="rdlInteractiveMapBox" class="rdl-map-canvas-box zoomable"></div>
             <div id="rdlCreditsFooter" class="rdl-credits-line"></div>
           </div>
           <div class="rdl-right-col">
@@ -312,28 +322,58 @@
   <script src="js/panorama-generator.js"></script>
   <script src="js/engine360.js"></script>
   <script>
-    // Suporte a carregamento direto com visualização ativada via URL (?action=modal3d|map|editor|scmap)
+    // Suporte a carregamento direto com visualização ativada via URL (?scene=...&action=modal3d|map|editor|scmap|rux_info)
     window.addEventListener("load", () => {
       const params = new URLSearchParams(window.location.search);
+      const sceneParam = params.get("scene");
       const action = params.get("action");
-      if (!action) return;
+      if (!sceneParam && !action) return;
       setTimeout(() => {
-        if (action === "modal3d") {
-          const el = document.querySelector('[data-id="hs_v04_3d_relevo"]');
-          if (el) el.click();
-        } else if (action === "modal_info") {
-          const el = document.querySelector('[data-id="hs_v04_info_vale"]');
-          if (el) el.click();
-        } else if (action === "map") {
-          const btn = document.getElementById("btnOpenRioDaLuzMap");
-          if (btn) btn.click();
-        } else if (action === "editor") {
-          const btn = document.getElementById("btnToggleEditor");
-          if (btn) btn.click();
-        } else if (action === "scmap") {
-          const btn = document.getElementById("btnOpenSCMap");
-          if (btn) btn.click();
+        if (sceneParam && window.GeoSC360 && typeof window.GeoSC360.goToScene === "function") {
+          window.GeoSC360.goToScene(sceneParam, false);
         }
+        const pitchParam = params.get("pitch");
+        const yawParam = params.get("yaw");
+        setTimeout(() => {
+          if ((pitchParam !== null || yawParam !== null) && window.GeoSC360 && typeof window.GeoSC360.setView === "function") {
+            window.GeoSC360.setView(
+              pitchParam !== null ? Number(pitchParam) : undefined,
+              yawParam !== null ? Number(yawParam) : undefined
+            );
+          }
+          if (action === "modal3d") {
+            const el = document.querySelector('[data-id="hs_v04_3d_relevo"]');
+            if (el) el.click();
+          } else if (action === "modal_info") {
+            const el = document.querySelector('[data-id="hs_v04_info_vale"]');
+            if (el) el.click();
+          } else if (action === "rux_info") {
+            const el = document.querySelector('[data-id="hs_rux_info"]');
+            if (el) el.click();
+          } else if (action === "map") {
+            const btn = document.getElementById("btnOpenRioDaLuzMap");
+            if (btn) btn.click();
+            if (params.get("side") === "back") {
+              const btnBack = document.getElementById("btnRdlViewBack");
+              if (btnBack) btnBack.click();
+            }
+            if (params.get("expand") === "1") {
+              const btnExp = document.getElementById("btnRdlExpandMap");
+              if (btnExp) btnExp.click();
+            }
+            const zoomClicks = Number(params.get("zoomclicks") || "0");
+            if (zoomClicks > 0) {
+              const btnIn = document.getElementById("btnRdlZoomIn");
+              for (let i = 0; i < zoomClicks && btnIn; i++) btnIn.click();
+            }
+          } else if (action === "editor") {
+            const btn = document.getElementById("btnToggleEditor");
+            if (btn) btn.click();
+          } else if (action === "scmap") {
+            const btn = document.getElementById("btnOpenSCMap");
+            if (btn) btn.click();
+          }
+        }, sceneParam ? 500 : 0);
       }, 1200);
     });
   </script>

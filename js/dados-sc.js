@@ -272,7 +272,8 @@ window.TOUR_SC_DATA = {
       labels3D: [
         { text: "Casa Rux (Enxaimel de 1915) 🏛️", pitch: -18, yaw: 0, scale: 1.2, tilt: 16 },
         { text: "Subir: Ver Casa Rux de Cima (JDS 07) ⬆", pitch: 39, yaw: 52, scale: 1.15, tilt: -10 },
-        { text: "Vale Tombado ⬆", pitch: 28, yaw: -115, scale: 1.15, tilt: -8 }
+        { text: "Vale Tombado ⬆", pitch: 28, yaw: -115, scale: 1.15, tilt: -8 },
+        { text: "Casa do Schroeder Platz", pitch: 0, yaw: -128, scale: 1.08, tilt: 6 }
       ],
 
       hotspots: [
@@ -315,29 +316,6 @@ window.TOUR_SC_DATA = {
           transitionLabel: "Indo até a Casa do Schroeder Platz..."
         },
 
-        // Modelo 3D da Estrutura Enxaimel
-        {
-          id: "hs_rux_3d_estrutura",
-          type: "3d",
-          category: "modelo3d",
-          iconStyle: "yellow-oval",
-          pitch: -12,
-          yaw: 24,
-          tooltip: "🧊 Modelo 3D: Estrutura Enxaimel (Fachwerkhaus) sem pregos",
-          title: "Engenharia Enxaimel da Casa Rux em 3D",
-          subtitleLead: "Entenda como as vigas da Casa Rux foram talhadas e travadas com pinos de madeira há mais de 100 anos.",
-          paragraphs: [
-            "A técnica 'Enxaimel' (Fachwerk) empregada na Casa Rux utiliza esteios verticais e travessas horizontais de madeira maciça, travadas por encaixes do tipo espiga e mecha e cavilhas de madeira.",
-            "No modelo 3D ao lado, gire a estrutura para ver a ausência de pregos metálicos na ossatura principal, o que permitia flexibilidade e durabilidade secular à construção."
-          ],
-          didYouKnow: "A Casa Rux preserva telhas artesanais em estilo escama de peixe e tijolos maciços feitos nas olarias que operavam às margens do Rio da Luz no início do século XX!",
-          sketchfabUid: "4dfa4c7cd83b4a96bf8a9da13017f79c",
-          embedUrl: "https://sketchfab.com/models/4dfa4c7cd83b4a96bf8a9da13017f79c/embed?autostart=1&ui_infos=0",
-          externalLink: "https://sketchfab.com/3d-models/estrutura-casa-enxaimel-fachwerkhaus-4dfa4c7cd83b4a96bf8a9da13017f79c",
-          author3D: "Jacksteel Engenharia (Sketchfab)",
-          fallback3DType: "rio_da_luz_valley"
-        },
-
         // Informação Histórica da Casa Rux
         {
           id: "hs_rux_info",
@@ -354,11 +332,14 @@ window.TOUR_SC_DATA = {
             "A propriedade funciona hoje como museu e espaço de turismo rural, mantendo viva a memória das famílias pioneiras do Vale do Rio da Luz."
           ],
           didYouKnow: "A família Rux mantinha pomar, criação de animais e engenho de farinha na própria propriedade, sendo auto-suficiente na vida colonial de 1915.",
-          image: "assets/fotos/riodaluz/p1_casa_rux.jpg",
-          imageAnnotations: [
-            { label: "Fachada Enxaimel Original (1915)", x: 28, y: 34, arrowDir: "down" },
-            { label: "Ponto [1] na Entrada do Rio da Luz", x: 74, y: 66, arrowDir: "down" }
-          ]
+          image: "assets/fotos/riodaluz/casa_rux_aquarela.png",
+          showcaseCard: {
+            badge: "Patrimônio Tombado IPHAN • Construção Enxaimel de 1915",
+            address: "R. Erwin Rux, 663 • Rio da Luz, Jaraguá do Sul - SC",
+            caption: "Aquarela oficial da Rota Lumiar — Ponto [1] Casa Rux",
+            realPhoto: "assets/fotos/riodaluz/static_casa_rux.jpg"
+          },
+          imageAnnotations: []
         }
       ]
     },
