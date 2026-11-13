@@ -276,7 +276,9 @@
     // Carrega imagem 360° customizada (se o usuário subiu uma foto) ou gera o panorama 360° georreferenciado
     if (scene.customPanoramaUrl) {
       const img = new Image();
-      img.crossOrigin = "anonymous";
+      if (location.protocol !== "file:") {
+        img.crossOrigin = "anonymous";
+      }
       img.onload = () => uploadTextureSource(img);
       img.onerror = () => {
         const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
