@@ -1336,34 +1336,51 @@
     let startPanX = 0;
     let startPanY = 0;
     const MIN_ZOOM = 1;
-    const MAX_ZOOM = 4;
+    const MAX_ZOOM = 5;
 
-    function clampPan() {
-      const rect = mapBox.getBoundingClientRect();
-      const stage = document.getElementById("rdlZoomStage");
-      if (!rect.width || !stage) return;
-      const stageW = stage.offsetWidth * zoomScale;
-      const stageH = stage.offsetHeight * zoomScale;
-      const minX = Math.min(0, rect.width - stageW);
-      const minY = Math.min(0, rect.height - stageH);
-      panX = Math.max(minX, Math.min(0, panX));
-      panY = Math.max(minY, Math.min(0, panY));
+    function getMapAspectRatio(stage) {
+      const img = stage ? stage.querySelector("img") : null;
+      if (img && img.naturalWidth > 0 && img.naturalHeight > 0) {
+        return img.naturalHeight / img.naturalWidth;
+      }
+      return 4525 / 3200;
     }
 
     function applyZoomTransform() {
-      if (zoomScale <= 1.001) {
+      const stage = document.getElementById("rdlZoomStage");
+      if (!stage) return;
+
+      const boxW = mapBox.clientWidth;
+      const ratio = getMapAspectRatio(stage);
+
+      if (zoomScale <= 1.001 || !boxW) {
         zoomScale = 1;
         panX = 0;
         panY = 0;
+        mapBox.style.height = "";
+        stage.style.position = "relative";
+        stage.style.left = "";
+        stage.style.top = "";
+        stage.style.width = "100%";
+        stage.style.transform = "translate3d(0px, 0px, 0px)";
       } else {
-        clampPan();
+        const boxH = Math.round(boxW * ratio);
+        const stageW = boxW * zoomScale;
+        const stageH = stageW * ratio;
+        mapBox.style.height = `${boxH}px`;
+
+        const minX = Math.min(0, boxW - stageW);
+        const minY = Math.min(0, boxH - stageH);
+        panX = Math.max(minX, Math.min(0, panX));
+        panY = Math.max(minY, Math.min(0, panY));
+
+        stage.style.position = "absolute";
+        stage.style.left = "0px";
+        stage.style.top = "0px";
+        stage.style.width = `${stageW.toFixed(1)}px`;
+        stage.style.transform = `translate3d(${panX.toFixed(1)}px, ${panY.toFixed(1)}px, 0)`;
       }
-      const stage = document.getElementById("rdlZoomStage");
-      if (stage) {
-        stage.style.transform = `translate(${panX.toFixed(1)}px, ${panY.toFixed(1)}px) scale(${zoomScale.toFixed(3)})`;
-        const inv = Math.max(0.42, 1 / Math.pow(zoomScale, 0.65));
-        stage.style.setProperty("--rdl-pin-inv", inv.toFixed(3));
-      }
+
       mapBox.classList.toggle("is-zoomed", zoomScale > 1.01);
       if (zoomLabel) zoomLabel.textContent = `${Math.round(zoomScale * 100)}%`;
     }
@@ -1376,8 +1393,9 @@
         applyZoomTransform();
         return;
       }
+      const prevH = rect.height || Math.round(rect.width * getMapAspectRatio(document.getElementById("rdlZoomStage")));
       const fx = typeof focusClientX === "number" ? (focusClientX - rect.left) : (rect.width / 2);
-      const fy = typeof focusClientY === "number" ? (focusClientY - rect.top) : (rect.height / 2);
+      const fy = typeof focusClientY === "number" ? (focusClientY - rect.top) : (prevH / 2);
       const imgX = (fx - panX) / zoomScale;
       const imgY = (fy - panY) / zoomScale;
       zoomScale = clamped;
