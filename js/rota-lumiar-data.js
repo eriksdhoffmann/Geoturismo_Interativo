@@ -1,0 +1,450 @@
+/**
+ * ============================================================================
+ * MAPA CULTURAL TURÍSTICO — ROTA LUMIAR (RIO DA LUZ E TESTO ALTO)
+ * Todos os 26 pontos oficiais com descrição, atendimento, endereço, contato e links.
+ * ============================================================================
+ */
+window.ROTA_LUMIAR_DATA = {
+  title: "Mapa Cultural Turístico — Rota Lumiar (Rio da Luz e Testo Alto)",
+  mapImage: "assets/fotos/mapa_rota_lumiar.jpg",
+  legendImage: "assets/fotos/mapa_rota_lumiar_info.jpg",
+  introText:
+    "Percorrer Rio da Luz e Testo Alto é descobrir suas \"tifas\", admirar a geometria das construções e saber das vivências de seus habitantes. Este mapa cultural turístico é resultado do caminho trilhado pelas pesquisadoras do Projeto Lumiar entre 2018 e 2020, e integra o Programa de Gestão aos Bens Culturais Tombados, Valorados e Registrados na Área de Implantação da Linha de Transmissão 525 kV Blumenau–Curitiba Leste.",
+  credits: "Projeto Lumiar • IPHAN • COPEL • Governo do Paraná • Espaço Arqueologia • Ilustrações: Gabriela Luft",
+  points: [
+    {
+      num: 1,
+      id: "rl_01_casa_rux",
+      name: "Casa Rux",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 63.6,
+      y: 19.3,
+      description:
+        "A casa enxaimel da família Rux, construída em 1915, vende produtos coloniais, expõe objetos antigos, além de oferecer café rural e passeio de Tobata pela ampla propriedade.",
+      atendimento: "Sábados e domingos a partir das 15h. Demais dias, mediante agendamento",
+      endereco: "R. Erwin Rux, 663 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 3371-8364 (Evandro ou Andressa)",
+      contatoLabel: "facebook.com/casarux",
+      contatoUrl: "https://www.facebook.com/casarux",
+      googleQuery: "-26.53617,-49.14234",
+      sceneId: "casa_rux_05"
+    },
+    {
+      num: 2,
+      id: "rl_02_schroeder_platz",
+      name: "Schroeder Platz",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 58.3,
+      y: 19.7,
+      description:
+        "Neste ambiente familiar, Angela e a mãe, Astrit, servem quitutes da região em cardápio variado. Almoço e farto café colonial com cucas, pães e biscoitos, além das noites de sopa.",
+      atendimento: "Sábados à tarde. Domingos das 11h30 às 14h. Consulte programação!",
+      endereco: "R. Eurico Duwe, 1194 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 99955-6934 (Angela)",
+      contatoLabel: "facebook.com/schroeder.platz",
+      contatoUrl: "https://www.facebook.com/schroeder.platz",
+      googleQuery: "-26.5384678,-49.1486893",
+      sceneId: "schroeder_platz_03"
+    },
+    {
+      num: 3,
+      id: "rl_03_berghaus",
+      name: "Berghaus",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 60.8,
+      y: 21.6,
+      description:
+        "Ponto de recepção turística, onde é possível obter orientações sobre os atrativos da região e passeios pelas tifas da comunidade.",
+      atendimento: "Mediante agendamento",
+      endereco: "R. Erwin Rux, 1579 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 99638-7414 (Rafael) ou (47) 99739-1532 (Graciele)",
+      googleQuery: "R. Erwin Rux, 1579 - Rio da Luz, Jaraguá do Sul - SC"
+    },
+    {
+      num: 4,
+      id: "rl_04_gielead_siewerdt",
+      name: "Gielead Siewerdt – Meias e Polainas",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 55.8,
+      y: 22.4,
+      description:
+        "As meias e polainas feitas por dona Gielead são habilidosamente tecidas em diferentes tramas, pontos e cores, e compõem os trajes típicos usados nas festas da região.",
+      atendimento: "Mediante agendamento",
+      endereco: "R. Eurico Duwe, 2478 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 99628-2699 (Gielead)",
+      googleQuery: "R. Eurico Duwe, 2478 - Rio da Luz, Jaraguá do Sul - SC"
+    },
+    {
+      num: 5,
+      id: "rl_05_salao_barg",
+      name: "Salão Barg",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 53.5,
+      y: 22.8,
+      description:
+        "Fundada em 1915, a associação do Salão Barg recebe as tradicionais Festas de Rei e Rainha, competições de tiro, além de almoço típico, noite de sopas, jantar dançante, grupos folclóricos, peças de teatro, entre outros.",
+      atendimento: "Consulte o calendário de eventos",
+      endereco: "R. Eurico Duwe, 1709 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 3376-2860 (Anderson)",
+      contatoLabel: "facebook.com/Ass-Rec-Cult-Rio-da-Luz-Salão-Barg-1938011263099645",
+      contatoUrl: "https://www.facebook.com/Ass-Rec-Cult-Rio-da-Luz-Sal%C3%A3o-Barg-1938011263099645",
+      email: "salaobarg@gmail.com",
+      googleQuery: "Salão Barg R. Eurico Duwe, 1709 Rio da Luz Jaraguá do Sul"
+    },
+    {
+      num: 6,
+      id: "rl_06_pesque_alcir",
+      name: "Pesque-Pague do Alcir",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 51.3,
+      y: 24.4,
+      description:
+        "O estabelecimento de Alcir Rahn faz sucesso na região há seis anos. Oferece deliciosa comida e espaço amplo com excelente estrutura para receber adultos e crianças.",
+      atendimento:
+        "Pesca: Sextas-feiras das 13h30 às 17h30. Restaurante: Quintas e sextas-feiras das 18h30 às 22h; sábados das 9h às 22h; e domingos das 9h às 15h",
+      endereco: "R. Eurico Duwe, 3230 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 3376-0465 (Alcir)",
+      contatoLabel: "facebook.com/pesquepaguealcir",
+      contatoUrl: "https://www.facebook.com/pesquepaguealcir",
+      googleQuery: "Pesque-Pague do Alcir R. Eurico Duwe, 3230 Jaraguá do Sul"
+    },
+    {
+      num: 7,
+      id: "rl_07_recanto_amigos",
+      name: "Pesque-Pague Recanto dos Amigos",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 57.3,
+      y: 26.8,
+      description:
+        "A bela e ampla propriedade familiar conta com restaurante, salão de festas e espaço equipado para camping, além dos açudes para pesca esportiva.",
+      atendimento:
+        "Quintas e sextas-feiras das 18h às 22h e nos sábados das 9h às 22h. Domingos das 9h às 19h",
+      endereco: "R. Ricardo Fritzke, 1580 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 99956-0016 (Rosimar)",
+      contatoLabel: "facebook.com/Pesqueepaguedobele",
+      contatoUrl: "https://www.facebook.com/Pesqueepaguedobele",
+      googleQuery: "Pesque-Pague Recanto dos Amigos R. Ricardo Fritzke, 1580 Jaraguá do Sul"
+    },
+    {
+      num: 8,
+      id: "rl_08_sociedade_guarany",
+      name: "Sociedade Guarany",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 50.2,
+      y: 33.4,
+      description:
+        "Inaugurado em 1975, o salão é palco de Festas de Rei e Rainha, casamentos, confirmações e outros encontros que integram a comunidade do Rio da Luz. A Sociedade Guarany participa da competição municipal de atiradores.",
+      atendimento: "Consulte o calendário de eventos",
+      endereco: "Est. Rio da Luz, s/nº – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 99971-2567 (Nilson)",
+      contatoLabel: "facebook.com/Sociedade-Guarany-Rio-da-Luz-304988603500786",
+      contatoUrl: "https://www.facebook.com/Sociedade-Guarany-Rio-da-Luz-304988603500786",
+      googleQuery: "Sociedade Guarany Rio da Luz Jaraguá do Sul"
+    },
+    {
+      num: 9,
+      id: "rl_09_garten_fluss",
+      name: "Garten Fluss",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 47.6,
+      y: 34.3,
+      description:
+        "O famoso espaço de eventos remete às construções tradicionais da região. Suas paredes envidraçadas permitem a integração entre o visitante e a paisagem local.",
+      atendimento: "Mediante agendamento",
+      endereco: "R. Eurico Duwe, 8386 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 99917-6542 (Tatiane)",
+      contatoLabel: "facebook.com/gartenfluss",
+      contatoUrl: "https://www.facebook.com/gartenfluss",
+      googleQuery: "Garten Fluss R. Eurico Duwe, 8386 Jaraguá do Sul"
+    },
+    {
+      num: 10,
+      id: "rl_10_sociedade_centenario",
+      name: "Sociedade Centenário",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 46.8,
+      y: 35.6,
+      description:
+        "O salão da Sociedade Centenário, fundada em 1976, recebe celebrações como as tradicionais Festa do Colono, Festa do Chopp e Festas de Rei e Rainha. Entre em contato e participe dos eventos!",
+      atendimento: "Consulte o calendário de eventos",
+      endereco: "R. Eurico Duwe, 6755 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 99928-5991 (Johny)",
+      contatoLabel: "facebook.com/FestaEstadualdoColono",
+      contatoUrl: "https://www.facebook.com/FestaEstadualdoColono",
+      googleQuery: "Sociedade Centenário R. Eurico Duwe, 6755 Jaraguá do Sul"
+    },
+    {
+      num: 11,
+      id: "rl_11_tradicao_vale",
+      name: "Tradição do Vale",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 38.6,
+      y: 40.5,
+      description:
+        "Nos fins de semana, a família Lemke aceita reservas para almoço típico e eventos particulares. Espaço amplo, aconchegante e em estilo rústico.",
+      atendimento: "Mediante agendamento",
+      endereco: "Rod. Mun. JGS-503 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 99944-6508 (Nilson)",
+      googleQuery: "Tradição do Vale Rod. Mun. JGS-503 Rio da Luz Jaraguá do Sul"
+    },
+    {
+      num: 12,
+      id: "rl_12_cantinho_montanha",
+      name: "Cantinho na Montanha",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 32.8,
+      y: 43.3,
+      description:
+        "Construída na década de 1930, a pousada é inspirada na arquitetura da região. Atende famílias e tem atrativos como criação de animais diversos e deslumbrante paisagem.",
+      atendimento: "Mediante reserva",
+      endereco: "Tifa Macuco Pequeno (JGS-491), 5675 – Rio da Luz Vitória, Jaraguá do Sul",
+      telefone: "(47) 99263-9677 (Denis)",
+      googleQuery: "Cantinho na Montanha JGS-491, 5675 Jaraguá do Sul"
+    },
+    {
+      num: 13,
+      id: "rl_13_salao_vitoria",
+      name: "Salão Vitória",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 39.2,
+      y: 44.3,
+      description:
+        "Sede de eventos como festas de Rei e Rainha, Baile de Chopp, Encontro dos Carroceiros e Trabalhadores Rurais, casamento, confirmação e aniversário. O salão integra as sociedades que participam da competição municipal de atiradores.",
+      atendimento: "Consulte o calendário de eventos",
+      endereco: "Rod. Mun. JGS-489 – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 99673-3638 (Sido)",
+      contatoLabel: "facebook.com/pages/Soc-Rec-Vitória-Rio-da-Luz/233733776828695",
+      contatoUrl: "https://www.facebook.com/pages/Soc-Rec-Vit%C3%B3ria-Rio-da-Luz/233733776828695",
+      googleQuery: "Salão Vitória JGS-489 Rio da Luz Jaraguá do Sul"
+    },
+    {
+      num: 14,
+      id: "rl_14_mirante_vale",
+      name: "Mirante do Vale",
+      region: "Rio da Luz • Jaraguá do Sul",
+      regionKey: "rio_da_luz",
+      x: 30.8,
+      y: 46.2,
+      description:
+        "Lugar surpreendente! Voltado para a deslumbrante vista do Vale do Rio da Luz, o mirante apresenta uma estrutura aconchegante para confraternizações. Acesso de veículos 4x4.",
+      atendimento: "Mediante agendamento",
+      endereco: "Tifa Macuco Pequeno – Rio da Luz, Jaraguá do Sul",
+      telefone: "(47) 99607-2795 (Gilberto)",
+      googleQuery: "Mirante do Vale Tifa Macuco Pequeno Rio da Luz Jaraguá do Sul"
+    },
+    {
+      num: 15,
+      id: "rl_15_casa_siewert",
+      name: "Casa Siewert",
+      region: "Testo Alto • Pomerode",
+      regionKey: "testo_alto",
+      x: 37.3,
+      y: 63.8,
+      description:
+        "Faça uma visita à morada da família Siewert e conheça o sistema construtivo enxaimel e o modo de vida dos primeiros imigrantes. No local, há também a venda de produtos coloniais regionais.",
+      atendimento: "Visitas guiadas todos os dias das 9h às 11h30. De segunda a sábado das 13h às 17h",
+      endereco: "R. Testo Alto, 8253 – Testo Alto, Pomerode",
+      telefone: "(47) 99683-7043 ou 3387-3383 (Rogério ou Adriana)",
+      contatoLabel: "facebook.com/casasiewert",
+      contatoUrl: "https://www.facebook.com/casasiewert",
+      googleQuery: "Casa Siewert R. Testo Alto Pomerode SC"
+    },
+    {
+      num: 16,
+      id: "rl_16_trilha_natureza",
+      name: "Trilha da Natureza",
+      region: "Testo Alto • Pomerode",
+      regionKey: "testo_alto",
+      x: 36.4,
+      y: 66.2,
+      description:
+        "No coração da Mata Atlântica, 1,5 km de percurso preservado com riqueza de flora e fauna, rios, cachoeiras com água cristalina e um balanço com vista panorâmica. Ao final do trajeto, descubra o espaço ideal para desfrutar de um delicioso piquenique.",
+      atendimento: "Mediante agendamento",
+      endereco: "R. Hermann Lieckfeld – Testo Alto, Pomerode",
+      telefone: "(47) 99286-0173 (Jairo) ou (47) 99150-0003 (Ronald)",
+      contatoLabel: "facebook.com/trilhadanaturezasc",
+      contatoUrl: "https://www.facebook.com/trilhadanaturezasc",
+      googleQuery: "Trilha da Natureza Testo Alto Pomerode SC"
+    },
+    {
+      num: 17,
+      id: "rl_17_clube_15_novembro",
+      name: "Clube 15 de Novembro",
+      region: "Testo Alto • Pomerode",
+      regionKey: "testo_alto",
+      x: 39.0,
+      y: 70.1,
+      description:
+        "Fundado em 1966, o Clube Cultural Caça e Tiro 15 de Novembro é um importante espaço social para a comunidade. Realiza as tradicionais Festas de Rei e Rainha e Baile de Chopp, além de festas de casamento, confirmações e aniversários.",
+      atendimento: "Consulte o calendário de eventos",
+      endereco: "R. Testo Alto, 6400 – Testo Alto, Pomerode",
+      telefone: "(47) 99655-8993 (Adir)",
+      contatoLabel: "facebook.com/Clube-CCT-XV-De-Novembro-1434693560134562",
+      contatoUrl: "https://www.facebook.com/Clube-CCT-XV-De-Novembro-1434693560134562",
+      googleQuery: "Clube 15 de Novembro R. Testo Alto, 6400 Pomerode SC"
+    },
+    {
+      num: 18,
+      id: "rl_18_nugali_chocolates",
+      name: "Nugali Chocolates",
+      region: "Testo Alto • Pomerode",
+      regionKey: "testo_alto",
+      x: 41.8,
+      y: 75.7,
+      description:
+        "Fábrica de chocolates premiada internacionalmente. Fundada em 2004, em 2019 teve a produção deslocada para o Testo Alto. Trabalha com cacaus brasileiros de alta qualidade e possui uma linha com cerca de 40 produtos.",
+      atendimento:
+        "De segunda a sexta, das 8h30 às 19h; sábados, das 9h às 18h; domingos e feriados, das 10h às 18h",
+      endereco: "R. Testo Alto, 4848 – Testo Alto, Pomerode",
+      telefone: "(47) 3387-5294",
+      contatoLabel: "www.nugali.com.br",
+      contatoUrl: "https://www.nugali.com.br",
+      googleQuery: "Nugali Chocolates R. Testo Alto, 4848 Pomerode SC"
+    },
+    {
+      num: 19,
+      id: "rl_19_multidoces",
+      name: "MultiDoces",
+      region: "Testo Alto • Pomerode",
+      regionKey: "testo_alto",
+      x: 49.5,
+      y: 80.3,
+      description:
+        "Com ampla variedade de produtos, como biscoitos e quitutes caseiros, a fábrica mescla receitas familiares com referências contemporâneas.",
+      atendimento: "Todos os dias, das 8h às 20h",
+      endereco: "R. Carlos Belz, 688 – Testo Alto, Pomerode",
+      telefone: "(47) 99146-6541 (Luzinete)",
+      contatoLabel: "facebook.com/multidoces88",
+      contatoUrl: "https://www.facebook.com/multidoces88",
+      googleQuery: "MultiDoces R. Carlos Belz, 688 Pomerode SC"
+    },
+    {
+      num: 20,
+      id: "rl_20_clube_belz",
+      name: "Clube Belz",
+      region: "Testo Alto • Pomerode",
+      regionKey: "testo_alto",
+      x: 47.5,
+      y: 81.4,
+      description:
+        "O antigo Clube Belz, fundado em 1929, é hoje o Clube de Caça e Tiro Alto Rio do Testo. Em nova sede, recebe eventos culturais promovidos pela comunidade, como as Festas de Rei e Rainha.",
+      atendimento: "Consulte o calendário de eventos",
+      endereco: "R. Carlos Belz, 1401 – Testo Alto, Pomerode",
+      telefone: "(47) 99170-0035 (Marcelo)",
+      googleQuery: "Clube Belz R. Carlos Belz, 1401 Pomerode SC"
+    },
+    {
+      num: 21,
+      id: "rl_21_casa_wachholz",
+      name: "Pousada Casa Wachholz",
+      region: "Testo Alto • Pomerode",
+      regionKey: "testo_alto",
+      x: 44.6,
+      y: 83.2,
+      description:
+        "Hoje pousada, a casa em sistema enxaimel da família Wachholz foi construída em 1867, pelo imigrante Albert Christian Johann Wachholz. Faça sua reserva e permita-se viajar no tempo com sua família ou amigos.",
+      atendimento: "Mediante reserva",
+      endereco: "R. Progresso, 2320 – Testo Alto, Pomerode",
+      telefone: "(47) 99178-8440 ou 3387-3493 (Simoni)",
+      contatoLabel: "pousadacasawachholz.com.br",
+      contatoUrl: "https://pousadacasawachholz.com.br",
+      googleQuery: "Pousada Casa Wachholz R. Progresso, 2320 Pomerode SC"
+    },
+    {
+      num: 22,
+      id: "rl_22_pousada_hetterich",
+      name: "Pousada Hetterich",
+      region: "Testo Alto • Pomerode",
+      regionKey: "testo_alto",
+      x: 43.9,
+      y: 85.1,
+      description:
+        "Ambiente bucólico com estrutura rústica e confortável, no tradicional estilo teuto-brasileiro. E ainda oferece passeio numa antiga bicicleta cheia de histórias.",
+      atendimento: "Mediante reserva",
+      endereco: "R. Progresso, 2067 – Testo Alto, Pomerode",
+      telefone: "(47) 99953-3499 (Mirco)",
+      contatoLabel: "www.pousadahetterich.com.br",
+      contatoUrl: "https://www.pousadahetterich.com.br",
+      googleQuery: "Pousada Hetterich R. Progresso, 2067 Pomerode SC"
+    },
+    {
+      num: 23,
+      id: "rl_23_currywurst",
+      name: "Choperia e Restaurante Currywurst",
+      region: "Testo Alto • Pomerode",
+      regionKey: "testo_alto",
+      x: 46.1,
+      y: 86.7,
+      description:
+        "Experimente deliciosos pratos típicos, lanches, chopes e cervejas artesanais da casa em ambiente rústico e confortável.",
+      atendimento: "Das terças às sextas-feiras das 16h às 22h; sábados das 11h às 23h; e domingos das 11h às 21h",
+      endereco: "R. Testo Alto, 2065 – Testo Alto, Pomerode",
+      telefone: "(47) 99214-9933 (Guiomar)",
+      contatoLabel: "facebook.com/Currywurstpomerode",
+      contatoUrl: "https://www.facebook.com/Currywurstpomerode",
+      googleQuery: "Currywurst R. Testo Alto, 2065 Pomerode SC"
+    },
+    {
+      num: 24,
+      id: "rl_24_delicaten_haus",
+      name: "Delicaten Haus",
+      region: "Testo Alto • Pomerode",
+      regionKey: "testo_alto",
+      x: 48.2,
+      y: 86.5,
+      description:
+        "A bela casa enxaimel, construída em meados da década de 1890, serve de cenário para o comércio de cucas e biscoitos artesanais feitos pela senhora Elia e suas filhas.",
+      atendimento: "Todos os dias, das 9h às 17h",
+      endereco: "R. Testo Alto, 2098 – Testo Alto, Pomerode",
+      telefone: "(47) 99258-1277 (Bruna, Regiane ou Elia)",
+      contatoLabel: "facebook.com/delicatenhaus",
+      contatoUrl: "https://www.facebook.com/delicatenhaus",
+      googleQuery: "Delicaten Haus R. Testo Alto, 2098 Pomerode SC"
+    },
+    {
+      num: 25,
+      id: "rl_25_feira_produtor",
+      name: "Feira do Produtor Rural",
+      region: "Rega Três • Pomerode",
+      regionKey: "testo_alto",
+      x: 50.9,
+      y: 87.8,
+      description:
+        "A feira livre ocorre aos sábados pela manhã na Casa do Agricultor. A edificação em sistema enxaimel foi construída no fim do século XIX e abrigou a filial do comércio Weege.",
+      atendimento: "Sábados das 7h30 às 12h",
+      endereco: "R. Pres. Costa e Silva, 658 – Rega Três, Pomerode",
+      telefone: "(47) 99184-2742 (Sirio)",
+      googleQuery: "Feira do Produtor Rural R. Pres. Costa e Silva, 658 Pomerode SC"
+    },
+    {
+      num: 26,
+      id: "rl_26_pomerode_jeep_tour",
+      name: "Pomerode Jeep Tour",
+      region: "Centro • Pomerode",
+      regionKey: "testo_alto",
+      x: 30.5,
+      y: 96.4,
+      description:
+        "Na companhia do guia de turismo e turismólogo Ronald Kreidel, conheça a cultura, história, tradição e as belezas naturais da região a bordo do \"Bruttus\" e do \"Xokleng\".",
+      atendimento: "Mediante agendamento",
+      endereco: "R. XV de Novembro, 818, Praça Jorge Lacerda – Centro, Pomerode",
+      telefone: "(47) 99150-0003 ou 3387-4123 (Ronald)",
+      contatoLabel: "www.pomerodejeeptour.com.br",
+      contatoUrl: "https://www.pomerodejeeptour.com.br",
+      googleQuery: "Pomerode Jeep Tour Praça Jorge Lacerda Pomerode SC"
+    }
+  ]
+};

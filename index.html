@@ -56,7 +56,7 @@
     <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
       <button type="button" onclick="document.getElementById('btnOpenRioDaLuzMap').click()"
         style="padding:5px 10px; border-radius:6px; border:1px solid #c084fc; background:rgba(107,76,140,0.85); color:#fff; font-size:11px; font-weight:700; cursor:pointer;">
-        🗺️ Mapa Rio da Luz (Pontos 1 a 13)
+        🗺️ Mapa Turístico Rota Lumiar (1 a 26)
       </button>
       <a href="tour_sc_inicial.html"
         style="padding:5px 10px; border-radius:6px; border:1px solid rgba(56,189,248,0.6); background:rgba(3,105,161,0.75); color:#fff; font-size:11px; font-weight:700; text-decoration:none;">
@@ -75,8 +75,8 @@
     <button type="button" id="btnToggleAa" class="dock-btn active" title="Mostrar/Ocultar Rótulos Geográficos 3D na Paisagem (Aa)">
       Aa
     </button>
-    <button type="button" id="btnOpenRioDaLuzMap" class="dock-btn dock-btn-creator" style="background: linear-gradient(135deg, #6b4c8c, #4c3366);" title="Abrir Mapa Ilustrado 'Bem-vindo ao Rio da Luz' com todos os Pontos 1 a 13, Igrejas, Clubes de Tiro e Montanha!">
-      🗺️ Mapa Rio da Luz (1 a 13)
+    <button type="button" id="btnOpenRioDaLuzMap" class="dock-btn dock-btn-creator" style="background: linear-gradient(135deg, #6b4c8c, #4c3366);" title="Abrir Mapa Cultural Turístico Rota Lumiar (Rio da Luz e Testo Alto - Pontos 1 a 26)!">
+      🗺️ Mapa Rota Lumiar (1 a 26)
     </button>
     <button type="button" id="btnOpenScenesGrid" class="dock-btn" title="Índice Geral de Panoramas 360° (Rio da Luz + Tour SC Inicial)">
       ▦
@@ -200,22 +200,32 @@
   </div>
 
   <!-- ========================================================================
-       8B. MODAL: MAPA ILUSTRADO INTERATIVO "BEM-VINDO AO RIO DA LUZ"
+       8B. MODAL: MAPA CULTURAL TURÍSTICO — ROTA LUMIAR (PONTOS 1 A 26)
        ======================================================================== -->
   <div id="rdlIllustratedModal" class="aux-drawer-modal ui-layer">
-    <div class="aux-modal-card" style="width: min(1120px, 95vw);">
+    <div class="aux-modal-card" style="width: min(1220px, 96vw);">
       <div class="aux-modal-header">
-        <h3>🗺️ Mapa Oficial Interativo: "Bem-vindo ao Rio da Luz" (Jaraguá do Sul ↔ Pomerode)</h3>
+        <h3>🗺️ Mapa Cultural Turístico — Rota Lumiar (Rio da Luz e Testo Alto • Pontos 1 a 26)</h3>
         <button type="button" class="aux-close-btn" data-close-drawer="rdlIllustratedModal">✕</button>
       </div>
       <div class="aux-modal-body">
-        <p style="margin-bottom: 14px; font-size: 13.5px; color: #cbd5e1;">
-          Clique em qualquer <strong>ponto numerado (1 a 13)</strong>, <strong>Igreja (⛪)</strong>, <strong>Clube de Tiro (⚔️)</strong> ou <strong>Montanha (⛰️)</strong> diretamente no mapa ilustrado à esquerda ou no índice completo à direita para girar a foto 360° até o local e abrir sua história e explicação!
-        </p>
+        <p id="rdlIntroLead" style="margin-bottom: 12px; font-size: 13px; color: #cbd5e1; line-height: 1.5;"></p>
         <div class="rdl-illustrated-layout">
-          <div id="rdlInteractiveMapBox" class="rdl-map-canvas-box"></div>
-          <div>
-            <h4 style="color:#c084fc; margin-bottom:10px; font-size:14.5px;">📋 Todos os 21 Atrativos do Mapa Explicados:</h4>
+          <div class="rdl-map-left-col">
+            <div class="rdl-map-mode-bar">
+              <button type="button" id="btnRdlViewFront" class="rdl-mode-btn active">🗺️ Mapa Ilustrado (Pinos 1–26)</button>
+              <button type="button" id="btnRdlViewBack" class="rdl-mode-btn">📄 Guia Oficial (Verso)</button>
+            </div>
+            <div id="rdlInteractiveMapBox" class="rdl-map-canvas-box"></div>
+            <div id="rdlCreditsFooter" class="rdl-credits-line"></div>
+          </div>
+          <div class="rdl-right-col">
+            <div class="rdl-filter-bar" id="rdlRegionFilterBar">
+              <button type="button" class="rdl-filter-chip active" data-region="all">Todos (26)</button>
+              <button type="button" class="rdl-filter-chip" data-region="rio_da_luz">Rio da Luz • Jaraguá do Sul (1–14)</button>
+              <button type="button" class="rdl-filter-chip" data-region="testo_alto">Testo Alto • Pomerode (15–26)</button>
+            </div>
+            <div id="rdlPointDetailBox" class="rdl-point-detail-box"></div>
             <div id="rdlInteractiveListBox" class="rdl-points-list-grid"></div>
           </div>
         </div>
@@ -224,16 +234,25 @@
   </div>
 
   <!-- ========================================================================
-       9. MODAL: MAPA INTERATIVO DE SANTA CATARINA (LEAFLET)
+       9. MODAL: MAPA GOOGLE SATÉLITE GEORREFERENCIADO (CASA RUX & SCHROEDER PLATZ)
        ======================================================================== -->
   <div id="scMapModal" class="aux-drawer-modal ui-layer">
-    <div class="aux-modal-card">
+    <div class="aux-modal-card" style="width: min(1040px, 95vw);">
       <div class="aux-modal-header">
-        <h3>📍 Mapa Georreferenciado dos Panoramas 360° em Santa Catarina</h3>
+        <h3>🛰️ Google Satélite Georreferenciado — Casa Rux &amp; Schroeder Platz</h3>
         <button type="button" class="aux-close-btn" data-close-drawer="scMapModal">✕</button>
       </div>
-      <div class="aux-modal-body" style="padding: 0; height: 520px;">
-        <div id="leafletSCMap" style="width: 100%; height: 100%;"></div>
+      <div class="aux-modal-body" style="padding: 0; display: flex; flex-direction: column; height: 560px;">
+        <div id="scMapQuickBar" class="sc-map-quick-bar">
+          <button type="button" id="btnFocusValeBounds" class="sc-quick-btn">🎯 Focar Vale (Casa Rux &amp; Schroeder)</button>
+          <a href="https://www.google.com/maps/search/?api=1&query=-26.53617,-49.14234" target="_blank" rel="noopener noreferrer" class="sc-quick-btn sc-quick-gmaps">
+            🏠 Casa Rux no Google Maps ↗
+          </a>
+          <a href="https://www.google.com/maps/search/?api=1&query=-26.5384678,-49.1486893" target="_blank" rel="noopener noreferrer" class="sc-quick-btn sc-quick-gmaps">
+            🏡 Schroeder Platz no Google Maps ↗
+          </a>
+        </div>
+        <div id="leafletSCMap" style="width: 100%; flex: 1; min-height: 440px;"></div>
       </div>
     </div>
   </div>
@@ -287,9 +306,36 @@
        ======================================================================== -->
   <script src="js/drone-panos-b64.js"></script>
   <script src="js/modelo-3d-glb.js"></script>
+  <script src="js/rota-lumiar-data.js"></script>
   <script src="js/dados-sc.js"></script>
   <script src="js/glb-viewer.js"></script>
   <script src="js/panorama-generator.js"></script>
   <script src="js/engine360.js"></script>
+  <script>
+    // Suporte a carregamento direto com visualização ativada via URL (?action=modal3d|map|editor|scmap)
+    window.addEventListener("load", () => {
+      const params = new URLSearchParams(window.location.search);
+      const action = params.get("action");
+      if (!action) return;
+      setTimeout(() => {
+        if (action === "modal3d") {
+          const el = document.querySelector('[data-id="hs_v04_3d_relevo"]');
+          if (el) el.click();
+        } else if (action === "modal_info") {
+          const el = document.querySelector('[data-id="hs_v04_info_vale"]');
+          if (el) el.click();
+        } else if (action === "map") {
+          const btn = document.getElementById("btnOpenRioDaLuzMap");
+          if (btn) btn.click();
+        } else if (action === "editor") {
+          const btn = document.getElementById("btnToggleEditor");
+          if (btn) btn.click();
+        } else if (action === "scmap") {
+          const btn = document.getElementById("btnOpenSCMap");
+          if (btn) btn.click();
+        }
+      }, 1200);
+    });
+  </script>
 </body>
 </html>

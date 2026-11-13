@@ -46,13 +46,8 @@ window.TOUR_SC_DATA = {
     }
   },
 
-  rioDaLuzMapImage: "assets/fotos/mapa_rio_da_luz.jpg",
-  rioDaLuzMapPins: [
-    { id: "hs_v04_to_rux", label: "1", title: "1. Casa Rux (JDS_360_05 e 07)", x: 35.2, y: 77.0, kind: "num", sceneId: "casa_rux_05" },
-    { id: "hs_v04_to_schroeder", label: "2", title: "2. Schroeder Platz (JDS_360_03)", x: 41.0, y: 75.5, kind: "num", sceneId: "schroeder_platz_03" },
-    { id: "hs_v04_base", label: "★", title: "Vista Aérea Principal do Vale (JDS_360_04)", x: 42.5, y: 74.0, kind: "mountain", sceneId: "vale_tombado_04" },
-    { id: "hs_v04_pico_malwee", label: "⛰️", title: "Pico Malwee (550m)", x: 43.0, y: 83.2, kind: "mountain", sceneId: "vale_tombado_04" }
-  ],
+  rioDaLuzMapImage: "assets/fotos/mapa_rota_lumiar.jpg",
+  rioDaLuzMapPins: [],
 
   scenes: {
     // =========================================================================
@@ -68,6 +63,9 @@ window.TOUR_SC_DATA = {
       region: "Paisagem Cultural do Rio da Luz (Tombamento Federal IPHAN)",
       altitude: "280 m (Voo Aéreo Panorâmico Central)",
       coordinates: { lat: -26.538882, lng: -49.149148 },
+      address: "Vale do Rio da Luz – Jaraguá do Sul - SC",
+      googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=-26.538882,-49.149148",
+      googleDirectionsUrl: "https://www.google.com/maps/dir/?api=1&destination=-26.538882,-49.149148",
       initialView: { pitch: -35, yaw: -80, hfov: 105 },
       customPanoramaUrl: "assets/panoramas/drone360/vale_tombado_principal.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_vale_tombado.jpg",
@@ -153,12 +151,10 @@ window.TOUR_SC_DATA = {
             "Essa distribuição garantiu que todos tivessem acesso à água para consumo e animais, terra plana fértil para plantio e madeira na encosta para a construção das casas enxaimel e lenha para os fogões."
           ],
           didYouKnow: "O Rio da Luz abriga a maior densidade de casas autênticas em técnica enxaimel por quilômetro quadrado de Santa Catarina!",
-          image: "assets/fotos/mapa_rio_da_luz.jpg",
-          imageAnnotations: [
-            { label: "Corredor Fluvial do Rio da Luz", x: 48, y: 56, arrowDir: "down" },
-            { label: "Encostas Florestadas da Serra do Mar", x: 78, y: 32, arrowDir: "down" },
-            { label: "Lotes Rurais 'Waldhufendorf'", x: 32, y: 70, arrowDir: "down" }
-          ]
+          image: "assets/fotos/mapa_rota_lumiar.jpg",
+          fitContain: true,
+          ctaOpenRotaLumiar: true,
+          imageAnnotations: []
         }
       ]
     },
@@ -175,7 +171,10 @@ window.TOUR_SC_DATA = {
       municipality: "Jaraguá do Sul — Bairro Rio da Luz",
       region: "Setor Sul do Vale / Ponto [2] do Mapa Oficial",
       altitude: "90 m (Vista Próxima em Frente à Casa do Schroeder Platz)",
-      coordinates: { lat: -26.538334, lng: -49.148799 },
+      coordinates: { lat: -26.5384678, lng: -49.1486893 },
+      address: "R. Eurico Duwe, 1194 – Rio da Luz, Jaraguá do Sul - SC",
+      googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=-26.5384678,-49.1486893",
+      googleDirectionsUrl: "https://www.google.com/maps/dir/?api=1&destination=-26.5384678,-49.1486893",
       initialView: { pitch: 4, yaw: 8, hfov: 95 },
       customPanoramaUrl: "assets/panoramas/drone360/schroeder_platz.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_schroeder_platz.jpg",
@@ -256,7 +255,10 @@ window.TOUR_SC_DATA = {
       municipality: "Jaraguá do Sul — Estrada Margem Direita do Rio da Luz",
       region: "Ponto [1] do Mapa Oficial / Núcleo Histórico IPHAN",
       altitude: "88 m (Plano Médio sobre o Pátio e Fachada Histórica)",
-      coordinates: { lat: -26.536015, lng: -49.142240 },
+      coordinates: { lat: -26.53617, lng: -49.14234 },
+      address: "R. Erwin Rux, 663 – Rio da Luz, Jaraguá do Sul - SC",
+      googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=-26.53617,-49.14234",
+      googleDirectionsUrl: "https://www.google.com/maps/dir/?api=1&destination=-26.53617,-49.14234",
       initialView: { pitch: -14, yaw: 0, hfov: 95 },
       customPanoramaUrl: "assets/panoramas/drone360/casa_rux.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_casa_rux.jpg",
