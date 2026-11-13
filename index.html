@@ -29,9 +29,21 @@
   </main>
 
   <!-- ========================================================================
-       2. BARRA SUPERIOR DE MINIATURAS DAS FOTOS 360° (IGUAL SCREENSHOTS 1 E 4)
+       2. SELETOR ABRE/FECHA DE LUGARES (3 FOTOS ESTÁTICAS CLARAS)
        ======================================================================== -->
-  <nav id="topThumbsBar" class="top-thumbnails-wrapper ui-layer" aria-label="Índice de Panoramas 360 de Santa Catarina"></nav>
+  <div id="placeSelectorShell" class="place-selector-shell ui-layer">
+    <button id="btnTogglePlaceSelector" type="button" class="place-selector-toggle"
+      aria-expanded="false" aria-controls="topThumbsBar"
+      title="Abrir ou fechar lista de lugares para visitar no tour">
+      <span class="pst-pin" aria-hidden="true">📍</span>
+      <span class="pst-texts">
+        <span class="pst-kicker">Selecionar Lugar (3)</span>
+        <strong id="placeSelectorCurrentName">Vale Tombado do Rio da Luz</strong>
+      </span>
+      <span id="placeSelectorToggleHint" class="pst-state-pill">Abrir ▾</span>
+    </button>
+    <nav id="topThumbsBar" class="place-selector-panel" aria-label="Selecionar Lugar no Tour" hidden></nav>
+  </div>
 
   <!-- ========================================================================
        3. HUD DE INFORMAÇÃO DA CENA ATUAL (CANTO SUPERIOR ESQUERDO)
@@ -52,14 +64,6 @@
       </a>
     </div>
   </header>
-
-  <!-- ========================================================================
-       4. FILTRO DE SERVIÇOS ECOSSISTÊMICOS / CATEGORIAS (INFERIOR ESQUERDO)
-       ======================================================================== -->
-  <aside class="bottom-left-ecosystem-bar ui-layer">
-    <div class="eco-bar-title">Serviços ecossistêmicos e categorias aqui:</div>
-    <div id="categoryFilterButtons" class="category-chips-row"></div>
-  </aside>
 
   <!-- ========================================================================
        5. BARRA INFERIOR DE CONTROLES (DOCK CENTRAL - IGUAL SCREENSHOT 1)

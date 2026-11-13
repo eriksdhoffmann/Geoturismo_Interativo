@@ -1029,6 +1029,7 @@
       if (e.key === "Escape") {
         closeSplitModal();
         closeAuxiliaryDrawers();
+        setPlaceSelectorOpen(false);
       }
     });
 
@@ -1038,30 +1039,82 @@
   }
 
   /**
-   * Constrói a Barra Superior de Miniaturas (Idêntica ao topo das Screenshots 1 e 4)
+   * Abre ou fecha o seletor superior de lugares
+   */
+  function setPlaceSelectorOpen(open) {
+    const shell = document.getElementById("placeSelectorShell");
+    const btn = document.getElementById("btnTogglePlaceSelector");
+    const hint = document.getElementById("placeSelectorToggleHint");
+    if (!shell || !topThumbsBar || !btn) return;
+    const isOpen = Boolean(open);
+    shell.classList.toggle("open", isOpen);
+    topThumbsBar.hidden = !isOpen;
+    btn.setAttribute("aria-expanded", String(isOpen));
+    if (hint) hint.textContent = isOpen ? "Fechar ▴" : "Abrir ▾";
+  }
+
+  /**
+   * Constrói o Seletor Abre/Fecha de Lugares com apenas os 3 destinos principais e fotos estáticas claras
    */
   function buildTopThumbnails() {
+    if (!topThumbsBar) return;
     topThumbsBar.innerHTML = "";
-    const scenesList = Object.values(window.TOUR_SC_DATA.scenes).sort((a, b) => a.order - b.order);
+    const scenesList = Object.values(window.TOUR_SC_DATA.scenes)
+      .filter(sc => sc.showInPlaceMenu !== false)
+      .sort((a, b) => a.order - b.order);
 
     scenesList.forEach(sc => {
       const btn = document.createElement("button");
       btn.type = "button";
-      btn.className = "top-thumb-pill";
+      btn.className = "place-card-item";
       btn.dataset.sceneId = sc.id;
+      const imgUrl = sc.staticPhoto || sc.thumbPhoto;
+      const labelTitle = sc.placeMenuTitle || sc.shortTitle;
+      const labelDesc = sc.placeMenuDesc || sc.municipality;
       btn.innerHTML = `
-        <span class="thumb-img-box" style="background-image: url('${sc.thumbPhoto}')"></span>
-        <span class="thumb-pill-tooltip">${sc.order}. ${sc.shortTitle}</span>
+        <span class="place-card-media">
+          <img src="${imgUrl}" alt="${labelTitle}" loading="eager" />
+          <span class="place-card-badge">${sc.order}</span>
+          <span class="place-card-current">Atual</span>
+        </span>
+        <span class="place-card-info">
+          <strong class="place-card-title">${labelTitle}</strong>
+          <small class="place-card-desc">${labelDesc}</small>
+        </span>
       `;
-      btn.addEventListener("click", () => loadScene(sc.id, true));
+      btn.addEventListener("click", () => {
+        setPlaceSelectorOpen(false);
+        loadScene(sc.id, true);
+      });
       topThumbsBar.appendChild(btn);
     });
+
+    const shell = document.getElementById("placeSelectorShell");
+    const toggleBtn = document.getElementById("btnTogglePlaceSelector");
+    if (shell && toggleBtn && !shell.dataset.bound) {
+      shell.dataset.bound = "true";
+      toggleBtn.addEventListener("click", e => {
+        e.stopPropagation();
+        setPlaceSelectorOpen(!shell.classList.contains("open"));
+      });
+      document.addEventListener("click", e => {
+        if (shell.classList.contains("open") && !shell.contains(e.target)) {
+          setPlaceSelectorOpen(false);
+        }
+      });
+    }
+    setPlaceSelectorOpen(false);
   }
 
   function highlightActiveThumbnail(sceneId) {
-    document.querySelectorAll(".top-thumb-pill").forEach(btn => {
+    document.querySelectorAll(".place-card-item").forEach(btn => {
       btn.classList.toggle("active", btn.dataset.sceneId === sceneId);
     });
+    const currentLabel = document.getElementById("placeSelectorCurrentName");
+    const sc = window.TOUR_SC_DATA.scenes[sceneId];
+    if (currentLabel && sc) {
+      currentLabel.textContent = sc.placeMenuTitle || sc.shortTitle || sc.title;
+    }
   }
 
   /**
@@ -1197,6 +1250,7 @@
       const el = document.getElementById(id);
       if (el) el.classList.remove("open");
     });
+    setPlaceSelectorOpen(false);
   }
 
   /**
@@ -1266,17 +1320,19 @@
   function buildScenesGridCards() {
     const grid = document.getElementById("scenesGridContainer");
     if (!grid) return;
-    const scenesList = Object.values(window.TOUR_SC_DATA.scenes).sort((a, b) => a.order - b.order);
+    const scenesList = Object.values(window.TOUR_SC_DATA.scenes)
+      .filter(sc => sc.showInPlaceMenu !== false)
+      .sort((a, b) => a.order - b.order);
     grid.innerHTML = scenesList.map(sc => `
       <div class="scene-grid-card ${sc.id === state.currentSceneId ? 'current' : ''}" data-go-scene="${sc.id}">
-        <div class="sgc-thumb" style="background-image: url('${sc.thumbPhoto}')">
-          <span class="sgc-order">Cena #${sc.order}</span>
+        <div class="sgc-thumb" style="background-image: url('${sc.staticPhoto || sc.thumbPhoto}')">
+          <span class="sgc-order">Lugar #${sc.order}</span>
           <span class="sgc-count">${(sc.hotspots || []).length} pontos clicáveis</span>
         </div>
         <div class="sgc-body">
-          <h4>${sc.title}</h4>
+          <h4>${sc.placeMenuTitle || sc.title}</h4>
           <p class="sgc-muni">📍 ${sc.municipality}</p>
-          <p class="sgc-desc">${sc.ecosystemSummary}</p>
+          <p class="sgc-desc">${sc.placeMenuDesc || sc.ecosystemSummary}</p>
         </div>
       </div>
     `).join("");

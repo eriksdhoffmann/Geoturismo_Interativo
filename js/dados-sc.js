@@ -71,6 +71,10 @@ window.TOUR_SC_DATA = {
       initialView: { pitch: -35, yaw: -80, hfov: 105 },
       customPanoramaUrl: "assets/panoramas/drone360/vale_tombado_principal.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_vale_tombado.jpg",
+      staticPhoto: "assets/fotos/riodaluz/static_vale_tombado.jpg",
+      placeMenuTitle: "Vale Tombado do Rio da Luz",
+      placeMenuDesc: "Vista panorâmica do vale agrícola, rio e montanhas",
+      showInPlaceMenu: true,
       originalRawFile: "Imagem Drone 360/JDS_360_04.jpg",
       ecosystemSummary: "Foto Drone 360° central do Vale do Rio da Luz. Daqui você visualiza as montanhas da Serra do Mar, as várzeas agrícolas e navega diretamente para a Casa do Schroeder Platz e a Casa Rux!",
 
@@ -175,6 +179,10 @@ window.TOUR_SC_DATA = {
       initialView: { pitch: 4, yaw: 8, hfov: 95 },
       customPanoramaUrl: "assets/panoramas/drone360/schroeder_platz.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_schroeder_platz.jpg",
+      staticPhoto: "assets/fotos/riodaluz/static_schroeder_platz.jpg",
+      placeMenuTitle: "Casa do Schroeder Platz",
+      placeMenuDesc: "Fachada histórica, praça e tradição germânica",
+      showInPlaceMenu: true,
       originalRawFile: "Imagem Drone 360/JDS_360_02.jpg",
       ecosystemSummary: "Vista em 360 graus próxima à fachada da Casa do Schroeder Platz (JDS_360_02), ponto tradicional de gastronomia, convivência e cultura germânica.",
 
@@ -252,6 +260,10 @@ window.TOUR_SC_DATA = {
       initialView: { pitch: -14, yaw: 0, hfov: 95 },
       customPanoramaUrl: "assets/panoramas/drone360/casa_rux.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_casa_rux.jpg",
+      staticPhoto: "assets/fotos/riodaluz/static_casa_rux.jpg",
+      placeMenuTitle: "Casa Rux (1915)",
+      placeMenuDesc: "Patrimônio histórico em técnica Enxaimel tombado pelo IPHAN",
+      showInPlaceMenu: true,
       originalRawFile: "Imagem Drone 360/JDS_360_05.jpg",
       ecosystemSummary: "Fotografia 360° em plano médio da centenária Casa Rux, construída em 1915 pela família de Erwin Rux com a legítima técnica Enxaimel alemã.",
 
@@ -365,6 +377,7 @@ window.TOUR_SC_DATA = {
       initialView: { pitch: -48, yaw: -95, hfov: 105 },
       customPanoramaUrl: "assets/panoramas/drone360/casa_rux_cima.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_casa_rux_cima.jpg",
+      showInPlaceMenu: false,
       originalRawFile: "Imagem Drone 360/JDS_360_07.jpg",
       ecosystemSummary: "Drone posicionado diretamente acima da Casa Rux, revelando a geometria dos telhados germânicos, os pomares, o rancho e a distribuição dos lotes coloniais até o pé da serra.",
 
