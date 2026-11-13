@@ -59,7 +59,7 @@ Mapeamento completo segundo o mapa cultural do **Rio da Luz**:
 
 1. Clone este repositório ou baixe o arquivo `.zip`:
    ```bash
-   git clone https://github.com/eriksdhoffmann/Geoturismo-Interativo.git
+   git clone https://github.com/eriksdhoffmann/Geoturismo_Interativo.git
    ```
 2. Abra o arquivo **`index.html`** diretamente em qualquer navegador moderno (Chrome, Edge, Firefox, Safari) ou execute **`ABRIR_TOUR_SC.bat`** no Windows.
 3. Consulte o arquivo **[`GUIA_LOGICA_E_REPLICACAO.md`](./GUIA_LOGICA_E_REPLICACAO.md)** para a explicação matemática completa da projeção esférica 360° e instruções de personalização.
