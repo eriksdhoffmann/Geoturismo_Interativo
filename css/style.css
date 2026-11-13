@@ -775,11 +775,18 @@ html, body {
 }
 
 .showcase-art-img {
+  width: min(410px, 100%);
+  max-height: 265px;
+  object-fit: cover;
+  border-radius: 8px;
+  filter: drop-shadow(0 6px 14px rgba(45, 34, 18, 0.18));
+}
+
+.showcase-art-img.art-contain {
   width: min(370px, 100%);
   max-height: 255px;
   object-fit: contain;
   border-radius: 6px;
-  filter: drop-shadow(0 6px 14px rgba(45, 34, 18, 0.18));
 }
 
 .showcase-art-footer {

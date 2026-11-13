@@ -59,6 +59,7 @@ window.TOUR_SC_DATA = {
       order: 1,
       title: "Vale Tombado do Rio da Luz — Vista Aérea Principal (JDS_360_04)",
       shortTitle: "1. Vale Tombado (Principal)",
+      travelLabel: "Viajando para o Vale do Rio da Luz",
       municipality: "Jaraguá do Sul — SC",
       region: "Paisagem Cultural do Rio da Luz (Tombamento Federal IPHAN)",
       altitude: "280 m (Voo Aéreo Panorâmico Central)",
@@ -165,6 +166,7 @@ window.TOUR_SC_DATA = {
       order: 2,
       title: "Casa do Schroeder Platz — Drone 360° (JDS_360_02)",
       shortTitle: "2. Casa Schroeder Platz (JDS 02)",
+      travelLabel: "Viajando para Schroeder Platz",
       municipality: "Jaraguá do Sul — Bairro Rio da Luz",
       region: "Setor Sul do Vale / Ponto [2] do Mapa Oficial",
       altitude: "90 m (Vista Próxima em Frente à Casa do Schroeder Platz)",
@@ -227,15 +229,20 @@ window.TOUR_SC_DATA = {
           title: "2. Schroeder Platz & Hospitalidade Rural",
           subtitleLead: "Ponto de encontro da cultura germânica, gastronomia típica e passeios ao ar livre.",
           paragraphs: [
-            "Localizado no início do corredor cultural do Rio da Luz, o Schroeder Platz representa o renascimento dos jardins de convivência (*Biergärten*), onde moradores e turistas desfrutam de chope artesanal, pratos coloniais e música germânica.",
-            "Sua estrutura de madeira rústica integra-se com a paisagem rural, sendo parada tradicional de cicloturistas e famílias que percorrem o vale rumo a Pomerode."
+            "Localizado no início do corredor cultural do Rio da Luz, o Schroeder Platz representa o renascimento dos jardins de convivência (Biergärten), onde moradores e turistas desfrutam de almoço típico, pratos coloniais, cucas artesanais e música germânica.",
+            "Sua estrutura rústica acolhedora integra-se com a paisagem rural, sendo parada tradicional de cicloturistas e famílias que percorrem o vale rumo a Pomerode."
           ],
           didYouKnow: "O Vale do Rio da Luz é pavimentado de forma cênica, permitindo passeios tranquilos com velocidade reduzida para contemplação da paisagem tombada.",
-          image: "assets/fotos/riodaluz/p2_schroeder_platz.jpg",
-          imageAnnotations: [
-            { label: "Espaço Schroeder Platz", x: 30, y: 38, arrowDir: "down" },
-            { label: "Ponto [2] no Mapa do Rio da Luz", x: 76, y: 64, arrowDir: "down" }
-          ]
+          image: "assets/fotos/riodaluz/schroeder_platz_almoco.jpg",
+          showcaseCard: {
+            badge: "Gastronomia Colonial & Almoço Típico • Ponto [2]",
+            address: "R. Eurico Duwe, 1194 • Rio da Luz, Jaraguá do Sul - SC",
+            caption: "Almoço típico germânico no Schroeder Platz",
+            realPhoto: "assets/fotos/riodaluz/static_schroeder_platz.jpg",
+            realLabel: "Casa Schroeder",
+            coverMain: true
+          },
+          imageAnnotations: []
         }
       ]
     },
@@ -249,6 +256,7 @@ window.TOUR_SC_DATA = {
       order: 3,
       title: "Casa Rux — Patrimônio Histórico Enxaimel 1915 (JDS_360_05)",
       shortTitle: "3. Casa Rux (JDS 05)",
+      travelLabel: "Viajando para a Casa Rux",
       municipality: "Jaraguá do Sul — Estrada Margem Direita do Rio da Luz",
       region: "Ponto [1] do Mapa Oficial / Núcleo Histórico IPHAN",
       altitude: "88 m (Plano Médio sobre o Pátio e Fachada Histórica)",
@@ -350,6 +358,7 @@ window.TOUR_SC_DATA = {
       order: 4,
       title: "Casa Rux de Cima — Voo Aéreo 360° (JDS_360_07)",
       shortTitle: "4. Casa Rux de Cima (JDS 07)",
+      travelLabel: "Sobrevoando a Casa Rux",
       municipality: "Jaraguá do Sul — Estrada Rio da Luz",
       region: "Vista Aérea de Topo sobre a Propriedade Rux e as Encostas da Serra",
       altitude: "165 m (Drone sobrevoando diretamente o telhado da Casa Rux)",

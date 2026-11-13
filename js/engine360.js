@@ -312,7 +312,11 @@
     state.targetHfov = 48; // Efeito de mergulho (zoom in) em direção ao ponto clicado!
 
     if (labelEl) {
-      labelEl.textContent = `Viajando para: ${targetScene.title} (${targetScene.municipality})`;
+      const fallbackTitle = (targetScene.placeMenuTitle || targetScene.title || "")
+        .replace(/\s*[—–-]\s*Drone.*$/i, "")
+        .replace(/\s*\(JDS.*?\)/gi, "")
+        .trim();
+      labelEl.textContent = targetScene.travelLabel || `Viajando para ${fallbackTitle}`;
     }
     if (overlay) overlay.classList.add("active");
 
@@ -550,7 +554,7 @@
           <div class="showcase-art-panel">
             <span class="showcase-art-badge">🏛️ ${sc.badge || "Patrimônio Cultural Tombado"}</span>
             <div class="showcase-art-mat">
-              <img src="${hs.image || 'assets/fotos/riodaluz/casa_rux_aquarela.png'}" alt="${hs.title}" class="showcase-art-img" />
+              <img src="${hs.image || 'assets/fotos/riodaluz/casa_rux_aquarela.png'}" alt="${hs.title}" class="showcase-art-img ${sc.coverMain ? '' : 'art-contain'}" />
             </div>
             <div class="showcase-art-footer">
               <div class="showcase-art-caption-wrap">
@@ -558,9 +562,9 @@
                 ${sc.address ? `<span class="showcase-art-address">📌 ${sc.address}</span>` : ""}
               </div>
               ${sc.realPhoto ? `
-                <div class="showcase-real-card" title="Vista real da Casa Rux no tour 360°">
+                <div class="showcase-real-card" title="Vista real no tour 360°">
                   <img src="${sc.realPhoto}" alt="Foto Real ${hs.title}" />
-                  <span>Foto Real</span>
+                  <span>${sc.realLabel || "Foto Real"}</span>
                 </div>
               ` : ""}
             </div>

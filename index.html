@@ -350,6 +350,9 @@
           } else if (action === "rux_info") {
             const el = document.querySelector('[data-id="hs_rux_info"]');
             if (el) el.click();
+          } else if (action === "sch_info") {
+            const el = document.querySelector('[data-id="hs_sch_info"]');
+            if (el) el.click();
           } else if (action === "map") {
             const btn = document.getElementById("btnOpenRioDaLuzMap");
             if (btn) btn.click();
@@ -372,6 +375,8 @@
           } else if (action === "scmap") {
             const btn = document.getElementById("btnOpenSCMap");
             if (btn) btn.click();
+          } else if (action === "travel" && window.GeoSC360) {
+            window.GeoSC360.goToScene(params.get("to") || "schroeder_platz_03", true);
           }
         }, sceneParam ? 500 : 0);
       }, 1200);
