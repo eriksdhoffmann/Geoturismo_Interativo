@@ -122,14 +122,14 @@ window.TOUR_SC_DATA = {
           transitionLabel: "Subindo para a visão aérea de topo da Casa Rux..."
         },
 
-        // Modelo 3D do Relevo de Jaraguá do Sul e Rio da Luz
+        // Modelo 3D do Relevo de Jaraguá do Sul e Rio da Luz (Movido para a abertura do vale à direita conforme seta)
         {
           id: "hs_v04_3d_relevo",
           type: "3d",
           category: "modelo3d",
           iconStyle: "yellow-oval",
-          pitch: -8,
-          yaw: -15,
+          pitch: -2,
+          yaw: 43,
           tooltip: "🧊 Modelo 3D: Relevo de Jaraguá do Sul e Vale do Rio da Luz (IFSC)",
           title: "Topografia 3D do Vale do Rio da Luz",
           subtitleLead: "Observe a geomorfologia que fez do Vale do Rio da Luz uma paisagem cultural protegida em nível nacional.",
@@ -172,27 +172,27 @@ window.TOUR_SC_DATA = {
     },
 
     // =========================================================================
-    // CENA 2: CASA DO SCHROEDER PLATZ — JDS_360_03
+    // CENA 2: CASA DO SCHROEDER PLATZ — JDS_360_02 (Mais próxima da fachada)
     // Ponto de Gastronomia, Convivência e Lazer no Baixo Rio da Luz
     // =========================================================================
     schroeder_platz_03: {
       id: "schroeder_platz_03",
       order: 2,
-      title: "Casa do Schroeder Platz — Drone 360° (JDS_360_03)",
-      shortTitle: "2. Casa Schroeder Platz (JDS 03)",
+      title: "Casa do Schroeder Platz — Drone 360° (JDS_360_02)",
+      shortTitle: "2. Casa Schroeder Platz (JDS 02)",
       municipality: "Jaraguá do Sul — Bairro Rio da Luz",
       region: "Setor Sul do Vale / Ponto [2] do Mapa Oficial",
-      altitude: "92 m (Voo Aéreo Próximo à Residência e Quiosque)",
+      altitude: "90 m (Vista Próxima em Frente à Casa do Schroeder Platz)",
       coordinates: { lat: -26.538334, lng: -49.148799 },
-      initialView: { pitch: 10, yaw: 25, hfov: 95 },
+      initialView: { pitch: 4, yaw: 8, hfov: 95 },
       customPanoramaUrl: "assets/panoramas/drone360/schroeder_platz.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_schroeder_platz.jpg",
-      originalRawFile: "Imagem Drone 360/JDS_360_03.jpg",
-      ecosystemSummary: "Vista em 360 graus sobre a propriedade e a Casa do Schroeder Platz, ponto tradicional de gastronomia, convivência e cultura germânica.",
+      originalRawFile: "Imagem Drone 360/JDS_360_02.jpg",
+      ecosystemSummary: "Vista em 360 graus próxima à fachada da Casa do Schroeder Platz (JDS_360_02), ponto tradicional de gastronomia, convivência e cultura germânica.",
 
       labels3D: [
-        { text: "Casa do Schroeder Platz", pitch: -12, yaw: 12, scale: 1.15, tilt: 12 },
-        { text: "Vale Tombado ⬆", pitch: 34, yaw: 58, scale: 1.18, tilt: -10 },
+        { text: "Casa do Schroeder Platz", pitch: -10, yaw: 0, scale: 1.15, tilt: 12 },
+        { text: "Vale Tombado ⬆", pitch: 34, yaw: 32, scale: 1.18, tilt: -10 },
         { text: "Direção Casa Rux ↗", pitch: 14, yaw: 95, scale: 1.05, tilt: 6 }
       ],
 
@@ -203,8 +203,8 @@ window.TOUR_SC_DATA = {
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: 28,
-          yaw: 58,
+          pitch: 27,
+          yaw: 32,
           targetSceneId: "vale_tombado_04",
           tooltip: "🌐 Vale Tombado",
           transitionLabel: "Subindo para a visão geral do Vale Tombado..."
@@ -269,19 +269,19 @@ window.TOUR_SC_DATA = {
 
       labels3D: [
         { text: "Casa Rux (Enxaimel de 1915) 🏛️", pitch: -18, yaw: 0, scale: 1.2, tilt: 16 },
-        { text: "Subir: Ver Casa Rux de Cima (JDS 07) ⬆", pitch: 18, yaw: 0, scale: 1.15, tilt: -8 },
+        { text: "Subir: Ver Casa Rux de Cima (JDS 07) ⬆", pitch: 39, yaw: 52, scale: 1.15, tilt: -10 },
         { text: "Vale Tombado ⬆", pitch: 28, yaw: -115, scale: 1.15, tilt: -8 }
       ],
 
       hotspots: [
-        // Subir para Casa Rux de Cima (JDS_360_07)
+        // Subir para Casa Rux de Cima (JDS_360_07) - Mais em cima e para a direita no céu conforme seta
         {
           id: "hs_rux_to_cima",
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: 20,
-          yaw: 0,
+          pitch: 32,
+          yaw: 52,
           targetSceneId: "casa_rux_cima_07",
           tooltip: "🌐 Subir Drone 360°: Ver Casa Rux de Cima (JDS_360_07)",
           transitionLabel: "Subindo o drone para a visão de topo da Casa Rux..."

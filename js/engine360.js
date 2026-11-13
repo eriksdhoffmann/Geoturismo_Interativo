@@ -56,6 +56,9 @@
   let shaderProgram = null;
   let panoTexture = null;
   let uYawLoc, uPitchLoc, uFovLoc, uAspectLoc;
+  let currentTextureSource = null;
+  let sceneLoadToken = 0;
+  const imageCache = {};
 
   // Elementos da Interface
   let viewerCanvas, hotspotsContainer, labels3DContainer, topThumbsBar;
@@ -72,7 +75,9 @@
     modalLeftContent = document.getElementById("modalLeftMedia");
     modalRightContent = document.getElementById("modalRightEditorial");
 
+    preloadAllSceneImages();
     initWebGL();
+    bindWebGLContextRecovery();
     buildTopThumbnails();
     buildCategoryFilterBar();
     bindViewerEvents();
@@ -85,11 +90,58 @@
     requestAnimationFrame(renderLoop);
   }
 
+  /**
+   * Pré-carrega e mantém em cache na memória RAM todas as fotos 360° do passeio
+   * para evitar telas brancas, piscadas ou recarregamentos ao trocar de cena.
+   */
+  function preloadAllSceneImages() {
+    if (!window.TOUR_SC_DATA || !window.TOUR_SC_DATA.scenes) return;
+    Object.values(window.TOUR_SC_DATA.scenes).forEach(sc => {
+      const b64 = (window.DRONE_PANOS_B64 && window.DRONE_PANOS_B64[sc.id])
+        ? window.DRONE_PANOS_B64[sc.id]
+        : null;
+      const src = b64 || sc.customPanoramaUrl;
+      if (src && !imageCache[sc.id]) {
+        const img = new Image();
+        if (!b64 && location.protocol !== "file:") {
+          img.crossOrigin = "anonymous";
+        }
+        img.src = src;
+        imageCache[sc.id] = img;
+      }
+    });
+  }
+
+  function bindWebGLContextRecovery() {
+    if (!viewerCanvas) return;
+    viewerCanvas.addEventListener("webglcontextlost", e => {
+      e.preventDefault();
+      console.warn("Contexto WebGL perdido temporariamente — restaurando automaticamente...");
+    }, false);
+
+    viewerCanvas.addEventListener("webglcontextrestored", () => {
+      initWebGL();
+      if (currentTextureSource) {
+        uploadTextureSource(currentTextureSource);
+      } else if (state.currentSceneId && window.TOUR_SC_DATA.scenes[state.currentSceneId]) {
+        applySceneNow(window.TOUR_SC_DATA.scenes[state.currentSceneId]);
+      }
+    }, false);
+  }
+
   // ===========================================================================
-  // 1. INICIALIZAÇÃO DO MOTOR WEBGL (SHADER EQUIRETANGULAR ESFÉRICO)
+  // 1. INICIALIZAÇÃO DO MOTOR WEBGL (SHADER EQUIRETANGULAR ESFÉRICO ESTÁVEL)
   // ===========================================================================
   function initWebGL() {
-    gl = viewerCanvas.getContext("webgl", { antialias: true, preserveDrawingBuffer: false });
+    const ctxOpts = {
+      alpha: false,
+      depth: false,
+      stencil: false,
+      antialias: false,
+      preserveDrawingBuffer: true,
+      powerPreference: "high-performance"
+    };
+    gl = viewerCanvas.getContext("webgl", ctxOpts) || viewerCanvas.getContext("experimental-webgl", ctxOpts);
     if (!gl) {
       console.error("WebGL não disponível.");
       return;
@@ -138,12 +190,12 @@
           -rayPitch.x * sy + rayPitch.z * cy
         );
 
-        // Conversão Cartesiana (dx, dy, dz) -> Coordenadas Esféricas (Longitude, Latitude)
-        float lon = atan(dir.x, dir.z);
+        // Conversão Cartesiana (dx, dy, dz) -> Coordenadas Esféricas com proteção contra atan(0,0)
+        float lon = (abs(dir.x) < 0.00001 && abs(dir.z) < 0.00001) ? 0.0 : atan(dir.x, dir.z);
         float lat = asin(clamp(dir.y, -1.0, 1.0));
 
         // Mapeamento Equiretangular UV [0..1]
-        vec2 uv = vec2(0.5 + lon / (2.0 * PI), 0.5 - lat / PI);
+        vec2 uv = vec2(fract(0.5 + lon / (2.0 * PI)), clamp(0.5 - lat / PI, 0.001, 0.999));
         gl_FragColor = texture2D(uSampler, uv);
       }
     `;
@@ -172,6 +224,8 @@
 
     panoTexture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, panoTexture);
+    // Inicializa com 1 pixel escuro imediatamente para nunca exibir textura vazia/branca
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([15, 28, 22, 255]));
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
@@ -221,6 +275,7 @@
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
     try {
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+      currentTextureSource = source;
       return true;
     } catch (err) {
       console.warn("WebGL texImage2D bloqueado para arquivo local (usando fallback seguro):", err);
@@ -272,6 +327,7 @@
 
   function applySceneNow(scene) {
     state.currentSceneId = scene.id;
+    const myToken = ++sceneLoadToken;
 
     // Define orientação inicial da câmera 360°
     const iv = scene.initialView || { pitch: -8, yaw: 0, hfov: 95 };
@@ -279,35 +335,50 @@
     state.pitch = state.targetPitch = iv.pitch;
     state.hfov = state.targetHfov = iv.hfov || 95;
 
-    // Carrega imagem 360° real do drone (via pacote Base64 compatível com file:// no Chrome ou URL direta)
+    // Carrega imagem 360° real do drone usando cache em memória (estabilidade instantânea sem piscar)
     const b64Source = (window.DRONE_PANOS_B64 && window.DRONE_PANOS_B64[scene.id])
       ? window.DRONE_PANOS_B64[scene.id]
       : null;
     const panoSrc = b64Source || scene.customPanoramaUrl;
 
     if (panoSrc) {
-      const img = new Image();
-      if (!b64Source && location.protocol !== "file:") {
-        img.crossOrigin = "anonymous";
+      let img = imageCache[scene.id];
+      if (!img || img.src !== panoSrc) {
+        img = new Image();
+        if (!b64Source && location.protocol !== "file:") {
+          img.crossOrigin = "anonymous";
+        }
+        img.src = panoSrc;
+        imageCache[scene.id] = img;
       }
-      img.onload = () => {
+
+      if (img.complete && (img.naturalWidth > 0 || img.width > 0)) {
         const ok = uploadTextureSource(img);
-        if (!ok && b64Source && img.src !== b64Source) {
-          img.src = b64Source;
-        } else if (!ok) {
+        if (!ok) {
           const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
           uploadTextureSource(canvas);
         }
-      };
-      img.onerror = () => {
-        if (b64Source && img.src !== b64Source) {
-          img.src = b64Source;
-        } else {
-          const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
-          uploadTextureSource(canvas);
-        }
-      };
-      img.src = panoSrc;
+      } else {
+        img.onload = () => {
+          if (myToken !== sceneLoadToken) return;
+          const ok = uploadTextureSource(img);
+          if (!ok && b64Source && img.src !== b64Source) {
+            img.src = b64Source;
+          } else if (!ok) {
+            const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
+            uploadTextureSource(canvas);
+          }
+        };
+        img.onerror = () => {
+          if (myToken !== sceneLoadToken) return;
+          if (b64Source && img.src !== b64Source) {
+            img.src = b64Source;
+          } else {
+            const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
+            uploadTextureSource(canvas);
+          }
+        };
+      }
     } else {
       const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
       uploadTextureSource(canvas);
@@ -644,22 +715,24 @@
     state.targetHfov = Math.max(38, Math.min(115, state.targetHfov));
     state.hfov += (state.targetHfov - state.hfov) * 0.16;
 
-    // Atualiza dimensões do Canvas WebGL
-    const w = viewerCanvas.clientWidth;
-    const h = viewerCanvas.clientHeight;
+    // Atualiza dimensões do Canvas WebGL com proteção contra 0x0
+    const w = Math.max(1, viewerCanvas.clientWidth || window.innerWidth);
+    const h = Math.max(1, viewerCanvas.clientHeight || window.innerHeight);
     if (viewerCanvas.width !== w || viewerCanvas.height !== h) {
       viewerCanvas.width = w;
       viewerCanvas.height = h;
       if (gl) gl.viewport(0, 0, w, h);
     }
 
-    // Desenha a esfera 360° via WebGL
-    if (gl && shaderProgram) {
+    // Desenha a esfera 360° via WebGL mantendo programa e textura vinculados
+    if (gl && shaderProgram && !gl.isContextLost()) {
       const yawRad = state.yaw * DEG2RAD;
       const pitchRad = state.pitch * DEG2RAD;
       const tanHalfFov = Math.tan((state.hfov * DEG2RAD) * 0.5);
       const aspect = w / Math.max(1, h);
 
+      gl.useProgram(shaderProgram);
+      gl.bindTexture(gl.TEXTURE_2D, panoTexture);
       gl.uniform1f(uYawLoc, yawRad);
       gl.uniform1f(uPitchLoc, pitchRad);
       gl.uniform1f(uFovLoc, tanHalfFov);
