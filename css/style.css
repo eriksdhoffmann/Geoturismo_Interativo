@@ -77,7 +77,12 @@ html, body {
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   max-width: 94vw;
-  overflow-x: auto;
+  overflow: visible;
+  scrollbar-width: none;
+}
+
+.top-thumbnails-wrapper::-webkit-scrollbar {
+  display: none;
 }
 
 .top-thumb-pill {

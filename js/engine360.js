@@ -219,7 +219,13 @@
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     }
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    try {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+      return true;
+    } catch (err) {
+      console.warn("WebGL texImage2D bloqueado para arquivo local (usando fallback seguro):", err);
+      return false;
+    }
   }
 
   // ===========================================================================
@@ -273,18 +279,35 @@
     state.pitch = state.targetPitch = iv.pitch;
     state.hfov = state.targetHfov = iv.hfov || 95;
 
-    // Carrega imagem 360° customizada (se o usuário subiu uma foto) ou gera o panorama 360° georreferenciado
-    if (scene.customPanoramaUrl) {
+    // Carrega imagem 360° real do drone (via pacote Base64 compatível com file:// no Chrome ou URL direta)
+    const b64Source = (window.DRONE_PANOS_B64 && window.DRONE_PANOS_B64[scene.id])
+      ? window.DRONE_PANOS_B64[scene.id]
+      : null;
+    const panoSrc = b64Source || scene.customPanoramaUrl;
+
+    if (panoSrc) {
       const img = new Image();
-      if (location.protocol !== "file:") {
+      if (!b64Source && location.protocol !== "file:") {
         img.crossOrigin = "anonymous";
       }
-      img.onload = () => uploadTextureSource(img);
-      img.onerror = () => {
-        const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
-        uploadTextureSource(canvas);
+      img.onload = () => {
+        const ok = uploadTextureSource(img);
+        if (!ok && b64Source && img.src !== b64Source) {
+          img.src = b64Source;
+        } else if (!ok) {
+          const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
+          uploadTextureSource(canvas);
+        }
       };
-      img.src = scene.customPanoramaUrl;
+      img.onerror = () => {
+        if (b64Source && img.src !== b64Source) {
+          img.src = b64Source;
+        } else {
+          const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
+          uploadTextureSource(canvas);
+        }
+      };
+      img.src = panoSrc;
     } else {
       const canvas = window.PanoramaGenerator.getEquirectangularCanvas(scene.proceduralPreset || scene.id);
       uploadTextureSource(canvas);
