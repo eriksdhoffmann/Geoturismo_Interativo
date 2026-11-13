@@ -370,7 +370,8 @@ window.TOUR_SC_DATA = {
 
       labels3D: [
         { text: "Descer para Casa Rux", pitch: -36, yaw: -126, scale: 1.18, tilt: 20 },
-        { text: "Vale Tombado ⬆", pitch: 26, yaw: -95, scale: 1.12, tilt: -8 },
+        { text: "Vale Tombado ⬆", pitch: 20, yaw: 161, scale: 1.12, tilt: -8 },
+        { text: "Casa do Schroeder Platz", pitch: -2, yaw: -174, scale: 1.08, tilt: 12 },
         { text: "Mata Atlântica de Encosta preservada", pitch: 12, yaw: 85, scale: 1.05, tilt: -6 }
       ],
 
@@ -388,29 +389,29 @@ window.TOUR_SC_DATA = {
           transitionLabel: "Descendo para a Casa Rux..."
         },
 
-        // Retornar ao Vale Tombado Principal (JDS_360_04) - No Céu
+        // Retornar ao Vale Tombado Principal (JDS_360_04) - Deslocado à esquerda no céu conforme seta
         {
           id: "hs_cima_to_vale",
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: 20,
-          yaw: -95,
+          pitch: 14,
+          yaw: 161,
           targetSceneId: "vale_tombado_04",
           tooltip: "🌐 Vale Tombado",
           transitionLabel: "Voltando à vista aérea panorâmica do Vale Tombado..."
         },
 
-        // Ir para Schroeder Platz (JDS_360_03)
+        // Ir para Schroeder Platz (JDS_360_02) - Posicionado na terra/vale embaixo conforme seta
         {
           id: "hs_cima_to_schroeder",
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: 14,
-          yaw: -145,
+          pitch: -8,
+          yaw: -174,
           targetSceneId: "schroeder_platz_03",
-          tooltip: "🌐 Ir para Foto Drone 360°: Schroeder Platz (JDS_360_03)",
+          tooltip: "🌐 Casa do Schroeder Platz (JDS_360_02)",
           transitionLabel: "Viajando até a Casa do Schroeder Platz..."
         },
 
