@@ -1,0 +1,14 @@
+# Ignorar arquivos temporários do sistema
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.tmp
+
+# As fotos brutas do drone não selecionadas nesta primeira etapa:
+Imagem Drone 360/JDS_360_01.jpg
+Imagem Drone 360/JDS_360_02.jpg
+Imagem Drone 360/JDS_360_06.jpg
+Imagem Drone 360/JDS_360_08.jpg
+Imagem Drone 360/JDS_360_09.jpg
+Imagem Drone 360/JDS_360_10.jpg

@@ -190,17 +190,36 @@
 
   function uploadTextureSource(imageOrCanvas) {
     if (!gl || !panoTexture) return;
+
+    let source = imageOrCanvas;
+    let w = imageOrCanvas.width || imageOrCanvas.naturalWidth;
+    let h = imageOrCanvas.height || imageOrCanvas.naturalHeight;
+
+    // Proteção contra limite de textura da GPU (downscale seguro automático)
+    const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096;
+    if (w > maxTex || h > maxTex) {
+      const scale = Math.min(maxTex / w, maxTex / h);
+      const tw = Math.floor(w * scale);
+      const th = Math.floor(h * scale);
+      const off = document.createElement("canvas");
+      off.width = tw;
+      off.height = th;
+      const octx = off.getContext("2d");
+      octx.drawImage(imageOrCanvas, 0, 0, tw, th);
+      source = off;
+      w = tw;
+      h = th;
+    }
+
     gl.bindTexture(gl.TEXTURE_2D, panoTexture);
-    // Usa REPEAT horizontal caso seja potência de 2, ou CLAMP_TO_EDGE para qualquer resolução
     const isPOT = (v) => (v & (v - 1)) === 0;
-    const w = imageOrCanvas.width || imageOrCanvas.naturalWidth;
-    const h = imageOrCanvas.height || imageOrCanvas.naturalHeight;
     if (isPOT(w) && isPOT(h)) {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
     } else {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     }
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, imageOrCanvas);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
   }
 
   // ===========================================================================
