@@ -184,30 +184,30 @@ window.TOUR_SC_DATA = {
       region: "Setor Sul do Vale / Ponto [2] do Mapa Oficial",
       altitude: "92 m (Voo Aéreo Próximo à Residência e Quiosque)",
       coordinates: { lat: -26.538334, lng: -49.148799 },
-      initialView: { pitch: -12, yaw: 0, hfov: 95 },
+      initialView: { pitch: 10, yaw: 25, hfov: 95 },
       customPanoramaUrl: "assets/panoramas/drone360/schroeder_platz.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_schroeder_platz.jpg",
       originalRawFile: "Imagem Drone 360/JDS_360_03.jpg",
       ecosystemSummary: "Vista em 360 graus sobre a propriedade e a Casa do Schroeder Platz, ponto tradicional de gastronomia, convivência e cultura germânica.",
 
       labels3D: [
-        { text: "Casa do Schroeder Platz", pitch: -20, yaw: 0, scale: 1.15, tilt: 16 },
-        { text: "Vale Tombado Principal (Retorno) ↖", pitch: 2, yaw: -145, scale: 1.15, tilt: 6 },
-        { text: "Direção Casa Rux ↗", pitch: -6, yaw: 95, scale: 1.05, tilt: 10 }
+        { text: "Casa do Schroeder Platz", pitch: -12, yaw: 12, scale: 1.15, tilt: 12 },
+        { text: "Vale Tombado ⬆", pitch: 34, yaw: 58, scale: 1.18, tilt: -10 },
+        { text: "Direção Casa Rux ↗", pitch: 14, yaw: 95, scale: 1.05, tilt: 6 }
       ],
 
       hotspots: [
-        // Retornar ao Vale Tombado Principal (JDS_360_04)
+        // Retornar ao Vale Tombado Principal (JDS_360_04) - NO CÉU conforme solicitado
         {
           id: "hs_sch_to_vale",
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: 2,
-          yaw: -145,
+          pitch: 28,
+          yaw: 58,
           targetSceneId: "vale_tombado_04",
-          tooltip: "🌐 Retornar para: Vale Tombado Principal (JDS_360_04)",
-          transitionLabel: "Subindo de volta para a visão geral do Vale Tombado..."
+          tooltip: "🌐 Vale Tombado",
+          transitionLabel: "Subindo para a visão geral do Vale Tombado..."
         },
 
         // Ir direto para Casa Rux (JDS_360_05)
@@ -270,7 +270,7 @@ window.TOUR_SC_DATA = {
       labels3D: [
         { text: "Casa Rux (Enxaimel de 1915) 🏛️", pitch: -18, yaw: 0, scale: 1.2, tilt: 16 },
         { text: "Subir: Ver Casa Rux de Cima (JDS 07) ⬆", pitch: 18, yaw: 0, scale: 1.15, tilt: -8 },
-        { text: "Retornar ao Vale Tombado ↖", pitch: -4, yaw: -115, scale: 1.1, tilt: 8 }
+        { text: "Vale Tombado ⬆", pitch: 28, yaw: -115, scale: 1.15, tilt: -8 }
       ],
 
       hotspots: [
@@ -287,16 +287,16 @@ window.TOUR_SC_DATA = {
           transitionLabel: "Subindo o drone para a visão de topo da Casa Rux..."
         },
 
-        // Retornar ao Vale Tombado Principal (JDS_360_04)
+        // Retornar ao Vale Tombado Principal (JDS_360_04) - No Céu
         {
           id: "hs_rux_to_vale",
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: -4,
+          pitch: 22,
           yaw: -115,
           targetSceneId: "vale_tombado_04",
-          tooltip: "🌐 Retornar para: Vale Tombado Principal (JDS_360_04)",
+          tooltip: "🌐 Vale Tombado",
           transitionLabel: "Retornando à vista aérea do Vale Tombado..."
         },
 
@@ -374,43 +374,42 @@ window.TOUR_SC_DATA = {
       region: "Vista Aérea de Topo sobre a Propriedade Rux e as Encostas da Serra",
       altitude: "165 m (Drone sobrevoando diretamente o telhado da Casa Rux)",
       coordinates: { lat: -26.536267, lng: -49.142436 },
-      initialView: { pitch: -25, yaw: 0, hfov: 92 },
+      initialView: { pitch: -48, yaw: -95, hfov: 105 },
       customPanoramaUrl: "assets/panoramas/drone360/casa_rux_cima.jpg",
       thumbPhoto: "assets/panoramas/drone360/thumb_casa_rux_cima.jpg",
       originalRawFile: "Imagem Drone 360/JDS_360_07.jpg",
       ecosystemSummary: "Drone posicionado diretamente acima da Casa Rux, revelando a geometria dos telhados germânicos, os pomares, o rancho e a distribuição dos lotes coloniais até o pé da serra.",
 
       labels3D: [
-        { text: "Telhado Enxaimel da Casa Rux ⬇", pitch: -42, yaw: 0, scale: 1.2, tilt: 28 },
-        { text: "Descer para a Casa Rux [JDS 05] ⬇", pitch: -32, yaw: -10, scale: 1.15, tilt: 22 },
-        { text: "Retornar ao Vale Tombado Principal ↖", pitch: 0, yaw: -115, scale: 1.1, tilt: 4 },
+        { text: "Descer para Casa Rux", pitch: -36, yaw: -126, scale: 1.18, tilt: 20 },
+        { text: "Vale Tombado ⬆", pitch: 26, yaw: -95, scale: 1.12, tilt: -8 },
         { text: "Mata Atlântica de Encosta preservada", pitch: 12, yaw: 85, scale: 1.05, tilt: -6 }
       ],
 
       hotspots: [
-        // Descer para Casa Rux no solo (JDS_360_05)
+        // Descer para Casa Rux no solo (JDS_360_05) - Posicionado junto à Casa Enxaimel
         {
           id: "hs_cima_to_rux_solo",
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: -38,
-          yaw: 0,
+          pitch: -43,
+          yaw: -126,
           targetSceneId: "casa_rux_05",
-          tooltip: "🌐 Descer Drone: Ver Casa Rux no Solo (JDS_360_05)",
-          transitionLabel: "Descendo para o solo em frente à Casa Rux..."
+          tooltip: "🌐 Descer para Casa Rux",
+          transitionLabel: "Descendo para a Casa Rux..."
         },
 
-        // Retornar ao Vale Tombado Principal (JDS_360_04)
+        // Retornar ao Vale Tombado Principal (JDS_360_04) - No Céu
         {
           id: "hs_cima_to_vale",
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: 2,
-          yaw: -115,
+          pitch: 20,
+          yaw: -95,
           targetSceneId: "vale_tombado_04",
-          tooltip: "🌐 Retornar para: Vale Tombado Principal (JDS_360_04)",
+          tooltip: "🌐 Vale Tombado",
           transitionLabel: "Voltando à vista aérea panorâmica do Vale Tombado..."
         },
 
@@ -420,8 +419,8 @@ window.TOUR_SC_DATA = {
           type: "scene",
           category: "portal360",
           iconStyle: "portal-thumb",
-          pitch: -4,
-          yaw: -128,
+          pitch: 14,
+          yaw: -145,
           targetSceneId: "schroeder_platz_03",
           tooltip: "🌐 Ir para Foto Drone 360°: Schroeder Platz (JDS_360_03)",
           transitionLabel: "Viajando até a Casa do Schroeder Platz..."
