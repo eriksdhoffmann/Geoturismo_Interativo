@@ -128,10 +128,7 @@ window.TOUR_SC_DATA = {
           didYouKnow: "Em 2007, o IPHAN reconheceu o Conjunto Rural do Rio da Luz como a primeira Paisagem Cultural tombada do Brasil dentro do projeto Roteiros Nacionais de Imigração!",
           glbKey: "rio_da_luz_glb",
           glbUrl: "assets/modelos/3D_RIO_DA_LUZ_logado.glb",
-          sketchfabUid: "a8786ad611d443e193a8b5af123588cd",
-          embedUrl: "https://sketchfab.com/models/a8786ad611d443e193a8b5af123588cd/embed?autostart=1&ui_infos=0",
-          externalLink: "assets/modelos/3D_RIO_DA_LUZ_logado.glb",
-          author3D: "GeoLab • 3D_RIO_DA_LUZ_logado.glb",
+          author3D: "Vale do Rio da Luz (GeoLab)",
           fallback3DType: "rio_da_luz_valley"
         },
 

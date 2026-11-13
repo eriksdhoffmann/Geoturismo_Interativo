@@ -612,41 +612,12 @@
       modalLeftContent.innerHTML = `
         <div class="modal-3d-wrapper">
           <div class="modal-3d-TopBar">
-            <button type="button" class="btn-3d-mode active" id="btnModeLocalGLB">
-              🧊 Modelo 3D (.GLB Rio da Luz)
-            </button>
-            ${embedUrl ? `
-              <button type="button" class="btn-3d-mode" id="btnModeSketchfab">
-                🌐 Referência Sketchfab
-              </button>
-            ` : ""}
-            ${hs.glbUrl ? `
-              <a href="${hs.glbUrl}" download class="btn-3d-external-link">
-                Baixar .GLB ⬇
-              </a>
-            ` : ""}
+            <span class="btn-3d-mode active" style="cursor: default;">
+              🏔️ Vale do Rio da Luz
+            </span>
           </div>
 
           <div id="localGLBContainer" class="local-3d-container"></div>
-
-          ${embedUrl ? `
-            <div id="sketchfabContainer" class="iframe-3d-container" style="display: none;">
-              <iframe
-                title="${hs.title}"
-                src=""
-                data-src="${embedUrl}"
-                frameborder="0"
-                allow="autoplay; fullscreen; xr-spatial-tracking"
-                allowfullscreen
-                mozallowfullscreen="true"
-                webkitallowfullscreen="true">
-              </iframe>
-              <div class="sketchfab-badge-footer">
-                <span class="sf-cube-icon">🧊</span>
-                <span>Referência externa via <strong>Sketchfab 3D Embed</strong></span>
-              </div>
-            </div>
-          ` : ""}
         </div>
       `;
 
@@ -654,40 +625,11 @@
       splitModal.classList.add("open");
 
       const glbContainer = document.getElementById("localGLBContainer");
-      const mountGLB = () => {
-        cleanupPrevious3D();
-        state.cleanup3DModal = window.GLBViewer.mount(glbContainer, {
-          glbKey: hs.glbKey,
-          glbUrl: hs.glbUrl
-        });
-      };
-      mountGLB();
-
-      const btnGLB = document.getElementById("btnModeLocalGLB");
-      const btnSf = document.getElementById("btnModeSketchfab");
-      const sfContainer = document.getElementById("sketchfabContainer");
-
-      if (btnGLB && btnSf && sfContainer) {
-        btnGLB.addEventListener("click", () => {
-          btnGLB.classList.add("active");
-          btnSf.classList.remove("active");
-          glbContainer.style.display = "flex";
-          sfContainer.style.display = "none";
-          mountGLB();
-        });
-
-        btnSf.addEventListener("click", () => {
-          btnSf.classList.add("active");
-          btnGLB.classList.remove("active");
-          glbContainer.style.display = "none";
-          sfContainer.style.display = "flex";
-          cleanupPrevious3D();
-          const iframe = sfContainer.querySelector("iframe");
-          if (iframe && !iframe.getAttribute("src")) {
-            iframe.setAttribute("src", iframe.dataset.src || embedUrl);
-          }
-        });
-      }
+      cleanupPrevious3D();
+      state.cleanup3DModal = window.GLBViewer.mount(glbContainer, {
+        glbKey: hs.glbKey,
+        glbUrl: hs.glbUrl
+      });
       return;
     }
 

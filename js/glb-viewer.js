@@ -593,8 +593,7 @@ window.GLBViewer = (function () {
       cam.targetDist = cam.dist = radius * 1.65;
 
       if (statusEl) {
-        statusEl.textContent = "🧊 Maquete 3D Interativa (3D_RIO_DA_LUZ_logado.glb)";
-        setTimeout(() => { if (statusEl) statusEl.style.opacity = "0.78"; }, 1800);
+        statusEl.style.display = "none";
       }
     }).catch(err => {
       console.error("Erro ao carregar modelo GLB:", err);
