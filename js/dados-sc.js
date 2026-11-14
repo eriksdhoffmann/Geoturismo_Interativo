@@ -119,7 +119,8 @@ window.TOUR_SC_DATA = {
           iconStyle: "yellow-oval",
           pitch: -2,
           yaw: 43,
-          tooltip: "🧊 Maquete 3D Interativa (.GLB): Vale do Rio da Luz (GeoLab)",
+          tooltip: "Vale Rio da Luz",
+          hideTooltipBadge: true,
           title: "Maquete 3D do Vale do Rio da Luz (GeoLab)",
           subtitleLead: "Explore o modelo tridimensional real (.GLB) com relevo, encostas da Serra do Mar e uso do solo da paisagem cultural.",
           paragraphs: [

@@ -20,6 +20,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 63.6,
       y: 19.3,
+      lat: -26.53617,
+      lng: -49.14234,
       description:
         "A casa enxaimel da família Rux, construída em 1915, vende produtos coloniais, expõe objetos antigos, além de oferecer café rural e passeio de Tobata pela ampla propriedade.",
       atendimento: "Sábados e domingos a partir das 15h. Demais dias, mediante agendamento",
@@ -38,6 +40,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 58.3,
       y: 19.7,
+      lat: -26.5384678,
+      lng: -49.1486893,
       description:
         "Neste ambiente familiar, Angela e a mãe, Astrit, servem quitutes da região em cardápio variado. Almoço e farto café colonial com cucas, pães e biscoitos, além das noites de sopa.",
       atendimento: "Sábados à tarde. Domingos das 11h30 às 14h. Consulte programação!",
@@ -56,6 +60,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 60.8,
       y: 21.6,
+      lat: -26.542834,
+      lng: -49.146112,
       description:
         "Ponto de recepção turística, onde é possível obter orientações sobre os atrativos da região e passeios pelas tifas da comunidade.",
       atendimento: "Mediante agendamento",
@@ -71,6 +77,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 55.8,
       y: 22.4,
+      lat: -26.546994,
+      lng: -49.156161,
       description:
         "As meias e polainas feitas por dona Gielead são habilidosamente tecidas em diferentes tramas, pontos e cores, e compõem os trajes típicos usados nas festas da região.",
       atendimento: "Mediante agendamento",
@@ -86,6 +94,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 53.5,
       y: 22.8,
+      lat: -26.547785,
+      lng: -49.156772,
       description:
         "Fundada em 1915, a associação do Salão Barg recebe as tradicionais Festas de Rei e Rainha, competições de tiro, além de almoço típico, noite de sopas, jantar dançante, grupos folclóricos, peças de teatro, entre outros.",
       atendimento: "Consulte o calendário de eventos",
@@ -104,6 +114,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 51.3,
       y: 24.4,
+      lat: -26.551072,
+      lng: -49.161518,
       description:
         "O estabelecimento de Alcir Rahn faz sucesso na região há seis anos. Oferece deliciosa comida e espaço amplo com excelente estrutura para receber adultos e crianças.",
       atendimento:
@@ -122,6 +134,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 57.3,
       y: 26.8,
+      lat: -26.556505,
+      lng: -49.153304,
       description:
         "A bela e ampla propriedade familiar conta com restaurante, salão de festas e espaço equipado para camping, além dos açudes para pesca esportiva.",
       atendimento:
@@ -140,6 +154,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 50.2,
       y: 33.4,
+      lat: -26.572385,
+      lng: -49.167917,
       description:
         "Inaugurado em 1975, o salão é palco de Festas de Rei e Rainha, casamentos, confirmações e outros encontros que integram a comunidade do Rio da Luz. A Sociedade Guarany participa da competição municipal de atiradores.",
       atendimento: "Consulte o calendário de eventos",
@@ -157,6 +173,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 47.6,
       y: 34.3,
+      lat: -26.574078,
+      lng: -49.172044,
       description:
         "O famoso espaço de eventos remete às construções tradicionais da região. Suas paredes envidraçadas permitem a integração entre o visitante e a paisagem local.",
       atendimento: "Mediante agendamento",
@@ -174,6 +192,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 46.8,
       y: 35.6,
+      lat: -26.577355,
+      lng: -49.174803,
       description:
         "O salão da Sociedade Centenário, fundada em 1976, recebe celebrações como as tradicionais Festa do Colono, Festa do Chopp e Festas de Rei e Rainha. Entre em contato e participe dos eventos!",
       atendimento: "Consulte o calendário de eventos",
@@ -191,6 +211,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 38.6,
       y: 40.5,
+      lat: -26.578473,
+      lng: -49.182054,
       description:
         "Nos fins de semana, a família Lemke aceita reservas para almoço típico e eventos particulares. Espaço amplo, aconchegante e em estilo rústico.",
       atendimento: "Mediante agendamento",
@@ -206,6 +228,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 32.8,
       y: 43.3,
+      lat: -26.591500,
+      lng: -49.194200,
       description:
         "Construída na década de 1930, a pousada é inspirada na arquitetura da região. Atende famílias e tem atrativos como criação de animais diversos e deslumbrante paisagem.",
       atendimento: "Mediante reserva",
@@ -221,6 +245,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 39.2,
       y: 44.3,
+      lat: -26.593700,
+      lng: -49.186670,
       description:
         "Sede de eventos como festas de Rei e Rainha, Baile de Chopp, Encontro dos Carroceiros e Trabalhadores Rurais, casamento, confirmação e aniversário. O salão integra as sociedades que participam da competição municipal de atiradores.",
       atendimento: "Consulte o calendário de eventos",
@@ -238,6 +264,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "rio_da_luz",
       x: 30.8,
       y: 46.2,
+      lat: -26.602800,
+      lng: -49.219100,
       description:
         "Lugar surpreendente! Voltado para a deslumbrante vista do Vale do Rio da Luz, o mirante apresenta uma estrutura aconchegante para confraternizações. Acesso de veículos 4x4.",
       atendimento: "Mediante agendamento",
@@ -253,6 +281,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 37.3,
       y: 63.8,
+      lat: -26.647080,
+      lng: -49.188200,
       description:
         "Faça uma visita à morada da família Siewert e conheça o sistema construtivo enxaimel e o modo de vida dos primeiros imigrantes. No local, há também a venda de produtos coloniais regionais.",
       atendimento: "Visitas guiadas todos os dias das 9h às 11h30. De segunda a sábado das 13h às 17h",
@@ -270,6 +300,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 36.4,
       y: 66.2,
+      lat: -26.653959,
+      lng: -49.190623,
       description:
         "No coração da Mata Atlântica, 1,5 km de percurso preservado com riqueza de flora e fauna, rios, cachoeiras com água cristalina e um balanço com vista panorâmica. Ao final do trajeto, descubra o espaço ideal para desfrutar de um delicioso piquenique.",
       atendimento: "Mediante agendamento",
@@ -287,6 +319,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 39.0,
       y: 70.1,
+      lat: -26.662662,
+      lng: -49.188511,
       description:
         "Fundado em 1966, o Clube Cultural Caça e Tiro 15 de Novembro é um importante espaço social para a comunidade. Realiza as tradicionais Festas de Rei e Rainha e Baile de Chopp, além de festas de casamento, confirmações e aniversários.",
       atendimento: "Consulte o calendário de eventos",
@@ -304,6 +338,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 41.8,
       y: 75.7,
+      lat: -26.677195,
+      lng: -49.182470,
       description:
         "Fábrica de chocolates premiada internacionalmente. Fundada em 2004, em 2019 teve a produção deslocada para o Testo Alto. Trabalha com cacaus brasileiros de alta qualidade e possui uma linha com cerca de 40 produtos.",
       atendimento:
@@ -322,6 +358,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 49.5,
       y: 80.3,
+      lat: -26.687734,
+      lng: -49.165253,
       description:
         "Com ampla variedade de produtos, como biscoitos e quitutes caseiros, a fábrica mescla receitas familiares com referências contemporâneas.",
       atendimento: "Todos os dias, das 8h às 20h",
@@ -339,6 +377,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 47.5,
       y: 81.4,
+      lat: -26.687890,
+      lng: -49.172127,
       description:
         "O antigo Clube Belz, fundado em 1929, é hoje o Clube de Caça e Tiro Alto Rio do Testo. Em nova sede, recebe eventos culturais promovidos pela comunidade, como as Festas de Rei e Rainha.",
       atendimento: "Consulte o calendário de eventos",
@@ -354,6 +394,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 44.6,
       y: 83.2,
+      lat: -26.694336,
+      lng: -49.175200,
       description:
         "Hoje pousada, a casa em sistema enxaimel da família Wachholz foi construída em 1867, pelo imigrante Albert Christian Johann Wachholz. Faça sua reserva e permita-se viajar no tempo com sua família ou amigos.",
       atendimento: "Mediante reserva",
@@ -371,6 +413,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 43.9,
       y: 85.1,
+      lat: -26.697003,
+      lng: -49.175693,
       description:
         "Ambiente bucólico com estrutura rústica e confortável, no tradicional estilo teuto-brasileiro. E ainda oferece passeio numa antiga bicicleta cheia de histórias.",
       atendimento: "Mediante reserva",
@@ -388,6 +432,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 46.1,
       y: 86.7,
+      lat: -26.698471,
+      lng: -49.173388,
       description:
         "Experimente deliciosos pratos típicos, lanches, chopes e cervejas artesanais da casa em ambiente rústico e confortável.",
       atendimento: "Das terças às sextas-feiras das 16h às 22h; sábados das 11h às 23h; e domingos das 11h às 21h",
@@ -405,6 +451,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 48.2,
       y: 86.5,
+      lat: -26.698580,
+      lng: -49.173125,
       description:
         "A bela casa enxaimel, construída em meados da década de 1890, serve de cenário para o comércio de cucas e biscoitos artesanais feitos pela senhora Elia e suas filhas.",
       atendimento: "Todos os dias, das 9h às 17h",
@@ -422,6 +470,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 50.9,
       y: 87.8,
+      lat: -26.707326,
+      lng: -49.164361,
       description:
         "A feira livre ocorre aos sábados pela manhã na Casa do Agricultor. A edificação em sistema enxaimel foi construída no fim do século XIX e abrigou a filial do comércio Weege.",
       atendimento: "Sábados das 7h30 às 12h",
@@ -437,6 +487,8 @@ window.ROTA_LUMIAR_DATA = {
       regionKey: "testo_alto",
       x: 30.5,
       y: 96.4,
+      lat: -26.743472,
+      lng: -49.174464,
       description:
         "Na companhia do guia de turismo e turismólogo Ronald Kreidel, conheça a cultura, história, tradição e as belezas naturais da região a bordo do \"Bruttus\" e do \"Xokleng\".",
       atendimento: "Mediante agendamento",

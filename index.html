@@ -46,32 +46,38 @@
   </div>
 
   <!-- ========================================================================
-       3. HUD DE INFORMAÇÃO DA CENA ATUAL (CANTO SUPERIOR ESQUERDO)
+       3. WIDGET CHAMATIVO GOOGLE MAPS + SATÉLITE + ROTA LUMIAR (CANTO SUPERIOR ESQUERDO)
        ======================================================================== -->
-  <header class="scene-hud-header ui-layer">
-    <div class="scene-hud-badge">Drone 360° Real • Vale Tombado do Rio da Luz (IPHAN)</div>
-    <h1 id="hudSceneTitle">Carregando Panorama...</h1>
-    <div id="hudSceneSubtitle"></div>
-    <div id="hudLiveCameraCoords">Pitch: 0.0° | Yaw: 0.0° | Zoom (FOV): 95°</div>
-    <div style="margin-top:8px; display:flex; gap:6px; flex-wrap:wrap;">
-      <button type="button" onclick="document.getElementById('btnOpenRioDaLuzMap').click()"
-        style="padding:5px 10px; border-radius:6px; border:1px solid #c084fc; background:rgba(107,76,140,0.85); color:#fff; font-size:11px; font-weight:700; cursor:pointer;">
-        🗺️ Mapa Turístico Rota Lumiar (1 a 26)
-      </button>
-      <a href="tour_sc_inicial.html"
-        style="padding:5px 10px; border-radius:6px; border:1px solid rgba(56,189,248,0.6); background:rgba(3,105,161,0.75); color:#fff; font-size:11px; font-weight:700; text-decoration:none;">
-        🌎 Abrir Tour SC Inicial (Salvo) ↗
-      </a>
-    </div>
-  </header>
+  <div id="googleMapsWidgetShell" class="gmaps-floating-shell ui-layer">
+    <button type="button" id="btnOpenSCMap" class="gmaps-launcher-btn"
+      title="Abrir Google Maps Satélite com todos os 26 pontos e o Mapa Rota Lumiar">
+      <span class="gmaps-pin-tile" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
+          <path d="M32 6C20.4 6 11 15.4 11 27c0 6.1 2.7 11.7 7 15.6L32 58l14-15.4c4.3-3.9 7-9.5 7-15.6C53 15.4 43.6 6 32 6z" fill="#EA4335"/>
+          <path d="M32 6C20.4 6 11 15.4 11 27c0 3.7 1 7.2 2.7 10.2l18.3-22V6z" fill="#4285F4"/>
+          <path d="M13.7 37.2c1.2 2 2.7 3.9 4.3 5.4L32 58V35.2l-18.3 2z" fill="#FBBC04"/>
+          <path d="M32 35.2V58l14-15.4c1.6-1.5 3.1-3.3 4.3-5.4L32 15.2v20z" fill="#34A853"/>
+          <path d="M32 15.2l-18.3 22A20.9 20.9 0 0 1 11 27c0-11.6 9.4-21 21-21v9.2z" fill="#1A73E8"/>
+          <path d="M50.3 37.2l-18.3-22V6c11.6 0 21 9.4 21 21 0 3.7-1 7.2-2.7 10.2z" fill="#EA4335"/>
+          <circle cx="32" cy="26" r="8.2" fill="#FFFFFF"/>
+        </svg>
+      </span>
+      <span class="gmaps-launcher-copy">
+        <span class="gmaps-top-tag">
+          <span class="gmaps-live-dot"></span>
+          <span>Google Maps Satélite</span>
+          <span class="gmaps-count-pill">26 Pontos</span>
+        </span>
+        <strong class="gmaps-main-title">Mapa do Vale &amp; Rota Lumiar</strong>
+        <span class="gmaps-sub-cta">Satélite com pinos GPS + Mapa Ilustrado ↗</span>
+      </span>
+    </button>
+  </div>
 
   <!-- ========================================================================
-       5. BARRA INFERIOR DE CONTROLES (DOCK CENTRAL - IGUAL SCREENSHOT 1)
+       5. BARRA INFERIOR DE CONTROLES (DOCK CENTRAL)
        ======================================================================== -->
   <footer class="bottom-center-dock ui-layer" role="toolbar" aria-label="Controles do Passeio Virtual">
-    <button type="button" id="btnOpenLogicGuide" class="dock-btn dock-btn-circle-info" title="Entenda a Lógica de Programação 360° e Créditos">
-      i
-    </button>
     <button type="button" id="btnToggleAa" class="dock-btn active" title="Mostrar/Ocultar Rótulos Geográficos 3D na Paisagem (Aa)">
       Aa
     </button>
@@ -80,9 +86,6 @@
     </button>
     <button type="button" id="btnOpenScenesGrid" class="dock-btn" title="Índice Geral de Panoramas 360° (Rio da Luz + Tour SC Inicial)">
       ▦
-    </button>
-    <button type="button" id="btnOpenSCMap" class="dock-btn" title="Abrir Mapa Interativo de Santa Catarina">
-      📍
     </button>
     <button type="button" id="btnToggleEditor" class="dock-btn dock-btn-creator" title="Modo Criador: Clique na foto 360° para adicionar pontos ou trocar a foto!">
       🛠️ Criar Ponto / Trocar Foto
@@ -194,6 +197,12 @@
         <button type="button" class="aux-close-btn" data-close-drawer="scenesGridModal">✕</button>
       </div>
       <div class="aux-modal-body">
+        <div style="margin-bottom:12px;display:flex;justify-content:flex-end;">
+          <a href="tour_sc_inicial.html"
+            style="padding:6px 12px;border-radius:8px;border:1px solid rgba(56,189,248,0.55);background:rgba(3,105,161,0.78);color:#fff;font-size:12px;font-weight:700;text-decoration:none;">
+            🌎 Abrir Tour SC Inicial (Salvo) ↗
+          </a>
+        </div>
         <div id="scenesGridContainer" class="scenes-grid-container"></div>
       </div>
     </div>
@@ -209,6 +218,14 @@
         <button type="button" class="aux-close-btn" data-close-drawer="rdlIllustratedModal">✕</button>
       </div>
       <div class="aux-modal-body">
+        <div class="map-unified-tabs">
+          <button type="button" id="btnSwitchToSatellite" class="map-unified-tab">
+            🛰️ Google Satélite (26 Pontos GPS)
+          </button>
+          <button type="button" class="map-unified-tab active">
+            🗺️ Mapa Cultural Rota Lumiar (1 a 26 &amp; Guia)
+          </button>
+        </div>
         <p id="rdlIntroLead" style="margin-bottom: 12px; font-size: 13px; color: #cbd5e1; line-height: 1.5;"></p>
         <div class="rdl-illustrated-layout">
           <div class="rdl-map-left-col">
@@ -244,25 +261,48 @@
   </div>
 
   <!-- ========================================================================
-       9. MODAL: MAPA GOOGLE SATÉLITE GEORREFERENCIADO (CASA RUX & SCHROEDER PLATZ)
+       9. MODAL: GOOGLE MAPS SATÉLITE (26 PONTOS) + ACESSO RÁPIDO ROTA LUMIAR
        ======================================================================== -->
   <div id="scMapModal" class="aux-drawer-modal ui-layer">
-    <div class="aux-modal-card" style="width: min(1040px, 95vw);">
+    <div class="aux-modal-card" style="width: min(1220px, 96vw);">
       <div class="aux-modal-header">
-        <h3>🛰️ Google Satélite Georreferenciado — Casa Rux &amp; Schroeder Platz</h3>
+        <h3 style="display:flex;align-items:center;gap:9px;">
+          <svg viewBox="0 0 64 64" width="22" height="22" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M32 6C20.4 6 11 15.4 11 27c0 6.1 2.7 11.7 7 15.6L32 58l14-15.4c4.3-3.9 7-9.5 7-15.6C53 15.4 43.6 6 32 6z" fill="#EA4335"/>
+            <path d="M32 6C20.4 6 11 15.4 11 27c0 3.7 1 7.2 2.7 10.2l18.3-22V6z" fill="#4285F4"/>
+            <path d="M13.7 37.2c1.2 2 2.7 3.9 4.3 5.4L32 58V35.2l-18.3 2z" fill="#FBBC04"/>
+            <path d="M32 35.2V58l14-15.4c1.6-1.5 3.1-3.3 4.3-5.4L32 15.2v20z" fill="#34A853"/>
+            <circle cx="32" cy="26" r="8.2" fill="#FFFFFF"/>
+          </svg>
+          <span>Google Satélite Georreferenciado — Vale do Rio da Luz &amp; Rota Lumiar (26 Pontos)</span>
+        </h3>
         <button type="button" class="aux-close-btn" data-close-drawer="scMapModal">✕</button>
       </div>
-      <div class="aux-modal-body" style="padding: 0; display: flex; flex-direction: column; height: 560px;">
+      <div class="aux-modal-body sc-map-modal-body">
+        <div class="map-unified-tabs" style="margin: 10px 14px 0;">
+          <button type="button" class="map-unified-tab active">
+            🛰️ Google Satélite (26 Pontos GPS)
+          </button>
+          <button type="button" id="btnSwitchToRotaLumiar" class="map-unified-tab">
+            🗺️ Mapa Cultural Rota Lumiar (1 a 26 &amp; Guia)
+          </button>
+        </div>
         <div id="scMapQuickBar" class="sc-map-quick-bar">
-          <button type="button" id="btnFocusValeBounds" class="sc-quick-btn">🎯 Focar Vale (Casa Rux &amp; Schroeder)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn active" data-map-filter="all">🎯 Todos (26 Pontos)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="rio_da_luz">🌿 Rio da Luz (1–14)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="testo_alto">🏡 Testo Alto (15–26)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="pano360">📷 Focar 360° (Casa Rux &amp; Schroeder)</button>
           <a href="https://www.google.com/maps/search/?api=1&query=-26.53617,-49.14234" target="_blank" rel="noopener noreferrer" class="sc-quick-btn sc-quick-gmaps">
-            🏠 Casa Rux no Google Maps ↗
+            🏠 Casa Rux Maps ↗
           </a>
           <a href="https://www.google.com/maps/search/?api=1&query=-26.5384678,-49.1486893" target="_blank" rel="noopener noreferrer" class="sc-quick-btn sc-quick-gmaps">
-            🏡 Schroeder Platz no Google Maps ↗
+            🏡 Schroeder Platz Maps ↗
           </a>
         </div>
-        <div id="leafletSCMap" style="width: 100%; flex: 1; min-height: 440px;"></div>
+        <div class="sc-map-split">
+          <div id="leafletSCMap" class="sc-map-canvas"></div>
+          <aside id="scMapPointsSidebar" class="sc-map-sidebar" aria-label="Lista dos 26 pontos da Rota Lumiar"></aside>
+        </div>
       </div>
     </div>
   </div>

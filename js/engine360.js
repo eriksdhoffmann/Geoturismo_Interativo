@@ -482,7 +482,13 @@
         hs.type === "3d" ? "🧊 Modelo 3D Externo" :
         hs.type === "scene" ? "🌐 Ir para Foto 360°" : "📖 Informação & Foto";
 
-      innerHTML += `
+      innerHTML += hs.hideTooltipBadge
+        ? `
+        <span class="hotspot-tooltip">
+          <strong>${hs.tooltip || hs.title}</strong>
+        </span>
+      `
+        : `
         <span class="hotspot-tooltip">
           <small class="tt-badge">${typeLabel}</small>
           <strong>${hs.tooltip || hs.title}</strong>
@@ -1158,12 +1164,28 @@
       });
     }
 
-    // Botão Mapa Ilustrado do Rio da Luz (Pontos 1 a 13 + Igrejas + Clubes + Montanha)
+    // Botão Mapa Ilustrado do Rio da Luz (Pontos 1 a 26)
     const btnRdlMap = document.getElementById("btnOpenRioDaLuzMap");
     if (btnRdlMap) {
       btnRdlMap.addEventListener("click", () => {
         buildRioDaLuzIllustratedMap();
         toggleDrawer("rdlIllustratedModal");
+      });
+    }
+
+    // Troca rápida direta entre aba Satélite (26 Pontos) <-> Mapa Cultural Rota Lumiar
+    const btnToRdl = document.getElementById("btnSwitchToRotaLumiar");
+    if (btnToRdl) {
+      btnToRdl.addEventListener("click", () => {
+        buildRioDaLuzIllustratedMap();
+        openDrawer("rdlIllustratedModal");
+      });
+    }
+    const btnToSat = document.getElementById("btnSwitchToSatellite");
+    if (btnToSat) {
+      btnToSat.addEventListener("click", () => {
+        openDrawer("scMapModal");
+        setTimeout(() => initOrUpdateLeafletMap(), 120);
       });
     }
 
@@ -1176,12 +1198,12 @@
       });
     }
 
-    // Botão Mapa Interativo de Santa Catarina
+    // Widget / Botão Google Maps Satélite (26 Pontos + Rota Lumiar)
     const btnMap = document.getElementById("btnOpenSCMap");
     if (btnMap) {
       btnMap.addEventListener("click", () => {
         toggleDrawer("scMapModal");
-        setTimeout(initOrUpdateLeafletMap, 120);
+        setTimeout(() => initOrUpdateLeafletMap(), 120);
       });
     }
 
@@ -1225,6 +1247,13 @@
         if (el) el.classList.remove("open");
       });
     });
+  }
+
+  function openDrawer(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    closeAuxiliaryDrawers();
+    el.classList.add("open");
   }
 
   function toggleDrawer(id) {
@@ -1663,44 +1692,179 @@
   }
 
   // ===========================================================================
-  // 6. MAPA GOOGLE SATÉLITE GEORREFERENCIADO (CASA RUX & SCHROEDER PLATZ)
+  // 6. MAPA GOOGLE SATÉLITE GEORREFERENCIADO (TODOS OS 26 PONTOS DA ROTA LUMIAR)
   // ===========================================================================
-  const RIO_DA_LUZ_BOUNDS = [
-    [-26.5352, -49.1412],
-    [-26.5396, -49.1502]
-  ];
+  let activeScMapFilter = "all";
 
-  function buildGoogleMapPopupHTML(sc) {
-    const lat = sc.coordinates.lat;
-    const lng = sc.coordinates.lng;
-    const gmapsUrl = sc.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
-    const gdirUrl = sc.googleDirectionsUrl || `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-    const photoUrl = sc.staticPhoto || sc.thumbPhoto;
-    const titleLabel = sc.placeMenuTitle || sc.shortTitle || sc.title;
-    const addrText = sc.address || sc.municipality;
+  function getRotaPointsForMap(filterKey) {
+    const pts = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
+      ? window.ROTA_LUMIAR_DATA.points.filter(p => typeof p.lat === "number" && typeof p.lng === "number")
+      : [];
+    if (filterKey === "rio_da_luz") return pts.filter(p => p.regionKey === "rio_da_luz");
+    if (filterKey === "testo_alto") return pts.filter(p => p.regionKey === "testo_alto");
+    if (filterKey === "pano360") return pts.filter(p => Boolean(p.sceneId));
+    return pts;
+  }
+
+  function buildRotaPointGooglePopupHTML(pt) {
+    const linkedScene = pt.sceneId && window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes
+      ? window.TOUR_SC_DATA.scenes[pt.sceneId]
+      : null;
+    const lat = pt.lat;
+    const lng = pt.lng;
+    const gmapsUrl = (linkedScene && linkedScene.googleMapsUrl)
+      || `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`;
+    const gdirUrl = (linkedScene && linkedScene.googleDirectionsUrl)
+      || `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+    const photoUrl = linkedScene ? (linkedScene.staticPhoto || linkedScene.thumbPhoto) : "";
 
     return `
-      <div style="min-width:225px;font-family:Inter,sans-serif;color:#0f172a;">
-        ${photoUrl ? `<img src="${photoUrl}" alt="${titleLabel}" style="width:100%;height:92px;object-fit:cover;border-radius:6px;margin-bottom:7px;display:block;" />` : ""}
-        <strong style="font-size:14px;color:#0f5132;display:block;line-height:1.25;">${titleLabel}</strong>
-        <div style="font-size:11.5px;color:#334155;margin:3px 0;">📍 ${addrText}</div>
-        <div style="font-size:10.5px;color:#64748b;font-family:monospace;">GPS Google: ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
-        <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">
+      <div style="min-width:235px;max-width:270px;font-family:Inter,sans-serif;color:#0f172a;">
+        ${photoUrl ? `<img src="${photoUrl}" alt="${pt.name}" style="width:100%;height:88px;object-fit:cover;border-radius:6px;margin-bottom:7px;display:block;" />` : ""}
+        <div style="font-size:10.5px;font-weight:800;color:#15803d;text-transform:uppercase;margin-bottom:2px;">Ponto ${pt.num} • ${pt.region}</div>
+        <strong style="font-size:14px;color:#0f172a;display:block;line-height:1.25;">${pt.num}. ${pt.name}</strong>
+        ${pt.description ? `<p style="font-size:11.5px;color:#334155;margin:5px 0;line-height:1.35;">${pt.description}</p>` : ""}
+        ${pt.endereco ? `<div style="font-size:11px;color:#475569;margin:2px 0;">📍 ${pt.endereco}</div>` : ""}
+        ${pt.atendimento ? `<div style="font-size:11px;color:#475569;margin:2px 0;">🕒 ${pt.atendimento}</div>` : ""}
+        ${pt.telefone ? `<div style="font-size:11px;color:#475569;margin:2px 0;">📞 ${pt.telefone}</div>` : ""}
+        <div style="font-size:10.5px;color:#64748b;font-family:monospace;margin-top:3px;">GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
+        <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;">
           <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer"
-            style="display:block;text-align:center;padding:7px 10px;background:#1d4ed8;color:#fff;border-radius:6px;text-decoration:none;font-size:12px;font-weight:800;">
+            style="display:block;text-align:center;padding:7px 10px;background:#1d4ed8;color:#fff;border-radius:6px;text-decoration:none;font-size:11.5px;font-weight:800;">
             🗺️ Ir para o Google Maps ↗
           </a>
           <a href="${gdirUrl}" target="_blank" rel="noopener noreferrer"
-            style="display:block;text-align:center;padding:6px 10px;background:#0f766e;color:#fff;border-radius:6px;text-decoration:none;font-size:11.5px;font-weight:700;">
+            style="display:block;text-align:center;padding:6px 10px;background:#0f766e;color:#fff;border-radius:6px;text-decoration:none;font-size:11px;font-weight:700;">
             🚗 Traçar Rota até Aqui ↗
           </a>
-          <button type="button" onclick="window.GeoSC360.goToScene('${sc.id}')"
-            style="width:100%;padding:6px 10px;background:#15803d;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11.5px;font-weight:700;">
-            🌐 Ver Panorama 360° Aqui
-          </button>
+          ${pt.sceneId ? `
+            <button type="button" onclick="window.GeoSC360.goToScene('${pt.sceneId}')"
+              style="width:100%;padding:6px 10px;background:#15803d;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11.5px;font-weight:800;">
+              🌐 Ver Panorama 360° Aqui
+            </button>
+          ` : ""}
         </div>
       </div>
     `;
+  }
+
+  function renderMapSidebar(pts, selectedNum) {
+    const sidebar = document.getElementById("scMapPointsSidebar");
+    if (!sidebar) return;
+
+    sidebar.innerHTML = `
+      <div class="sc-sidebar-header">Pontos no Satélite (${pts.length}) • Clique para focar</div>
+      ${pts.map(pt => {
+        const numClass = pt.sceneId ? "is-360" : (pt.regionKey === "testo_alto" ? "region-testo" : "");
+        const activeClass = pt.num === selectedNum ? "active" : "";
+        return `
+          <button type="button" class="sc-sidebar-item ${activeClass}" data-map-pt-num="${pt.num}">
+            <span class="sc-sidebar-num ${numClass}">${pt.num}</span>
+            <span class="sc-sidebar-info">
+              <strong class="sc-sidebar-name">${pt.name}${pt.sceneId ? " 📷 360°" : ""}</strong>
+              <span class="sc-sidebar-sub">${pt.endereco || pt.region}</span>
+            </span>
+          </button>
+        `;
+      }).join("")}
+    `;
+
+    sidebar.querySelectorAll("[data-map-pt-num]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const num = Number(btn.getAttribute("data-map-pt-num"));
+        const pt = pts.find(p => p.num === num);
+        if (!pt) return;
+        sidebar.querySelectorAll(".sc-sidebar-item").forEach(el => el.classList.remove("active"));
+        btn.classList.add("active");
+
+        const marker = state.leafletMarkers && state.leafletMarkers[num];
+        if (state.leafletMap && marker) {
+          state.leafletMap.flyTo([pt.lat, pt.lng], pt.sceneId ? 16.5 : 15.5, { duration: 0.65 });
+          setTimeout(() => marker.openPopup(), 260);
+        }
+      });
+    });
+  }
+
+  function renderFilteredSatelliteMarkers(filterKey) {
+    activeScMapFilter = filterKey || "all";
+    const pts = getRotaPointsForMap(activeScMapFilter);
+    renderMapSidebar(pts, null);
+
+    document.querySelectorAll("#scMapQuickBar .sc-filter-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.getAttribute("data-map-filter") === activeScMapFilter);
+    });
+
+    if (!state.leafletMap || typeof window.L === "undefined") {
+      const mapContainer = document.getElementById("leafletSCMap");
+      if (mapContainer && typeof window.L === "undefined") {
+        renderOfflineMapFallback(mapContainer, pts);
+      }
+      return;
+    }
+
+    if (state.leafletMarkersLayer) {
+      state.leafletMarkersLayer.clearLayers();
+    } else {
+      state.leafletMarkersLayer = window.L.layerGroup().addTo(state.leafletMap);
+    }
+    state.leafletMarkers = {};
+
+    if (pts.length >= 2) {
+      window.L.polyline(pts.map(p => [p.lat, p.lng]), {
+        color: "#facc15",
+        weight: 2.5,
+        opacity: 0.72,
+        dashArray: "6 6"
+      }).addTo(state.leafletMarkersLayer);
+    }
+
+    pts.forEach(pt => {
+      let icon;
+      if (pt.sceneId) {
+        const shortBadge = pt.num === 1 ? "🏠 1. Casa Rux 360°" : "🏡 2. Schroeder Platz 360°";
+        icon = window.L.divIcon({
+          className: "gsat-pin-wrapper",
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+          popupAnchor: [0, -38],
+          html: `<div class="gsat-pin-badge" title="${pt.num}. ${pt.name}">${shortBadge}</div>`
+        });
+      } else {
+        const regClass = pt.regionKey === "testo_alto" ? "region-testo" : "";
+        icon = window.L.divIcon({
+          className: "gsat-pin-wrapper",
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+          popupAnchor: [0, -16],
+          html: `<div class="gsat-num-pin ${regClass}" title="${pt.num}. ${pt.name}">${pt.num}</div>`
+        });
+      }
+
+      const marker = window.L.marker([pt.lat, pt.lng], {
+        icon,
+        zIndexOffset: pt.sceneId ? 600 : 100 + (30 - pt.num)
+      }).addTo(state.leafletMarkersLayer);
+
+      marker.bindPopup(buildRotaPointGooglePopupHTML(pt), { maxWidth: 290 });
+      marker.on("click", () => {
+        const sidebarBtn = document.querySelector(`#scMapPointsSidebar [data-map-pt-num="${pt.num}"]`);
+        if (sidebarBtn) {
+          document.querySelectorAll("#scMapPointsSidebar .sc-sidebar-item").forEach(el => el.classList.remove("active"));
+          sidebarBtn.classList.add("active");
+          sidebarBtn.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+      });
+      state.leafletMarkers[pt.num] = marker;
+    });
+
+    if (pts.length > 0) {
+      const bounds = window.L.latLngBounds(pts.map(p => [p.lat, p.lng]));
+      state.leafletMap.fitBounds(bounds, {
+        padding: [42, 42],
+        maxZoom: activeScMapFilter === "pano360" ? 16 : 14
+      });
+    }
   }
 
   function initOrUpdateLeafletMap() {
@@ -1708,24 +1872,25 @@
     if (!mapContainer) return;
 
     if (typeof window.L === "undefined") {
-      renderOfflineMapFallback(mapContainer);
+      renderOfflineMapFallback(mapContainer, getRotaPointsForMap(activeScMapFilter));
+      renderMapSidebar(getRotaPointsForMap(activeScMapFilter), null);
+      bindScMapQuickButtons();
       return;
     }
 
     if (!state.leafletMap) {
       state.leafletMap = window.L.map("leafletSCMap", {
-        center: [-26.5374, -49.1456],
-        zoom: 16,
+        center: [-26.625, -49.172],
+        zoom: 12,
         maxZoom: 21
       });
 
-      // Camada principal: Google Satélite Híbrido (fotos de satélite + nomes reais das ruas e locais)
       const googleHybrid = window.L.tileLayer(
         "https://mt{s}.google.com/vt/lyrs=y&hl=pt-BR&x={x}&y={y}&z={z}",
         {
           subdomains: ["0", "1", "2", "3"],
           maxZoom: 21,
-          attribution: "Imagens © Google Satélite • Rio da Luz (GeoSC 360°)"
+          attribution: "Imagens © Google Satélite • Rota Lumiar (GeoSC 360°)"
         }
       );
       const googleSatelliteOnly = window.L.tileLayer(
@@ -1752,72 +1917,53 @@
         "🗺️ Google Mapa de Ruas": googleStreets
       }).addTo(state.leafletMap);
 
-      const targetIds = ["casa_rux_05", "schroeder_platz_03"];
-      const scenesForMap = targetIds
-        .map(id => window.TOUR_SC_DATA.scenes[id])
-        .filter(sc => sc && sc.coordinates);
-
-      scenesForMap.forEach(sc => {
-        const badgeText = sc.id === "casa_rux_05"
-          ? "🏠 Casa Rux"
-          : "🏡 Schroeder Platz";
-
-        const icon = window.L.divIcon({
-          className: "gsat-pin-wrapper",
-          iconSize: [0, 0],
-          iconAnchor: [0, 0],
-          popupAnchor: [0, -40],
-          html: `<div class="gsat-pin-badge">${badgeText}</div>`
-        });
-
-        const marker = window.L.marker([sc.coordinates.lat, sc.coordinates.lng], { icon }).addTo(state.leafletMap);
-        marker.bindPopup(buildGoogleMapPopupHTML(sc), { maxWidth: 270 });
-        state.leafletMarkers[sc.id] = marker;
-      });
-
-      state.leafletMap.fitBounds(RIO_DA_LUZ_BOUNDS, { padding: [55, 55], maxZoom: 16 });
-
-      const focusBtn = document.getElementById("btnFocusValeBounds");
-      if (focusBtn && !focusBtn.dataset.bound) {
-        focusBtn.dataset.bound = "true";
-        focusBtn.addEventListener("click", () => {
-          state.leafletMap.fitBounds(RIO_DA_LUZ_BOUNDS, { padding: [55, 55], maxZoom: 16 });
-        });
-      }
+      bindScMapQuickButtons();
     }
 
     state.leafletMap.invalidateSize();
-    state.leafletMap.fitBounds(RIO_DA_LUZ_BOUNDS, { padding: [55, 55], maxZoom: 16 });
-    const cur = window.TOUR_SC_DATA.scenes[state.currentSceneId];
-    if (cur && state.leafletMarkers[cur.id]) {
-      state.leafletMarkers[cur.id].openPopup();
-    }
+    renderFilteredSatelliteMarkers(activeScMapFilter);
   }
 
-  function renderOfflineMapFallback(container) {
-    const scenesList = ["casa_rux_05", "schroeder_platz_03"]
-      .map(id => window.TOUR_SC_DATA.scenes[id])
-      .filter(sc => sc && sc.coordinates);
+  function bindScMapQuickButtons() {
+    document.querySelectorAll("#scMapQuickBar .sc-filter-btn").forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "true";
+      btn.addEventListener("click", () => {
+        const filterKey = btn.getAttribute("data-map-filter") || "all";
+        renderFilteredSatelliteMarkers(filterKey);
+      });
+    });
+  }
+
+  function renderOfflineMapFallback(container, pts) {
+    const list = pts || getRotaPointsForMap(activeScMapFilter);
     container.innerHTML = `
-      <div style="padding:24px;color:#fff;background:#10231c;height:100%;overflow:auto;">
-        <h4 style="margin-bottom:12px;">🛰️ Pontos Georreferenciados no Google — Rio da Luz:</h4>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;">
-          ${scenesList.map(sc => {
-            const gmapsUrl = sc.googleMapsUrl || `https://www.google.com/maps/search/?api=1&query=${sc.coordinates.lat},${sc.coordinates.lng}`;
+      <div style="padding:18px;color:#fff;background:#10231c;height:100%;overflow:auto;">
+        <h4 style="margin-bottom:10px;">🛰️ Pontos Georreferenciados no Google — Rota Lumiar (${list.length} pontos):</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:10px;">
+          ${list.map(pt => {
+            const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${pt.lat},${pt.lng}`;
+            const gdirUrl = `https://www.google.com/maps/dir/?api=1&destination=${pt.lat},${pt.lng}`;
             return `
-              <div style="background:rgba(255,255,255,0.08);padding:12px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);">
-                <strong>${sc.placeMenuTitle || sc.shortTitle}</strong>
-                <div style="font-size:12px;color:#cbd5e1;margin:4px 0;">${sc.address || sc.municipality}</div>
-                <div style="font-size:11px;color:#a7f3d0;margin-bottom:8px;">GPS Google: ${sc.coordinates.lat}, ${sc.coordinates.lng}</div>
+              <div style="background:rgba(255,255,255,0.08);padding:11px;border-radius:8px;border:1px solid rgba(255,255,255,0.15);">
+                <strong>${pt.num}. ${pt.name}</strong>
+                <div style="font-size:11.5px;color:#cbd5e1;margin:3px 0;">${pt.endereco || pt.region}</div>
+                <div style="font-size:10.5px;color:#a7f3d0;margin-bottom:8px;">GPS: ${pt.lat.toFixed(5)}, ${pt.lng.toFixed(5)}</div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;">
                   <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer"
-                    style="padding:6px 10px;background:#1d4ed8;color:#fff;border-radius:5px;text-decoration:none;font-size:12px;font-weight:700;">
-                    Abrir Google Maps ↗
+                    style="padding:5px 9px;background:#1d4ed8;color:#fff;border-radius:5px;text-decoration:none;font-size:11px;font-weight:700;">
+                    Google Maps ↗
                   </a>
-                  <button type="button" onclick="window.GeoSC360.goToScene('${sc.id}')"
-                    style="padding:6px 10px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;">
-                    Foto 360°
-                  </button>
+                  <a href="${gdirUrl}" target="_blank" rel="noopener noreferrer"
+                    style="padding:5px 9px;background:#0f766e;color:#fff;border-radius:5px;text-decoration:none;font-size:11px;font-weight:700;">
+                    Rota ↗
+                  </a>
+                  ${pt.sceneId ? `
+                    <button type="button" onclick="window.GeoSC360.goToScene('${pt.sceneId}')"
+                      style="padding:5px 9px;background:#16a34a;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:700;">
+                      Foto 360°
+                    </button>
+                  ` : ""}
                 </div>
               </div>
             `;
