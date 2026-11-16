@@ -2295,6 +2295,10 @@
       }
       loadScene(sceneId, animate);
     },
+    openRotaLumiar: function () {
+      buildRioDaLuzIllustratedMap();
+      openDrawer("rdlIllustratedModal");
+    },
     setView: function (pitch, yaw) {
       if (typeof pitch === "number" && !Number.isNaN(pitch)) {
         state.pitch = pitch;
