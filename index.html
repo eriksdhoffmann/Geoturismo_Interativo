@@ -188,45 +188,78 @@
   </div>
 
   <!-- ========================================================================
-       8B. MODAL: MAPA CULTURAL TURÍSTICO — ROTA LUMIAR (PONTOS 1 A 26)
+       8B. MODAL: MAPA CULTURAL TURÍSTICO — ROTA LUMIAR (ESTILO ROTA ENXAIMEL)
        ======================================================================== -->
   <div id="rdlIllustratedModal" class="aux-drawer-modal ui-layer">
-    <div class="aux-modal-card" style="width: min(1220px, 96vw);">
-      <div class="aux-modal-header">
-        <h3>🗺️ Mapa Cultural Turístico — Rota Lumiar (Rio da Luz e Testo Alto • Pontos 1 a 26)</h3>
-        <button type="button" class="aux-close-btn" data-close-drawer="rdlIllustratedModal">✕</button>
-      </div>
-      <div class="aux-modal-body">
-        <p id="rdlIntroLead" style="margin-bottom: 12px; font-size: 13px; color: #cbd5e1; line-height: 1.5;"></p>
-        <div class="rdl-illustrated-layout">
-          <div class="rdl-map-left-col">
-            <div class="rdl-map-mode-bar">
-              <button type="button" id="btnRdlViewFront" class="rdl-mode-btn active">🗺️ Mapa Ilustrado (Pinos 1–26)</button>
-              <button type="button" id="btnRdlViewBack" class="rdl-mode-btn">📄 Guia Oficial (Verso)</button>
-            </div>
-            <div class="rdl-zoom-toolbar" id="rdlZoomToolbar">
-              <span class="rdl-zoom-hint">🔍 Scroll ou arraste para dar zoom:</span>
-              <div class="rdl-zoom-controls">
-                <button type="button" id="btnRdlZoomOut" class="rdl-zoom-btn" title="Diminuir zoom">−</button>
-                <span id="rdlZoomLevelLabel" class="rdl-zoom-badge">100%</span>
-                <button type="button" id="btnRdlZoomIn" class="rdl-zoom-btn" title="Aumentar zoom">+</button>
-                <button type="button" id="btnRdlZoomReset" class="rdl-zoom-btn rdl-zoom-reset" title="Voltar para 100%">100%</button>
-                <button type="button" id="btnRdlExpandMap" class="rdl-zoom-btn rdl-zoom-expand" title="Expandir área do mapa">⛶ Expandir</button>
-              </div>
-            </div>
-            <div id="rdlInteractiveMapBox" class="rdl-map-canvas-box zoomable"></div>
-            <div id="rdlCreditsFooter" class="rdl-credits-line"></div>
-          </div>
-          <div class="rdl-right-col">
-            <div class="rdl-filter-bar" id="rdlRegionFilterBar">
-              <button type="button" class="rdl-filter-chip active" data-region="all">Todos (26)</button>
-              <button type="button" class="rdl-filter-chip" data-region="rio_da_luz">Rio da Luz • Jaraguá do Sul (1–14)</button>
-              <button type="button" class="rdl-filter-chip" data-region="testo_alto">Testo Alto • Pomerode (15–26)</button>
-            </div>
-            <div id="rdlPointDetailBox" class="rdl-point-detail-box"></div>
-            <div id="rdlInteractiveListBox" class="rdl-points-list-grid"></div>
+    <div class="aux-modal-card rdl-enxaimel-card" style="width: min(1240px, 96vw);">
+      <header class="rdl-enxaimel-header">
+        <div class="rdl-enxaimel-brand">
+          <svg viewBox="0 0 40 28" width="36" height="26" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <polygon points="20,2 38,14 20,26 2,14" fill="none" stroke="#c8a96e" stroke-width="2.2"/>
+            <line x1="11" y1="8" x2="29" y2="20" stroke="#c8a96e" stroke-width="1.6"/>
+            <line x1="29" y1="8" x2="11" y2="20" stroke="#c8a96e" stroke-width="1.6"/>
+            <line x1="20" y1="2" x2="20" y2="26" stroke="#c8a96e" stroke-width="1.6"/>
+          </svg>
+          <div class="rdl-brand-titles">
+            <span class="rdl-brand-kicker">ROTA DO VALE</span>
+            <strong class="rdl-brand-main">Rota Lumiar</strong>
           </div>
         </div>
+
+        <nav class="rdl-enxaimel-nav" id="rdlCategoryNavBar" aria-label="Categorias da Rota Lumiar">
+          <button type="button" class="rdl-nav-link active" data-cat="all">Todos (26)</button>
+          <button type="button" class="rdl-nav-link" data-cat="atrativos">Atrativos</button>
+          <button type="button" class="rdl-nav-link" data-cat="compras">Compras</button>
+          <button type="button" class="rdl-nav-link" data-cat="gastronomia">Gastronomia</button>
+          <button type="button" class="rdl-nav-link" data-cat="hospedagem">Hospedagem &amp; Clubes</button>
+        </nav>
+
+        <div class="rdl-enxaimel-head-actions">
+          <span class="rdl-navy-pill">Rio da Luz &amp; Testo Alto</span>
+          <button type="button" class="rdl-close-cream-btn" data-close-drawer="rdlIllustratedModal" title="Fechar">✕</button>
+        </div>
+      </header>
+
+      <div class="aux-modal-body rdl-enxaimel-body">
+        <div class="rdl-top-controls-strip">
+          <div class="rdl-map-mode-bar">
+            <button type="button" id="btnRdlViewFront" class="rdl-mode-btn active">🗺️ Mapa Ilustrado (Pinos 1–26)</button>
+            <button type="button" id="btnRdlViewBack" class="rdl-mode-btn">📄 Guia Oficial (Verso)</button>
+          </div>
+          <div class="rdl-filter-bar" id="rdlRegionFilterBar">
+            <button type="button" class="rdl-filter-chip active" data-region="all">Todo o Percurso (26)</button>
+            <button type="button" class="rdl-filter-chip" data-region="rio_da_luz">Rio da Luz (1–14)</button>
+            <button type="button" class="rdl-filter-chip" data-region="testo_alto">Testo Alto (15–26)</button>
+          </div>
+          <div class="rdl-zoom-toolbar" id="rdlZoomToolbar">
+            <span class="rdl-zoom-hint">🔍 Zoom:</span>
+            <div class="rdl-zoom-controls">
+              <button type="button" id="btnRdlZoomOut" class="rdl-zoom-btn" title="Diminuir zoom">−</button>
+              <span id="rdlZoomLevelLabel" class="rdl-zoom-badge">100%</span>
+              <button type="button" id="btnRdlZoomIn" class="rdl-zoom-btn" title="Aumentar zoom">+</button>
+              <button type="button" id="btnRdlZoomReset" class="rdl-zoom-btn rdl-zoom-reset" title="Voltar para 100%">100%</button>
+              <button type="button" id="btnRdlExpandMap" class="rdl-zoom-btn rdl-zoom-expand" title="Expandir área do mapa">⛶ Expandir</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="rdl-illustrated-layout">
+          <div class="rdl-map-stage-wrap">
+            <div id="rdlInteractiveMapBox" class="rdl-map-canvas-box zoomable"></div>
+          </div>
+
+          <div class="rdl-right-panel">
+            <div id="rdlPointDetailBox" class="rdl-point-detail-box"></div>
+            <div class="rdl-enxaimel-footer-info">
+              <p id="rdlIntroLead" class="rdl-intro-note"></p>
+              <div id="rdlCreditsFooter" class="rdl-credits-line"></div>
+            </div>
+          </div>
+        </div>
+
+        <section class="rdl-directory-section" id="rdlDirectorySection" aria-label="Pontos por categoria">
+          <div id="rdlInteractiveListBox" class="rdl-enxaimel-columns"></div>
+        </section>
       </div>
     </div>
   </div>
@@ -319,6 +352,7 @@
   <script src="js/drone-panos-b64.js"></script>
   <script src="js/modelo-3d-glb.js"></script>
   <script src="js/rota-lumiar-data.js"></script>
+  <script src="js/rota-lumiar-road-path.js"></script>
   <script src="js/dados-sc.js"></script>
   <script src="js/glb-viewer.js"></script>
   <script src="js/panorama-generator.js"></script>
@@ -378,6 +412,17 @@
           } else if (action === "scmap") {
             const btn = document.getElementById("btnOpenSCMap");
             if (btn) btn.click();
+            const mapFilter = params.get("filter");
+            if (mapFilter) {
+              setTimeout(() => {
+                const fbtn = document.querySelector(`#scMapQuickBar [data-map-filter="${mapFilter}"]`);
+                if (fbtn) fbtn.click();
+                if (params.get("expand") === "1") {
+                  const expBtn = document.getElementById("btnToggleScMapExpand");
+                  if (expBtn) expBtn.click();
+                }
+              }, 350);
+            }
           } else if (action === "travel" && window.GeoSC360) {
             window.GeoSC360.goToScene(params.get("to") || "schroeder_platz_03", true);
           }

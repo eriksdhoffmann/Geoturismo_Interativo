@@ -1341,6 +1341,7 @@
     const introLead = document.getElementById("rdlIntroLead");
     const creditsFooter = document.getElementById("rdlCreditsFooter");
     const filterBar = document.getElementById("rdlRegionFilterBar");
+    const categoryBar = document.getElementById("rdlCategoryNavBar");
     const btnFront = document.getElementById("btnRdlViewFront");
     const btnBack = document.getElementById("btnRdlViewBack");
     const btnZoomIn = document.getElementById("btnRdlZoomIn");
@@ -1354,10 +1355,20 @@
     const rotaData = window.ROTA_LUMIAR_DATA;
     if (!rotaData || !rotaData.points) return;
 
+    const categories = rotaData.categories || [
+      { id: "atrativos", label: "Atrativos", shortTitle: "ATRATIVOS", color: "#1e293b" },
+      { id: "compras", label: "Compras", shortTitle: "COMPRAS", color: "#6d28d9" },
+      { id: "gastronomia", label: "Gastronomia", shortTitle: "GASTRONOMIA", color: "#d97706" },
+      { id: "hospedagem", label: "Hospedagem & Clubes", shortTitle: "HOSPEDAGEM", color: "#dc2626" }
+    ];
+    const catById = {};
+    categories.forEach(c => { catById[c.id] = c; });
+
     if (introLead) introLead.textContent = rotaData.introText || "";
     if (creditsFooter) creditsFooter.textContent = rotaData.credits || "";
 
     let currentRegion = "all";
+    let currentCategory = "all";
     let selectedNum = 1;
     let mapSide = "front";
     let zoomScale = 1;
@@ -1461,7 +1472,8 @@
         rotaData.points.forEach(p => {
           const pin = document.createElement("button");
           pin.type = "button";
-          pin.className = `rdl-map-pin-btn ${p.sceneId ? "has-360" : ""} ${p.num === selectedNum ? "active" : ""}`;
+          const catClass = `cat-${p.category || "atrativos"}`;
+          pin.className = `rdl-map-pin-btn ${catClass} ${p.sceneId ? "has-360" : ""} ${p.num === selectedNum ? "active" : ""}`;
           pin.style.left = `${p.x}%`;
           pin.style.top = `${p.y}%`;
           pin.dataset.pointNum = String(p.num);
@@ -1551,12 +1563,16 @@
     }
 
     function buildGoogleMapsHref(p) {
+      if (typeof p.lat === "number" && typeof p.lng === "number") {
+        return `https://www.google.com/maps/search/?api=1&query=${p.lat},${p.lng}`;
+      }
       return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.googleQuery || p.endereco)}`;
     }
 
     function renderSelectedDetail(p) {
       if (!detailBox || !p) return;
       const gmapsHref = buildGoogleMapsHref(p);
+      const catInfo = catById[p.category] || categories[0];
       const contactLine = p.contatoUrl
         ? `<div><strong>Site / Facebook:</strong> <a href="${p.contatoUrl}" target="_blank" rel="noopener noreferrer">${p.contatoLabel || p.contatoUrl} ↗</a></div>`
         : "";
@@ -1567,10 +1583,13 @@
 
       detailBox.innerHTML = `
         <div class="rdl-detail-head">
-          <span class="rdl-list-badge ${p.sceneId ? "has-360" : ""}">${p.num}</span>
+          <span class="rdl-list-badge cat-${p.category || "atrativos"}">${p.num}</span>
           <div>
-            <strong style="font-size:15px;color:#fff;display:block;">${p.num}. ${p.name}</strong>
-            <span class="rdl-detail-region">${p.region}</span>
+            <strong style="font-size:17px;color:#1e293b;display:block;font-family:var(--font-serif);">${p.num}. ${p.name}</strong>
+            <div style="margin-top:3px;">
+              <span class="rdl-detail-cat-pill" style="background:${catInfo.color};">${catInfo.label}</span>
+              <span class="rdl-detail-region">${p.region}</span>
+            </div>
           </div>
         </div>
         <p class="rdl-detail-desc">${p.description}</p>
@@ -1599,52 +1618,41 @@
     }
 
     function renderPointsCards() {
-      const visiblePoints = rotaData.points.filter(
-        p => currentRegion === "all" || p.regionKey === currentRegion
-      );
+      const visibleCategories = currentCategory === "all"
+        ? categories
+        : categories.filter(c => c.id === currentCategory);
 
-      listBox.innerHTML = visiblePoints.map(p => {
-        const gmapsHref = buildGoogleMapsHref(p);
-        const linkPart = p.contatoUrl
-          ? `<div><strong>Rede / Site:</strong> <a href="${p.contatoUrl}" target="_blank" rel="noopener noreferrer" style="color:#7dd3fc;">${p.contatoLabel || p.contatoUrl}</a></div>`
-          : "";
+      listBox.innerHTML = visibleCategories.map(cat => {
+        const colPts = rotaData.points.filter(p =>
+          (p.category || "atrativos") === cat.id &&
+          (currentRegion === "all" || p.regionKey === currentRegion)
+        );
         return `
-          <article class="rdl-point-card ${p.num === selectedNum ? "active" : ""}" data-card-num="${p.num}">
-            <div class="rdl-card-top">
-              <span class="rdl-list-badge ${p.sceneId ? "has-360" : ""}">${p.num}</span>
-              <div>
-                <strong style="font-size:13px;display:block;color:#fff;">${p.name}</strong>
-                <small style="color:#86efac;font-size:10.5px;">${p.region}</small>
-              </div>
+          <div class="rdl-cat-col">
+            <div class="rdl-cat-col-header">
+              <span class="rdl-cat-col-title">
+                <span class="rdl-cat-dot" style="background:${cat.color};"></span>
+                <span>${cat.shortTitle}</span>
+              </span>
+              <span class="rdl-cat-col-count">${colPts.length}</span>
             </div>
-            <p class="rdl-card-desc">${p.description}</p>
-            <div class="rdl-card-meta">
-              <div><strong>Atendimento:</strong> ${p.atendimento}</div>
-              <div><strong>Endereço:</strong> ${p.endereco}</div>
-              <div><strong>Tel.:</strong> ${p.telefone}</div>
-              ${linkPart}
-            </div>
-            <div class="rdl-detail-actions" style="margin-top:4px;">
-              <a href="${gmapsHref}" target="_blank" rel="noopener noreferrer" class="rdl-action-btn rdl-action-gmaps">
-                Google Maps ↗
-              </a>
-              ${p.sceneId ? `<button type="button" class="rdl-action-btn rdl-action-360" data-card-scene="${p.sceneId}">Foto 360°</button>` : ""}
-            </div>
-          </article>
+            ${colPts.map(p => `
+              <button type="button" class="rdl-dir-row ${p.num === selectedNum ? "active" : ""}" data-card-num="${p.num}">
+                <span class="rdl-dir-pin" style="background:${cat.color};">${p.num}</span>
+                <span class="rdl-dir-text">
+                  <strong class="rdl-dir-name">${p.name}${p.sceneId ? '<span class="rdl-dir-360-tag">360°</span>' : ""}</strong>
+                  <span class="rdl-dir-hours">${p.atendimento}</span>
+                </span>
+              </button>
+            `).join("")}
+          </div>
         `;
       }).join("");
 
-      listBox.querySelectorAll("[data-card-num]").forEach(card => {
-        card.addEventListener("click", e => {
-          if (e.target.closest("a") || e.target.closest("[data-card-scene]")) return;
-          selectRotaPoint(Number(card.getAttribute("data-card-num")), false);
-        });
-      });
-
-      listBox.querySelectorAll("[data-card-scene]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          closeAuxiliaryDrawers();
-          loadScene(btn.getAttribute("data-card-scene"), true);
+      listBox.querySelectorAll("[data-card-num]").forEach(row => {
+        row.addEventListener("click", () => {
+          selectRotaPoint(Number(row.getAttribute("data-card-num")), false);
+          if (detailBox) detailBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
         });
       });
     }
@@ -1658,11 +1666,11 @@
       mapBox.querySelectorAll(".rdl-map-pin-btn").forEach(pin => {
         pin.classList.toggle("active", Number(pin.dataset.pointNum) === point.num);
       });
-      listBox.querySelectorAll("[data-card-num]").forEach(card => {
-        const isCurrent = Number(card.getAttribute("data-card-num")) === point.num;
-        card.classList.toggle("active", isCurrent);
+      listBox.querySelectorAll("[data-card-num]").forEach(row => {
+        const isCurrent = Number(row.getAttribute("data-card-num")) === point.num;
+        row.classList.toggle("active", isCurrent);
         if (isCurrent && scrollCard) {
-          card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          row.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
       });
     }
@@ -1690,6 +1698,20 @@
           currentRegion = chip.getAttribute("data-region") || "all";
           filterBar.querySelectorAll("[data-region]").forEach(c => c.classList.toggle("active", c === chip));
           renderPointsCards();
+        });
+      });
+    }
+    if (categoryBar && !categoryBar.dataset.bound) {
+      categoryBar.dataset.bound = "true";
+      categoryBar.querySelectorAll("[data-cat]").forEach(tab => {
+        tab.addEventListener("click", () => {
+          currentCategory = tab.getAttribute("data-cat") || "all";
+          categoryBar.querySelectorAll("[data-cat]").forEach(t => t.classList.toggle("active", t === tab));
+          renderPointsCards();
+          if (currentCategory !== "all") {
+            const dirSec = document.getElementById("rdlDirectorySection");
+            if (dirSec) dirSec.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
         });
       });
     }
@@ -1815,7 +1837,7 @@
     sidebar.innerHTML = `
       <div class="sc-sidebar-header">Pontos no Satélite (${pts.length}) • Clique para focar</div>
       ${pts.map(pt => {
-        const numClass = pt.sceneId ? "is-360" : (pt.regionKey === "testo_alto" ? "region-testo" : "");
+        const numClass = pt.sceneId ? "is-360" : `cat-${pt.category || "atrativos"}`;
         const activeClass = pt.num === selectedNum ? "active" : "";
         return `
           <button type="button" class="sc-sidebar-item ${activeClass}" data-map-pt-num="${pt.num}">
@@ -1959,12 +1981,40 @@
     }
     state.leafletMarkers = {};
 
-    if (mapPts.length >= 2) {
+    if (Array.isArray(window.ROTA_LUMIAR_ROAD_LEGS) && window.ROTA_LUMIAR_ROAD_LEGS.length > 0) {
+      const visibleLegs = window.ROTA_LUMIAR_ROAD_LEGS.filter(leg => {
+        if (activeScMapFilter === "rio_da_luz") {
+          return leg.fromRegion === "rio_da_luz" && leg.toRegion === "rio_da_luz";
+        }
+        if (activeScMapFilter === "testo_alto") {
+          return leg.fromRegion === "testo_alto" && leg.toRegion === "testo_alto";
+        }
+        return true;
+      });
+      visibleLegs.forEach(leg => {
+        if (!Array.isArray(leg.coords) || leg.coords.length < 2) return;
+        window.L.polyline(leg.coords, {
+          color: "#0f172a",
+          weight: 6,
+          opacity: 0.78,
+          lineCap: "round",
+          lineJoin: "round",
+          interactive: false
+        }).addTo(state.leafletMarkersLayer);
+        window.L.polyline(leg.coords, {
+          color: "#f59e0b",
+          weight: 3.4,
+          opacity: 0.96,
+          lineCap: "round",
+          lineJoin: "round",
+          interactive: false
+        }).addTo(state.leafletMarkersLayer);
+      });
+    } else if (mapPts.length >= 2) {
       window.L.polyline(mapPts.map(p => [p.lat, p.lng]), {
-        color: "#facc15",
-        weight: 2.5,
-        opacity: 0.72,
-        dashArray: "6 6"
+        color: "#f59e0b",
+        weight: 3,
+        opacity: 0.85
       }).addTo(state.leafletMarkersLayer);
     }
 
@@ -1980,13 +2030,13 @@
           html: `<div class="gsat-pin-badge" title="${pt.num}. ${pt.name}">${shortBadge}</div>`
         });
       } else {
-        const regClass = pt.regionKey === "testo_alto" ? "region-testo" : "";
+        const catClass = `cat-${pt.category || "atrativos"}`;
         icon = window.L.divIcon({
           className: "gsat-pin-wrapper",
           iconSize: [0, 0],
           iconAnchor: [0, 0],
           popupAnchor: [0, -16],
-          html: `<div class="gsat-num-pin ${regClass}" title="${pt.num}. ${pt.name}">${pt.num}</div>`
+          html: `<div class="gsat-num-pin ${catClass}" title="${pt.num}. ${pt.name}">${pt.num}</div>`
         });
       }
 
