@@ -42,14 +42,18 @@
     pointerDownX: 0,
     pointerDownY: 0,
     autoRotate: false,
-    show3DLabels: true,
+    show3DLabels: false,
     activeCategoryFilter: "all",
     editorMode: false,
     lastClickedCoords: { pitch: 0, yaw: 0 },
     isTransitioning: false,
     cleanup3DModal: null,
     leafletMap: null,
-    leafletMarkers: {}
+    leafletMarkers: {},
+    leafletRadarLayer: null,
+    leafletFovPolygon: null,
+    leafletAnchorMarker: null,
+    isScMapSplitOpen: false
   };
 
   let gl = null;
@@ -395,6 +399,7 @@
     renderScene3DLabelsDOM(scene);
     highlightActiveThumbnail(scene.id);
     updateEditorSceneSelector();
+    syncSatelliteMapToCurrentScene(scene);
   }
 
   function updateSceneHUD(scene) {
@@ -826,6 +831,7 @@
 
     // Projeta todos os Hotspots e Rótulos 3D na tela (coordenadas CSS)
     updateProjectedOverlays(cssW, cssH);
+    updateLiveSatelliteRadar();
 
     // Atualiza bússola/coordenadas no rodapé se o Modo Criador estiver ativo
     const liveCoordsEl = document.getElementById("hudLiveCameraCoords");
@@ -1174,18 +1180,19 @@
     }
 
     // Troca rápida direta entre aba Satélite (26 Pontos) <-> Mapa Cultural Rota Lumiar
+    const switchRotaFn = () => {
+      buildRioDaLuzIllustratedMap();
+      openDrawer("rdlIllustratedModal");
+    };
     const btnToRdl = document.getElementById("btnSwitchToRotaLumiar");
-    if (btnToRdl) {
-      btnToRdl.addEventListener("click", () => {
-        buildRioDaLuzIllustratedMap();
-        openDrawer("rdlIllustratedModal");
-      });
-    }
+    if (btnToRdl) btnToRdl.addEventListener("click", switchRotaFn);
+    const btnQuickRdl = document.getElementById("btnQuickOpenRotaLumiar");
+    if (btnQuickRdl) btnQuickRdl.addEventListener("click", switchRotaFn);
+
     const btnToSat = document.getElementById("btnSwitchToSatellite");
     if (btnToSat) {
       btnToSat.addEventListener("click", () => {
-        openDrawer("scMapModal");
-        setTimeout(() => initOrUpdateLeafletMap(), 120);
+        openScMapModal(false);
       });
     }
 
@@ -1198,12 +1205,26 @@
       });
     }
 
-    // Widget / Botão Google Maps Satélite (26 Pontos + Rota Lumiar)
+    // Ícone Google Maps (abre/fecha painel Satélite ao vivo em tela dividida com cone direcional)
     const btnMap = document.getElementById("btnOpenSCMap");
     if (btnMap) {
       btnMap.addEventListener("click", () => {
-        toggleDrawer("scMapModal");
-        setTimeout(() => initOrUpdateLeafletMap(), 120);
+        const modal = document.getElementById("scMapModal");
+        if (modal && modal.classList.contains("open")) {
+          closeAuxiliaryDrawers();
+        } else {
+          openScMapModal(true);
+        }
+      });
+    }
+
+    const btnExpandSc = document.getElementById("btnToggleScMapExpand");
+    if (btnExpandSc) {
+      btnExpandSc.addEventListener("click", () => {
+        const modal = document.getElementById("scMapModal");
+        if (!modal) return;
+        const nextSplit = !modal.classList.contains("split-mode");
+        applyScMapDisplayMode(nextSplit);
       });
     }
 
@@ -1244,9 +1265,45 @@
       btn.addEventListener("click", () => {
         const targetId = btn.getAttribute("data-close-drawer");
         const el = document.getElementById(targetId);
-        if (el) el.classList.remove("open");
+        if (el) {
+          el.classList.remove("open", "split-mode");
+        }
+        if (targetId === "scMapModal") {
+          document.body.classList.remove("satellite-split-open");
+          state.isScMapSplitOpen = false;
+        }
       });
     });
+  }
+
+  function applyScMapDisplayMode(splitMode) {
+    const modal = document.getElementById("scMapModal");
+    const expandBtn = document.getElementById("btnToggleScMapExpand");
+    if (!modal) return;
+    modal.classList.toggle("split-mode", splitMode);
+    document.body.classList.toggle("satellite-split-open", splitMode);
+    state.isScMapSplitOpen = splitMode;
+    if (expandBtn) {
+      expandBtn.textContent = splitMode ? "⤢ Expandir Lista (26)" : "⤡ Modo Dividido (Ao Vivo)";
+    }
+    if (state.leafletMap) {
+      setTimeout(() => {
+        state.leafletMap.invalidateSize();
+        renderFilteredSatelliteMarkers(splitMode ? "pano360" : activeScMapFilter);
+      }, 140);
+    }
+  }
+
+  function openScMapModal(splitMode) {
+    closeAuxiliaryDrawers();
+    const modal = document.getElementById("scMapModal");
+    if (!modal) return;
+    modal.classList.add("open");
+    applyScMapDisplayMode(Boolean(splitMode));
+    if (splitMode) {
+      activeScMapFilter = "pano360";
+    }
+    setTimeout(() => initOrUpdateLeafletMap(), 140);
   }
 
   function openDrawer(id) {
@@ -1267,8 +1324,10 @@
   function closeAuxiliaryDrawers() {
     ["logicGuideModal", "scenesGridModal", "scMapModal", "rdlIllustratedModal"].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.classList.remove("open");
+      if (el) el.classList.remove("open", "split-mode");
     });
+    document.body.classList.remove("satellite-split-open");
+    state.isScMapSplitOpen = false;
     setPlaceSelectorOpen(false);
   }
 
@@ -1692,9 +1751,10 @@
   }
 
   // ===========================================================================
-  // 6. MAPA GOOGLE SATÉLITE GEORREFERENCIADO (TODOS OS 26 PONTOS DA ROTA LUMIAR)
+  // 6. MAPA GOOGLE SATÉLITE GEORREFERENCIADO + CONE DE VISÃO AO VIVO (RADAR 360°)
   // ===========================================================================
-  let activeScMapFilter = "all";
+  let activeScMapFilter = "pano360";
+  let lastRadarKey = "";
 
   function getRotaPointsForMap(filterKey) {
     const pts = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
@@ -1738,7 +1798,7 @@
             🚗 Traçar Rota até Aqui ↗
           </a>
           ${pt.sceneId ? `
-            <button type="button" onclick="window.GeoSC360.goToScene('${pt.sceneId}')"
+            <button type="button" onclick="window.GeoSC360.goToScene('${pt.sceneId}', true, true)"
               style="width:100%;padding:6px 10px;background:#15803d;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11.5px;font-weight:800;">
               🌐 Ver Panorama 360° Aqui
             </button>
@@ -1786,10 +1846,99 @@
     });
   }
 
+  function computeVisionConeLatLngs(lat, lng, headingDeg, fovDeg, radiusMeters) {
+    const earthRadius = 6378137;
+    const latRad = lat * DEG2RAD;
+    const cosLat = Math.max(0.2, Math.cos(latRad));
+    const halfSpread = Math.max(18, Math.min(62, fovDeg * 0.5));
+    const steps = 18;
+    const vertices = [[lat, lng]];
+
+    for (let i = 0; i <= steps; i++) {
+      const angleDeg = (headingDeg - halfSpread) + ((halfSpread * 2) * i) / steps;
+      const angleRad = angleDeg * DEG2RAD;
+      const dLat = (radiusMeters * Math.cos(angleRad)) / earthRadius;
+      const dLng = (radiusMeters * Math.sin(angleRad)) / (earthRadius * cosLat);
+      vertices.push([
+        lat + dLat * RAD2DEG,
+        lng + dLng * RAD2DEG
+      ]);
+    }
+    vertices.push([lat, lng]);
+    return vertices;
+  }
+
+  function updateLiveSatelliteRadar(forceUpdate) {
+    const modal = document.getElementById("scMapModal");
+    if (!modal || !modal.classList.contains("open") || !state.leafletMap || typeof window.L === "undefined") {
+      return;
+    }
+
+    const scene = window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes
+      ? window.TOUR_SC_DATA.scenes[state.currentSceneId]
+      : null;
+    if (!scene || !scene.coordinates) return;
+
+    const mapZoom = state.leafletMap.getZoom() || 15;
+    const radarKey = `${scene.id}|${state.yaw.toFixed(1)}|${state.hfov.toFixed(1)}|${mapZoom}`;
+    if (!forceUpdate && radarKey === lastRadarKey) return;
+    lastRadarKey = radarKey;
+
+    if (!state.leafletRadarLayer) {
+      state.leafletRadarLayer = window.L.layerGroup().addTo(state.leafletMap);
+    }
+
+    const { lat, lng } = scene.coordinates;
+    const headingDeg = (scene.headingOffsetDeg || 0) + state.yaw;
+    const radiusMeters = Math.max(85, Math.min(5500, 220 * Math.pow(2, 16 - mapZoom)));
+    const coneCoords = computeVisionConeLatLngs(lat, lng, headingDeg, state.hfov, radiusMeters);
+
+    if (!state.leafletFovPolygon) {
+      state.leafletFovPolygon = window.L.polygon(coneCoords, {
+        color: "#fde047",
+        weight: 1.6,
+        opacity: 0.82,
+        fillColor: "#ffffff",
+        fillOpacity: 0.42,
+        interactive: false
+      }).addTo(state.leafletRadarLayer);
+    } else {
+      state.leafletFovPolygon.setLatLngs(coneCoords);
+    }
+
+    if (!state.leafletAnchorMarker) {
+      const anchorIcon = window.L.divIcon({
+        className: "gsat-pin-wrapper",
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+        html: `<div class="gsat-radar-anchor" title="Sua câmera 360° atual"></div>`
+      });
+      state.leafletAnchorMarker = window.L.marker([lat, lng], {
+        icon: anchorIcon,
+        interactive: false,
+        zIndexOffset: 1000
+      }).addTo(state.leafletRadarLayer);
+    } else {
+      state.leafletAnchorMarker.setLatLng([lat, lng]);
+    }
+  }
+
+  function syncSatelliteMapToCurrentScene(scene) {
+    lastRadarKey = "";
+    const modal = document.getElementById("scMapModal");
+    if (!modal || !modal.classList.contains("open") || !state.leafletMap || !scene || !scene.coordinates) {
+      return;
+    }
+    state.leafletMap.panTo([scene.coordinates.lat, scene.coordinates.lng], { animate: true });
+    updateLiveSatelliteRadar(true);
+  }
+
   function renderFilteredSatelliteMarkers(filterKey) {
-    activeScMapFilter = filterKey || "all";
-    const pts = getRotaPointsForMap(activeScMapFilter);
-    renderMapSidebar(pts, null);
+    activeScMapFilter = filterKey || "pano360";
+    const allPts = getRotaPointsForMap("all");
+    const focusPts = getRotaPointsForMap(activeScMapFilter);
+    const mapPts = activeScMapFilter === "pano360" ? allPts : focusPts;
+    renderMapSidebar(activeScMapFilter === "pano360" ? allPts : focusPts, null);
 
     document.querySelectorAll("#scMapQuickBar .sc-filter-btn").forEach(btn => {
       btn.classList.toggle("active", btn.getAttribute("data-map-filter") === activeScMapFilter);
@@ -1798,7 +1947,7 @@
     if (!state.leafletMap || typeof window.L === "undefined") {
       const mapContainer = document.getElementById("leafletSCMap");
       if (mapContainer && typeof window.L === "undefined") {
-        renderOfflineMapFallback(mapContainer, pts);
+        renderOfflineMapFallback(mapContainer, mapPts);
       }
       return;
     }
@@ -1810,8 +1959,8 @@
     }
     state.leafletMarkers = {};
 
-    if (pts.length >= 2) {
-      window.L.polyline(pts.map(p => [p.lat, p.lng]), {
+    if (mapPts.length >= 2) {
+      window.L.polyline(mapPts.map(p => [p.lat, p.lng]), {
         color: "#facc15",
         weight: 2.5,
         opacity: 0.72,
@@ -1819,7 +1968,7 @@
       }).addTo(state.leafletMarkersLayer);
     }
 
-    pts.forEach(pt => {
+    mapPts.forEach(pt => {
       let icon;
       if (pt.sceneId) {
         const shortBadge = pt.num === 1 ? "🏠 1. Casa Rux 360°" : "🏡 2. Schroeder Platz 360°";
@@ -1858,13 +2007,27 @@
       state.leafletMarkers[pt.num] = marker;
     });
 
-    if (pts.length > 0) {
-      const bounds = window.L.latLngBounds(pts.map(p => [p.lat, p.lng]));
+    if (activeScMapFilter === "pano360") {
+      const curScene = window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes
+        ? window.TOUR_SC_DATA.scenes[state.currentSceneId]
+        : null;
+      if (curScene && curScene.coordinates) {
+        state.leafletMap.setView([curScene.coordinates.lat, curScene.coordinates.lng], 16, { animate: false });
+      } else if (focusPts.length > 0) {
+        state.leafletMap.fitBounds(window.L.latLngBounds(focusPts.map(p => [p.lat, p.lng])), {
+          padding: [50, 50],
+          maxZoom: 16
+        });
+      }
+    } else if (focusPts.length > 0) {
+      const bounds = window.L.latLngBounds(focusPts.map(p => [p.lat, p.lng]));
       state.leafletMap.fitBounds(bounds, {
         padding: [42, 42],
-        maxZoom: activeScMapFilter === "pano360" ? 16 : 14
+        maxZoom: 15
       });
     }
+
+    updateLiveSatelliteRadar(true);
   }
 
   function initOrUpdateLeafletMap() {
@@ -1873,15 +2036,15 @@
 
     if (typeof window.L === "undefined") {
       renderOfflineMapFallback(mapContainer, getRotaPointsForMap(activeScMapFilter));
-      renderMapSidebar(getRotaPointsForMap(activeScMapFilter), null);
+      renderMapSidebar(getRotaPointsForMap("all"), null);
       bindScMapQuickButtons();
       return;
     }
 
     if (!state.leafletMap) {
       state.leafletMap = window.L.map("leafletSCMap", {
-        center: [-26.625, -49.172],
-        zoom: 12,
+        center: [-26.5385, -49.1465],
+        zoom: 16,
         maxZoom: 21
       });
 
@@ -1917,6 +2080,7 @@
         "🗺️ Google Mapa de Ruas": googleStreets
       }).addTo(state.leafletMap);
 
+      state.leafletMap.on("zoomend", () => updateLiveSatelliteRadar(true));
       bindScMapQuickButtons();
     }
 
@@ -2125,8 +2289,10 @@
 
   // Exposição global para chamadas de botões externos / Mapa
   window.GeoSC360 = {
-    goToScene: function (sceneId, animate = true) {
-      closeAuxiliaryDrawers();
+    goToScene: function (sceneId, animate = true, keepSplitMap = false) {
+      if (!(keepSplitMap && state.isScMapSplitOpen)) {
+        closeAuxiliaryDrawers();
+      }
       loadScene(sceneId, animate);
     },
     setView: function (pitch, yaw) {

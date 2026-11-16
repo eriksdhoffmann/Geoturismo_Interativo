@@ -260,115 +260,37 @@ html, body {
 }
 
 /* ============================================================================
- * 3. WIDGET CHAMATIVO GOOGLE MAPS (CANTO SUPERIOR ESQUERDO)
+ * 3. ÍCONE COMPACTO GOOGLE MAPS (CANTO SUPERIOR ESQUERDO)
  * ============================================================================ */
 .gmaps-floating-shell {
   position: fixed;
-  top: 16px;
-  left: 18px;
+  top: 14px;
+  left: 16px;
   z-index: 44;
 }
 
-.gmaps-launcher-btn {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 9px 15px 9px 10px;
-  border-radius: 16px;
-  border: 1.5px solid rgba(255, 255, 255, 0.34);
-  background: linear-gradient(135deg, rgba(16, 26, 36, 0.92), rgba(13, 38, 30, 0.9));
-  backdrop-filter: blur(14px);
-  color: #ffffff;
-  text-align: left;
-  cursor: pointer;
-  box-shadow:
-    0 12px 28px rgba(0, 0, 0, 0.48),
-    0 0 0 1px rgba(66, 133, 244, 0.35);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.gmaps-launcher-btn::before {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  border-radius: 16px 16px 0 0;
-  background: linear-gradient(90deg, #4285F4, #EA4335, #FBBC04, #34A853);
-}
-
-.gmaps-launcher-btn:hover {
-  transform: translateY(-2px);
-  border-color: #60a5fa;
-  box-shadow:
-    0 16px 34px rgba(0, 0, 0, 0.56),
-    0 0 18px rgba(66, 133, 244, 0.42);
-}
-
-.gmaps-pin-tile {
-  width: 44px;
-  height: 44px;
-  flex-shrink: 0;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #ffffff 0%, #e0f2fe 58%, #dcfce7 100%);
-  border: 1px solid rgba(255, 255, 255, 0.9);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-}
-
-.gmaps-launcher-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.gmaps-top-tag {
+.gmaps-icon-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #93c5fd;
+  justify-content: center;
+  width: 54px;
+  height: 54px;
+  padding: 0;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  background: rgba(15, 23, 30, 0.42);
+  backdrop-filter: blur(8px);
+  cursor: pointer;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.45);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
-.gmaps-live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
-  animation: gmapsDotPulse 2s infinite;
-}
-
-@keyframes gmapsDotPulse {
-  0%, 100% { box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.35); }
-  50% { box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.08); }
-}
-
-.gmaps-count-pill {
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: #ea4335;
-  color: #ffffff;
-  font-size: 9.5px;
-  font-weight: 800;
-}
-
-.gmaps-main-title {
-  font-size: 14px;
-  font-weight: 800;
-  color: #ffffff;
-  line-height: 1.15;
-}
-
-.gmaps-sub-cta {
-  font-size: 11px;
-  color: #a7f3d0;
-  font-weight: 600;
+.gmaps-icon-btn:hover,
+body.satellite-split-open .gmaps-icon-btn {
+  transform: translateY(-2px) scale(1.06);
+  border-color: #60a5fa;
+  background: rgba(15, 23, 30, 0.72);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.56), 0 0 16px rgba(66, 133, 244, 0.45);
 }
 
 /* ============================================================================
@@ -1992,6 +1914,16 @@ html, body {
   color: #ffffff;
 }
 
+.sc-quick-rota {
+  background: linear-gradient(135deg, #6b4c8c, #4c3366);
+  border-color: #c084fc;
+}
+
+.sc-quick-rota:hover {
+  background: linear-gradient(135deg, #7e5ca3, #5b3d7a);
+  border-color: #e9d5ff;
+}
+
 .sc-quick-gmaps {
   background: rgba(29, 78, 216, 0.85);
   border-color: #60a5fa;
@@ -2011,7 +1943,91 @@ html, body {
 .sc-map-canvas {
   width: 100%;
   height: 100%;
-  min-height: 400px;
+  min-height: 180px;
+}
+
+/* MODO TELA DIVIDIDA AO VIVO (360° NO TOPO + SATÉLITE COM CONE NO RODAPÉ) */
+body.satellite-split-open #panoViewport {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: auto;
+  height: 62vh;
+}
+
+body.satellite-split-open .bottom-center-dock {
+  bottom: calc(38vh + 10px);
+}
+
+body.satellite-split-open .bottom-left-ecosystem-bar {
+  opacity: 0;
+  pointer-events: none;
+}
+
+#scMapModal.open.split-mode {
+  inset: auto 0 0 0;
+  height: 38vh;
+  padding: 0;
+  background: #0a1418;
+  backdrop-filter: none;
+  justify-content: stretch;
+  align-items: stretch;
+  border-top: 2px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.65);
+  z-index: 48;
+}
+
+#scMapModal.open.split-mode .aux-modal-card {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100%;
+  max-height: 100%;
+  border-radius: 0;
+  border: none;
+}
+
+#scMapModal.open.split-mode .aux-modal-header {
+  padding: 6px 14px;
+}
+
+#scMapModal.open.split-mode .aux-modal-header h3 {
+  font-size: 13.5px;
+}
+
+#scMapModal.open.split-mode .sc-map-modal-body {
+  height: calc(100% - 42px);
+}
+
+#scMapModal.open.split-mode .sc-map-tabs-row {
+  display: none;
+}
+
+#scMapModal.open.split-mode .sc-map-quick-bar {
+  padding: 5px 12px;
+  gap: 6px;
+}
+
+#scMapModal.open.split-mode .sc-quick-btn {
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+#scMapModal.open.split-mode .sc-map-split {
+  grid-template-columns: 1fr;
+}
+
+#scMapModal.open.split-mode .sc-map-sidebar {
+  display: none;
+}
+
+.gsat-radar-anchor {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #facc15;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.38), 0 3px 10px rgba(0, 0, 0, 0.7);
+  transform: translate(-50%, -50%);
 }
 
 .sc-map-sidebar {
@@ -2176,7 +2192,7 @@ html, body {
     height: 92vh;
   }
   .gmaps-floating-shell {
-    top: 66px;
+    top: 14px;
     left: 12px;
   }
   .place-selector-panel {

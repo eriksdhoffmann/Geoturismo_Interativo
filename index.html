@@ -46,31 +46,38 @@
   </div>
 
   <!-- ========================================================================
-       3. WIDGET CHAMATIVO GOOGLE MAPS + SATÉLITE + ROTA LUMIAR (CANTO SUPERIOR ESQUERDO)
+       3. ÍCONE COMPACTO GOOGLE MAPS (CANTO SUPERIOR ESQUERDO)
        ======================================================================== -->
   <div id="googleMapsWidgetShell" class="gmaps-floating-shell ui-layer">
-    <button type="button" id="btnOpenSCMap" class="gmaps-launcher-btn"
-      title="Abrir Google Maps Satélite com todos os 26 pontos e o Mapa Rota Lumiar">
-      <span class="gmaps-pin-tile" aria-hidden="true">
-        <svg viewBox="0 0 64 64" width="32" height="32" xmlns="http://www.w3.org/2000/svg">
-          <path d="M32 6C20.4 6 11 15.4 11 27c0 6.1 2.7 11.7 7 15.6L32 58l14-15.4c4.3-3.9 7-9.5 7-15.6C53 15.4 43.6 6 32 6z" fill="#EA4335"/>
-          <path d="M32 6C20.4 6 11 15.4 11 27c0 3.7 1 7.2 2.7 10.2l18.3-22V6z" fill="#4285F4"/>
-          <path d="M13.7 37.2c1.2 2 2.7 3.9 4.3 5.4L32 58V35.2l-18.3 2z" fill="#FBBC04"/>
-          <path d="M32 35.2V58l14-15.4c1.6-1.5 3.1-3.3 4.3-5.4L32 15.2v20z" fill="#34A853"/>
-          <path d="M32 15.2l-18.3 22A20.9 20.9 0 0 1 11 27c0-11.6 9.4-21 21-21v9.2z" fill="#1A73E8"/>
-          <path d="M50.3 37.2l-18.3-22V6c11.6 0 21 9.4 21 21 0 3.7-1 7.2-2.7 10.2z" fill="#EA4335"/>
-          <circle cx="32" cy="26" r="8.2" fill="#FFFFFF"/>
-        </svg>
-      </span>
-      <span class="gmaps-launcher-copy">
-        <span class="gmaps-top-tag">
-          <span class="gmaps-live-dot"></span>
-          <span>Google Maps Satélite</span>
-          <span class="gmaps-count-pill">26 Pontos</span>
-        </span>
-        <strong class="gmaps-main-title">Mapa do Vale &amp; Rota Lumiar</strong>
-        <span class="gmaps-sub-cta">Satélite com pinos GPS + Mapa Ilustrado ↗</span>
-      </span>
+    <button type="button" id="btnOpenSCMap" class="gmaps-icon-btn"
+      aria-label="Abrir Google Satélite com radar de visão e 26 pontos"
+      title="Abrir Google Satélite (Radar ao vivo + 26 pontos + Rota Lumiar)">
+      <svg viewBox="0 0 64 64" width="44" height="44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <clipPath id="gmapsTileClip">
+            <rect x="6" y="10" width="46" height="46" rx="10" />
+          </clipPath>
+        </defs>
+        <!-- Fundo quadrado arredondado estilo ícone Google Maps -->
+        <g clip-path="url(#gmapsTileClip)">
+          <rect x="6" y="10" width="46" height="46" fill="#E5E7EB"/>
+          <!-- Área verde superior esquerda -->
+          <polygon points="6,10 52,10 6,54" fill="#1F9D63"/>
+          <!-- Triângulo azul inferior -->
+          <polygon points="6,56 52,56 31,34" fill="#4285F4"/>
+          <!-- Faixa cinza clara à direita -->
+          <polygon points="52,10 52,56 31,34" fill="#CBD5E1"/>
+          <!-- Cruzamento branco diagonal -->
+          <line x1="25" y1="29" x2="54" y2="58" stroke="#FFFFFF" stroke-width="6.5"/>
+          <!-- Avenida amarela diagonal principal -->
+          <line x1="4" y1="56" x2="53" y2="9" stroke="#FBBF24" stroke-width="6.5"/>
+          <!-- Letra "G" branca no quadrante verde -->
+          <path d="M23.5 23.2c0-3.2-2.6-5.7-5.9-5.7-3.4 0-6.1 2.7-6.1 6.1s2.7 6.1 6.1 6.1c3.1 0 5.4-2.1 5.6-5.2h-5.6v-2.2h8.2c.1.5.1 1 .1 1.5 0 4.5-3.2 8.1-8.3 8.1-4.8 0-8.6-3.7-8.6-8.3s3.8-8.3 8.6-8.3c2.4 0 4.4.9 5.9 2.3l-2.1 2c-.8-.8-2-1.5-3.8-1.5-3.1 0-5.6 2.5-5.6 5.5s2.5 5.5 5.6 5.5c2.6 0 4.4-1.4 4.8-3.4h-4.8v-2.1h6.5z" fill="#FFFFFF" transform="translate(3.5, 2.5) scale(0.82)"/>
+        </g>
+        <!-- Pino vermelho Google Maps sobreposto à direita -->
+        <path d="M46 6C38.8 6 33 11.8 33 19c0 8.8 11.4 21.5 12.1 22.3.5.5 1.3.5 1.8 0C47.6 40.5 59 27.8 59 19 59 11.8 53.2 6 46 6z" fill="#EA4335"/>
+        <circle cx="46" cy="18.8" r="5" fill="#7F1D1D"/>
+      </svg>
     </button>
   </div>
 
@@ -78,9 +85,6 @@
        5. BARRA INFERIOR DE CONTROLES (DOCK CENTRAL)
        ======================================================================== -->
   <footer class="bottom-center-dock ui-layer" role="toolbar" aria-label="Controles do Passeio Virtual">
-    <button type="button" id="btnToggleAa" class="dock-btn active" title="Mostrar/Ocultar Rótulos Geográficos 3D na Paisagem (Aa)">
-      Aa
-    </button>
     <button type="button" id="btnOpenRioDaLuzMap" class="dock-btn dock-btn-creator" style="background: linear-gradient(135deg, #6b4c8c, #4c3366);" title="Abrir Mapa Cultural Turístico Rota Lumiar (Rio da Luz e Testo Alto - Pontos 1 a 26)!">
       🗺️ Mapa Rota Lumiar (1 a 26)
     </button>
@@ -266,20 +270,25 @@
   <div id="scMapModal" class="aux-drawer-modal ui-layer">
     <div class="aux-modal-card" style="width: min(1220px, 96vw);">
       <div class="aux-modal-header">
-        <h3 style="display:flex;align-items:center;gap:9px;">
-          <svg viewBox="0 0 64 64" width="22" height="22" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+          <svg viewBox="0 0 64 64" width="20" height="20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
             <path d="M32 6C20.4 6 11 15.4 11 27c0 6.1 2.7 11.7 7 15.6L32 58l14-15.4c4.3-3.9 7-9.5 7-15.6C53 15.4 43.6 6 32 6z" fill="#EA4335"/>
             <path d="M32 6C20.4 6 11 15.4 11 27c0 3.7 1 7.2 2.7 10.2l18.3-22V6z" fill="#4285F4"/>
             <path d="M13.7 37.2c1.2 2 2.7 3.9 4.3 5.4L32 58V35.2l-18.3 2z" fill="#FBBC04"/>
             <path d="M32 35.2V58l14-15.4c1.6-1.5 3.1-3.3 4.3-5.4L32 15.2v20z" fill="#34A853"/>
             <circle cx="32" cy="26" r="8.2" fill="#FFFFFF"/>
           </svg>
-          <span>Google Satélite Georreferenciado — Vale do Rio da Luz &amp; Rota Lumiar (26 Pontos)</span>
+          <span>Google Satélite Ao Vivo — Cone de Visão &amp; Rota Lumiar (26 Pontos)</span>
         </h3>
-        <button type="button" class="aux-close-btn" data-close-drawer="scMapModal">✕</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button type="button" id="btnToggleScMapExpand" class="sc-quick-btn" title="Alternar entre tela dividida ao vivo e tela cheia">
+            ⤢ Expandir Lista (26)
+          </button>
+          <button type="button" class="aux-close-btn" data-close-drawer="scMapModal">✕</button>
+        </div>
       </div>
       <div class="aux-modal-body sc-map-modal-body">
-        <div class="map-unified-tabs" style="margin: 10px 14px 0;">
+        <div class="map-unified-tabs sc-map-tabs-row" style="margin: 10px 14px 0;">
           <button type="button" class="map-unified-tab active">
             🛰️ Google Satélite (26 Pontos GPS)
           </button>
@@ -288,16 +297,11 @@
           </button>
         </div>
         <div id="scMapQuickBar" class="sc-map-quick-bar">
-          <button type="button" class="sc-quick-btn sc-filter-btn active" data-map-filter="all">🎯 Todos (26 Pontos)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn active" data-map-filter="pano360">🧭 Radar 360° Ao Vivo</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="all">🎯 Todos (26 Pontos)</button>
           <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="rio_da_luz">🌿 Rio da Luz (1–14)</button>
           <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="testo_alto">🏡 Testo Alto (15–26)</button>
-          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="pano360">📷 Focar 360° (Casa Rux &amp; Schroeder)</button>
-          <a href="https://www.google.com/maps/search/?api=1&query=-26.53617,-49.14234" target="_blank" rel="noopener noreferrer" class="sc-quick-btn sc-quick-gmaps">
-            🏠 Casa Rux Maps ↗
-          </a>
-          <a href="https://www.google.com/maps/search/?api=1&query=-26.5384678,-49.1486893" target="_blank" rel="noopener noreferrer" class="sc-quick-btn sc-quick-gmaps">
-            🏡 Schroeder Platz Maps ↗
-          </a>
+          <button type="button" id="btnQuickOpenRotaLumiar" class="sc-quick-btn sc-quick-rota">🗺️ Rota Lumiar (1–26)</button>
         </div>
         <div class="sc-map-split">
           <div id="leafletSCMap" class="sc-map-canvas"></div>
