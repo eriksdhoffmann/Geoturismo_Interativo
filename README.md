@@ -27,9 +27,9 @@ Inspirado na arquitetura de navegação 360° do projeto *Geohereditas (IGc-USP)
 ## 🗺️ Roteiros Incluídos
 
 ### 0. Mapa 3D das Regiões Turísticas de Santa Catarina (Branch `Geoturismosc`) — [`index.html`](./index.html) / [`geoturismosc.html`](./geoturismosc.html)
-- Modelo 3D topográfico de Santa Catarina (baseado em [`3dmap.app/geoheritage`](https://3dmap.app/geoheritage/ra/index.php?id=sc)) embutido para funcionar 100% offline via `file://` (`js/sc-mapa3d-glb.js`).
-- **10 Regiões Turísticas** (Caminhos da Fronteira, Grande Oeste, Vale do Contestado, Caminho dos Príncipes, Vale Europeu, Costa Verde & Mar, Grande Florianópolis, Serra Catarinense, Encantos do Sul e Caminho dos Cânions) com **simbologia vazada** (contorno colorido exclusivo por região, interior transparente sobre o relevo de satélite) e **rótulos clicáveis** (`js/sc-regioes-turisticas.js`).
-- **Navegação Integrada para Foto 360°**: Clicar em **Vale Europeu** aproxima a câmera para a região, voa até o **Vale Tombado do Rio da Luz** e abre diretamente o passeio virtual 360° em [`rio_da_luz_360.html`](./rio_da_luz_360.html).
+- Modelo 3D topográfico de Santa Catarina (baseado em [`3dmap.app/geoheritage`](https://3dmap.app/geoheritage/ra/index.php?id=sc)), carregado em binário via HTTP/HTTPS ([`assets/modelos/sc_terreno.glb`](./assets/modelos/sc_terreno.glb)) com fallback offline Base64 via `file://` ([`js/sc-mapa3d-glb.js`](./js/sc-mapa3d-glb.js)).
+- **15 IGRs Oficiais do Mapa do Turismo SC 2025 (SETUR-SC)** (Caminhos da Fronteira, Vale das Águas, Grande Oeste, Alto Uruguai Catarinense, Vale dos Imigrantes, Caminhos do Contestado, Caminho dos Príncipes, Vale dos Encantos, Vale Europeu, Costa Verde & Mar, Caminhos do Alto Vale, Grande Florianópolis, Serra Catarinense, Encantos do Sul e Caminho dos Cânions) com **simbologia vazada fina** via Shader GPU SDF ([`js/sc-regioes-sdf.js`](./js/sc-regioes-sdf.js)) e **rótulos clicáveis** ([`js/sc-regioes-turisticas.js`](./js/sc-regioes-turisticas.js)).
+- **Navegação Integrada para Foto 360°**: Clicar em **Vale dos Encantos** (ou pelo atalho em **Vale Europeu**) aproxima a câmera para a região, voa até o **Vale Tombado do Rio da Luz** e abre diretamente o passeio virtual 360° em [`rio_da_luz_360.html`](./rio_da_luz_360.html).
 
 ### 1. Vale do Rio da Luz (Jaraguá do Sul ↔ Pomerode) — [`rio_da_luz_360.html`](./rio_da_luz_360.html)
 Mapeamento completo segundo o mapa cultural do **Rio da Luz**:

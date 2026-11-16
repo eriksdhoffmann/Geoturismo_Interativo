@@ -1,16 +1,18 @@
 /**
  * ============================================================================
- * GEOTURISMO SC — Mapa 3D interativo das 10 Regiões Turísticas de Santa Catarina
+ * GEOTURISMO SC — Mapa 3D interativo das 15 IGRs Oficiais de Santa Catarina
+ * (Mapa do Turismo SC 2025 — SETUR-SC)
  * ============================================================================
- * - Relevo 3D + satélite 4K (GLB base: 3dmap.app/geoheritage id=sc).
+ * - Relevo 3D + satélite 3K (GLB base: 3dmap.app/geoheritage id=sc).
  *   Carrega binário direto via HTTP/HTTPS (GitHub Pages) e usa Base64 via
  *   js/sc-mapa3d-glb.js quando aberto localmente via file:///.
- * - Simbologia vazada das 10 regiões renderizada em GPU via Shader SDF + ID
- *   (zero redesenho de canvas 2D e zero upload de textura durante zoom/hover).
- * - ShadowMap estático (renderizado 1 vez), renderização sob demanda (0% GPU
- *   em repouso) e grade espacial 2D para raycasting instantâneo.
- * - Vale Europeu -> zoom na região -> voo até o Vale do Rio da Luz -> Foto 360°
- *   (rio_da_luz_360.html) sem disputar GPU durante o voo.
+ * - Simbologia vazada das 15 IGRs injetada direto no material do terreno
+ *   via GPU Shader (onBeforeCompile + SDF + ID): contorno fino e limpo de cor
+ *   única por região, sem borda dupla branca/vermelha e sem malha duplicada.
+ * - Sombra estática pré-assada (sem shadowMap em tempo real), renderização sob
+ *   demanda (0% GPU em repouso) e grade espacial 2D para raycasting instantâneo.
+ * - Vale dos Encantos (Jaraguá do Sul) -> zoom -> Vale Tombado do Rio da Luz
+ *   -> Foto 360° (rio_da_luz_360.html); Vale Europeu (Pomerode) também conecta.
  */
 (function () {
   "use strict";
@@ -27,12 +29,10 @@
   const DATA = window.SC_GEOTURISMO;
   const SDF_DATA = window.SC_REGIOES_SDF;
   const G = DATA.georef;
-
-  // Relação UV <-> coordenada local da malha do topo do GLB
   const UV_FIT = { au: 0.408323, bu: 0.500671, av: 0.590974, bv: 0.499044 };
 
   // --------------------------------------------------------------------------
-  // Renderizador, cena, câmera, controles e luzes
+  // Renderizador, cena, câmera, controles e luzes (sem shadowMap em tempo real)
   // --------------------------------------------------------------------------
   const canvas = $("geoCanvas");
   const stage = $("geoStage");
@@ -49,49 +49,30 @@
   } catch (e) {
     return fail("Seu navegador não suporta WebGL, necessário para o mapa 3D.");
   }
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.35));
   renderer.outputEncoding = THREE.sRGBEncoding;
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.PCFShadowMap;
-  renderer.shadowMap.autoUpdate = false;
 
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(38, 1, 0.005, 100);
   const controls = new THREE.OrbitControls(camera, canvas);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.09;
+  controls.dampingFactor = 0.095;
   controls.minDistance = 0.08;
   controls.maxDistance = 7;
   controls.maxPolarAngle = THREE.MathUtils.degToRad(80);
-  controls.zoomSpeed = 0.9;
+  controls.zoomSpeed = 0.95;
   controls.autoRotateSpeed = 0.55;
 
-  scene.add(new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 0.3));
-  scene.add(new THREE.AmbientLight(0xffffff, 0.38));
-  const sun = new THREE.DirectionalLight(0xffffff, 0.5);
+  scene.add(new THREE.HemisphereLight(0xffffff, 0xcbd5e1, 0.42));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.35));
+  const sun = new THREE.DirectionalLight(0xffffff, 0.46);
   sun.position.set(-1.3, 3.4, -1.5);
-  sun.castShadow = true;
-  sun.shadow.mapSize.set(1024, 1024);
-  Object.assign(sun.shadow.camera, { left: -2.2, right: 2.2, top: 2.2, bottom: -2.2, near: 0.5, far: 10 });
-  sun.shadow.bias = -0.0005;
-  sun.shadow.normalBias = 0.005;
   scene.add(sun);
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(14, 14), new THREE.ShadowMaterial({ opacity: 0.16 }));
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.002;
-  ground.receiveShadow = true;
-  scene.add(ground);
-
   // --------------------------------------------------------------------------
-  // Shader GPU de Simbologia Vazada (ID + Distance Field)
+  // Texturas GPU compactas (ID + SDF + Paleta 16x1 + Sombra estática pré-assada)
   // --------------------------------------------------------------------------
-  function hexToVec3(hex) {
-    const n = parseInt(hex.slice(1), 16);
-    return new THREE.Vector3(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
-  }
-
-  function loadPngTexture(b64, nearest) {
+  function loadPngTexture(b64, nearest, onReady) {
     const tex = new THREE.Texture();
     tex.flipY = false;
     tex.generateMipmaps = false;
@@ -103,6 +84,7 @@
     img.onload = () => {
       tex.image = img;
       tex.needsUpdate = true;
+      if (onReady) onReady(tex);
       requestRender();
     };
     img.src = "data:image/png;base64," + b64;
@@ -111,104 +93,112 @@
 
   const idTex = loadPngTexture(SDF_DATA.idPngB64, true);
   const sdfTex = loadPngTexture(SDF_DATA.sdfPngB64, false);
-  const colorVecs = [new THREE.Vector3(1, 1, 1)];
-  DATA.regions.forEach((r) => colorVecs.push(hexToVec3(r.color)));
+
+  // Paleta 16x1 RGBA (índice 1..15)
+  const palData = new Uint8Array(16 * 4);
+  DATA.regions.forEach((r, idx) => {
+    const n = parseInt(r.color.slice(1), 16);
+    const o = (idx + 1) * 4;
+    palData[o] = (n >> 16) & 255;
+    palData[o + 1] = (n >> 8) & 255;
+    palData[o + 2] = n & 255;
+    palData[o + 3] = 255;
+  });
+  const colorTex = new THREE.DataTexture(palData, 16, 1, THREE.RGBAFormat);
+  colorTex.minFilter = THREE.NearestFilter;
+  colorTex.magFilter = THREE.NearestFilter;
+  colorTex.generateMipmaps = false;
+  colorTex.needsUpdate = true;
+
+  // Sombra estática pré-assada no plano do solo (custo GPU ~0)
+  const shadowPlane = new THREE.Mesh(
+    new THREE.PlaneGeometry(3.0613, 2.1151),
+    new THREE.MeshBasicMaterial({
+      color: 0x0f172a,
+      transparent: true,
+      opacity: 0.16,
+      depthWrite: false,
+      alphaMap: loadPngTexture(SDF_DATA.shadowPngB64, false),
+    })
+  );
+  shadowPlane.rotation.x = -Math.PI / 2;
+  shadowPlane.position.set(0.05, -0.002, 0.06);
+  scene.add(shadowPlane);
 
   const rlInit = DATA.rioDaLuz;
-  const rioInitUV = new THREE.Vector2(G.A * rlInit.lon + G.B, G.C * rlInit.lat + G.D);
+  const borderUniforms = {
+    uIdTex: { value: idTex },
+    uSdfTex: { value: sdfTex },
+    uColorTex: { value: colorTex },
+    uTexSize: { value: new THREE.Vector2(SDF_DATA.w, SDF_DATA.h) },
+    uMaxDistPx: { value: SDF_DATA.maxDistPx },
+    uSelectedId: { value: 0 },
+    uHoverId: { value: 0 },
+    uShowRioRing: { value: 0.0 },
+    uRioUv: { value: new THREE.Vector2(G.A * rlInit.lon + G.B, G.C * rlInit.lat + G.D) },
+  };
 
-  const overlayMat = new THREE.ShaderMaterial({
-    extensions: { derivatives: true },
-    transparent: true,
-    depthWrite: false,
-    polygonOffset: true,
-    polygonOffsetFactor: -4,
-    polygonOffsetUnits: -4,
-    uniforms: {
-      uIdTex: { value: idTex },
-      uSdfTex: { value: sdfTex },
-      uTexSize: { value: new THREE.Vector2(SDF_DATA.w, SDF_DATA.h) },
-      uMaxDistPx: { value: SDF_DATA.maxDistPx },
-      uSelectedId: { value: 0 },
-      uHoverId: { value: 0 },
-      uShowRioRing: { value: 0.0 },
-      uRioUv: { value: rioInitUV },
-      uColors: { value: colorVecs },
-    },
-    vertexShader: `
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform sampler2D uIdTex;
-      uniform sampler2D uSdfTex;
-      uniform vec2 uTexSize;
-      uniform float uMaxDistPx;
-      uniform int uSelectedId;
-      uniform int uHoverId;
-      uniform float uShowRioRing;
-      uniform vec2 uRioUv;
-      uniform vec3 uColors[11];
-      varying vec2 vUv;
+  function createTerrainMaterial(baseMat) {
+    const mat = new THREE.MeshLambertMaterial({
+      map: baseMat.map || null,
+      color: 0xffffff,
+    });
+    mat.extensions = { derivatives: true };
+    mat.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, borderUniforms);
+      shader.fragmentShader =
+        `
+        uniform sampler2D uIdTex;
+        uniform sampler2D uSdfTex;
+        uniform sampler2D uColorTex;
+        uniform vec2 uTexSize;
+        uniform float uMaxDistPx;
+        uniform int uSelectedId;
+        uniform int uHoverId;
+        uniform float uShowRioRing;
+        uniform vec2 uRioUv;
+        ` +
+        shader.fragmentShader.replace(
+          "#include <output_fragment>",
+          `
+          #include <output_fragment>
+          int rid = int(floor(texture2D(uIdTex, vUv).r * 255.0 + 0.5));
+          if (rid > 0) {
+            vec3 regSrgb = texture2D(uColorTex, vec2((float(rid) + 0.5) / 16.0, 0.5)).rgb;
+            vec3 regLin = pow(regSrgb, vec3(2.2));
+            float distTex = texture2D(uSdfTex, vUv).r * uMaxDistPx;
+            vec2 dUv = fwidth(vUv * uTexSize);
+            float texPerScreen = max(0.08, length(dUv) * 0.7071);
+            float distScreen = distTex / texPerScreen;
 
-      vec3 getRegionColor(int id) {
-        if (id == 1) return uColors[1];
-        if (id == 2) return uColors[2];
-        if (id == 3) return uColors[3];
-        if (id == 4) return uColors[4];
-        if (id == 5) return uColors[5];
-        if (id == 6) return uColors[6];
-        if (id == 7) return uColors[7];
-        if (id == 8) return uColors[8];
-        if (id == 9) return uColors[9];
-        if (id == 10) return uColors[10];
-        return vec3(1.0);
-      }
+            bool isSel = (rid == uSelectedId);
+            bool isHov = (rid == uHoverId);
 
-      void main() {
-        int rid = int(floor(texture2D(uIdTex, vUv).r * 255.0 + 0.5));
-        if (rid == 0) discard;
+            // Simbologia vazada fina e limpa (sem faixa branca/vermelha grossa)
+            float borderEnd = (isSel || isHov) ? 2.3 : 1.65;
+            float borderAlpha = 1.0 - smoothstep(borderEnd - 0.65, borderEnd, distScreen);
+            float fillAlpha = isSel ? (isHov ? 0.14 : 0.07) : (isHov ? 0.16 : 0.0);
 
-        vec3 col = getRegionColor(rid);
-        float distTex = texture2D(uSdfTex, vUv).r * uMaxDistPx;
-        vec2 dUv = fwidth(vUv * uTexSize);
-        float texPerScreen = max(0.08, length(dUv) * 0.7071);
-        float distScreen = distTex / texPerScreen;
-
-        bool isSel = (rid == uSelectedId);
-        bool isHov = (rid == uHoverId);
-
-        float borderEnd = (isSel || isHov) ? 4.2 : 3.1;
-        float glowEnd = (isSel || isHov) ? 8.5 : 6.4;
-        float glowStrength = (isSel || isHov) ? 0.34 : 0.28;
-
-        float borderAlpha = 1.0 - smoothstep(borderEnd - 1.1, borderEnd, distScreen);
-        float glowAlpha = (1.0 - smoothstep(borderEnd - 0.4, glowEnd, distScreen)) * glowStrength;
-        float fillAlpha = isSel ? (isHov ? 0.14 : 0.07) : (isHov ? 0.18 : 0.0);
-        float whiteAlpha = 1.0 - smoothstep(0.55, 1.35, distScreen);
-
-        float outAlpha = max(max(borderAlpha, glowAlpha), fillAlpha);
-        vec3 outCol = col;
-        outCol = mix(outCol, vec3(1.0), whiteAlpha * 0.95);
-        outAlpha = max(outAlpha, whiteAlpha * 0.95);
-
-        if (uShowRioRing > 0.5) {
-          float rDistPx = length((vUv - uRioUv) * uTexSize) / texPerScreen;
-          float rWhite = 1.0 - smoothstep(1.5, 3.0, abs(rDistPx - 14.0));
-          float rPink = 1.0 - smoothstep(0.8, 2.0, abs(rDistPx - 14.0));
-          outCol = mix(outCol, vec3(1.0), rWhite);
-          outCol = mix(outCol, vec3(0.957, 0.247, 0.369), rPink);
-          outAlpha = max(outAlpha, max(rWhite, rPink));
-        }
-
-        if (outAlpha < 0.004) discard;
-        gl_FragColor = vec4(outCol, outAlpha);
-      }
-    `,
-  });
+            float outAlpha = max(borderAlpha * 0.94, fillAlpha);
+            if (outAlpha > 0.002) {
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, regLin, outAlpha);
+            }
+          }
+          if (uShowRioRing > 0.5) {
+            vec2 dUvR = fwidth(vUv * uTexSize);
+            float tpsR = max(0.08, length(dUvR) * 0.7071);
+            float rDistPx = length((vUv - uRioUv) * uTexSize) / tpsR;
+            float ringA = 1.0 - smoothstep(0.9, 1.8, abs(rDistPx - 11.0));
+            if (ringA > 0.002) {
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.91, 0.12, 0.35), ringA);
+            }
+          }
+          `
+        );
+    };
+    mat.customProgramCacheKey = () => "geosc-setur15-sdf-v2";
+    return mat;
+  }
 
   // --------------------------------------------------------------------------
   // Estado
@@ -301,7 +291,6 @@
     _rayLocal.copy(worldRay).applyMatrix4(g.invWorld);
     if (!_rayLocal.intersectsBox(g.bb)) return null;
 
-    // Clipa o raio pelo intervalo Z (altura local) da malha para limitar células testadas
     const oz = _rayLocal.origin.z, dz = _rayLocal.direction.z;
     let tMin = 0, tMax = 1e6;
     if (Math.abs(dz) > 1e-7) {
@@ -445,51 +434,51 @@
     state.model = model;
     scene.add(model);
 
+    let topCandidate = null;
     let maxCount = 0;
-    const maxAniso = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    const meshes = [];
     model.traverse((o) => {
       if (!o.isMesh) return;
-      o.castShadow = true;
-      o.receiveShadow = true;
+      meshes.push(o);
       o.geometry.computeVertexNormals();
-      const m = o.material;
-      m.flatShading = false;
-      m.roughness = 1;
-      m.metalness = 0;
-      if (m.map) {
-        m.map.anisotropy = maxAniso;
-        m.map.needsUpdate = true;
-      }
-      m.needsUpdate = true;
       const c = o.geometry.attributes.position.count;
       if (c > maxCount) {
         maxCount = c;
-        state.topMesh = o;
+        topCandidate = o;
       }
     });
+
+    const maxAniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+    meshes.forEach((o) => {
+      const oldMat = o.material;
+      if (oldMat && oldMat.map) {
+        oldMat.map.anisotropy = maxAniso;
+        oldMat.map.needsUpdate = true;
+      }
+      if (o === topCandidate) {
+        o.material = createTerrainMaterial(oldMat);
+      } else {
+        o.material = new THREE.MeshLambertMaterial({
+          map: oldMat && oldMat.map ? oldMat.map : null,
+          color: 0xffffff,
+        });
+      }
+    });
+
+    state.topMesh = topCandidate;
     model.updateMatrixWorld(true);
     state.triGrid = buildTriGrid(state.topMesh);
-
-    // Overlay SDF em GPU com a mesma geometria do topo do relevo
-    const ov = new THREE.Mesh(state.topMesh.geometry, overlayMat);
-    ov.renderOrder = 2;
-    state.topMesh.add(ov);
-    model.updateMatrixWorld(true);
-
-    // Renderiza a sombra solar estática uma única vez
-    renderer.shadowMap.needsUpdate = true;
 
     buildRegions();
     buildLegend();
     buildLabels();
     computeOverview();
 
-    // Voo de abertura: de cima para a vista oblíqua
     const ovw = state.overview;
-    camera.position.copy(ovw.target).add(new THREE.Vector3(0, 8.5, 0.6));
+    camera.position.copy(ovw.target).add(new THREE.Vector3(0, 7.5, 0.7));
     controls.target.copy(ovw.target);
     controls.update();
-    flyTo(ovw.pos, ovw.target, 2200);
+    flyTo(ovw.pos, ovw.target, 1400);
 
     loadingEl.classList.add("is-done");
     requestRender();
@@ -565,6 +554,14 @@
   const legendEls = {};
   let pinEl = null;
 
+  function is360Region(id) {
+    return id === "vale_dos_encantos";
+  }
+
+  function has360Action(id) {
+    return id === "vale_dos_encantos" || id === "vale_europeu";
+  }
+
   function buildLegend() {
     state.regions.forEach((r) => {
       const li = document.createElement("li");
@@ -573,7 +570,7 @@
       btn.style.setProperty("--c", r.color);
       btn.innerHTML =
         '<span class="geo-swatch"></span><span>' + r.name + "</span>" +
-        (r.id === "vale_europeu" ? '<span class="geo-legend-360">360°</span>' : "");
+        (is360Region(r.id) ? '<span class="geo-legend-360">360°</span>' : "");
       btn.addEventListener("mouseenter", () => setHover(r.id));
       btn.addEventListener("mouseleave", () => setHover(null));
       btn.addEventListener("click", () => selectRegion(r.id));
@@ -591,7 +588,7 @@
       el.style.setProperty("--c", r.color);
       el.innerHTML =
         '<span class="txt">' + r.name +
-        (r.id === "vale_europeu" ? ' <span class="lbl-360">360°</span>' : "") +
+        (is360Region(r.id) ? ' <span class="lbl-360">360°</span>' : "") +
         '</span><span class="stem"></span><span class="dot"></span>';
       el.addEventListener("mouseenter", () => setHover(r.id));
       el.addEventListener("mouseleave", () => setHover(null));
@@ -624,7 +621,7 @@
     const vis = tmpV.z < 1 && tmpV.z > -1 && Math.abs(tmpV.x) < 1.15 && Math.abs(tmpV.y) < 1.15;
     const x = (tmpV.x * 0.5 + 0.5) * state.w;
     const y = (-tmpV.y * 0.5 + 0.5) * state.h;
-    el.style.transform = "translate(" + x.toFixed(1) + "px," + y.toFixed(1) + "px) translate(-50%,-100%)";
+    el.style.transform = "translate3d(" + x.toFixed(1) + "px," + y.toFixed(1) + "px,0) translate(-50%,-100%)";
     el.style.visibility = vis ? "visible" : "hidden";
     return { x, y };
   }
@@ -638,7 +635,7 @@
   }
 
   function refreshClasses() {
-    const closeVale = state.selectedId === "vale_europeu" && camera.position.distanceTo(controls.target) < 0.75;
+    const showPin = has360Action(state.selectedId);
     state.regions.forEach((r) => {
       const el = labelEls[r.id];
       const lg = legendEls[r.id];
@@ -650,14 +647,14 @@
       lg.classList.toggle("is-active", sel);
       lg.classList.toggle("is-hover", hov);
     });
-    if (labelEls.vale_europeu) labelEls.vale_europeu.classList.toggle("is-hidden", closeVale);
-    if (pinEl) pinEl.classList.toggle("is-visible", state.selectedId === "vale_europeu");
+    if (labelEls.vale_dos_encantos) labelEls.vale_dos_encantos.classList.toggle("is-hidden", showPin);
+    if (pinEl) pinEl.classList.toggle("is-visible", showPin);
   }
 
   function setHover(id) {
     if (state.hoverId === id) return;
     state.hoverId = id;
-    overlayMat.uniforms.uHoverId.value = id ? (state.idxById[id] || 0) : 0;
+    borderUniforms.uHoverId.value = id ? (state.idxById[id] || 0) : 0;
     stage.classList.toggle("is-pointer", !!id);
     refreshClasses();
     requestRender();
@@ -665,8 +662,8 @@
 
   function setSelected(id) {
     state.selectedId = id;
-    overlayMat.uniforms.uSelectedId.value = id ? (state.idxById[id] || 0) : 0;
-    overlayMat.uniforms.uShowRioRing.value = id === "vale_europeu" ? 1.0 : 0.0;
+    borderUniforms.uSelectedId.value = id ? (state.idxById[id] || 0) : 0;
+    borderUniforms.uShowRioRing.value = has360Action(id) ? 1.0 : 0.0;
     refreshClasses();
     requestRender();
   }
@@ -691,7 +688,9 @@
     const size = box.getSize(new THREE.Vector3());
     const center = box.getCenter(new THREE.Vector3());
     center.y = 0.03;
-    const pad = state.w < state.h ? 1.18 : 0.98;
+    const isPortrait = state.w < state.h;
+    if (isPortrait) center.z += size.z * 0.25;
+    const pad = isPortrait ? 1.15 : 0.98;
     state.overviewParams = { center, radius: Math.max(size.x, size.z * 1.3) * 0.5 * pad };
     state.overview = viewFor(center, state.overviewParams.radius, 40, 0);
   }
@@ -704,8 +703,8 @@
       p1: pos.clone(),
       t1: target.clone(),
       start: null,
-      dur: dur || 1500,
-      arc: Math.min(0.9, p0.distanceTo(pos) * 0.16),
+      dur: dur || 1200,
+      arc: Math.min(0.75, p0.distanceTo(pos) * 0.14),
       done,
     };
     requestRender();
@@ -733,12 +732,12 @@
   const card = $("geoInfoCard");
 
   function showCard(r) {
-    const is360 = r.id === "vale_europeu";
+    const is360 = has360Action(r.id);
     card.style.setProperty("--c", r.color);
     card.innerHTML =
       '<div class="geo-card-bar"></div><div class="geo-card-body">' +
       '<button type="button" class="geo-card-close" title="Fechar e voltar à visão geral">✕</button>' +
-      '<span class="kicker">Região turística</span><h2>' + r.name + "</h2>" +
+      '<span class="kicker">IGR · Mapa do Turismo SC 2025</span><h2>' + r.name + "</h2>" +
       "<p>" + r.description + "</p>" +
       '<div class="chips">' + r.highlights.map((h) => '<span class="chip">' + h + "</span>").join("") + "</div>" +
       "<details><summary>" + r.municipios.length + " municípios</summary><p>" + r.municipios.join(", ") + "</p></details>" +
@@ -820,34 +819,34 @@
     setSelected(id);
     showCard(r);
     hideHint();
-    const v = viewFor(r.center, r.radius, 46, 0);
-    if (id === "vale_europeu") {
-      flyTo(v.pos, v.target, 1600, () => {
+    const v = viewFor(r.center, Math.max(r.radius, 0.24), 46, 0);
+    if (is360Region(id)) {
+      flyTo(v.pos, v.target, 1150, () => {
         if (!opts.noSequence) goToRioDaLuz(false);
       });
     } else {
-      flyTo(v.pos, v.target, 1500);
+      flyTo(v.pos, v.target, 1150);
     }
   }
 
-  /** Zoom do Vale Europeu até o Vale do Rio da Luz e entrada na foto 360°. */
+  /** Zoom até o Vale Tombado do Rio da Luz e entrada na foto 360°. */
   function goToRioDaLuz(fromClick) {
-    if (state.selectedId !== "vale_europeu") {
-      setSelected("vale_europeu");
-      showCard(state.byId.vale_europeu);
+    if (!has360Action(state.selectedId)) {
+      setSelected("vale_dos_encantos");
+      showCard(state.byId.vale_dos_encantos);
     }
     cancelSequence();
     state.seqActive = true;
-    const wait = fromClick ? 120 : 550;
-    const flight = 2100;
-    const pause = 600;
+    const wait = fromClick ? 100 : 400;
+    const flight = 1450;
+    const pause = 450;
     setProgress(wait + flight + pause);
     toast("✈️ Voando até o Vale do Rio da Luz…", wait + flight);
     later(() => {
-      const v = viewFor(state.rioWorld, 0.135, 43, 0.14);
+      const v = viewFor(state.rioWorld, 0.14, 43, 0.14);
       flyTo(v.pos, v.target, flight, () => {
         if (!state.seqActive) return;
-        toast("🌐 Entrando na foto 360°…", pause + 500);
+        toast("🌐 Entrando na foto 360°…", pause + 400);
         later(() => {
           state.seqActive = false;
           setProgress(0);
@@ -862,7 +861,7 @@
     setSelected(null);
     hideCard();
     const o = viewFor(state.overviewParams.center, state.overviewParams.radius, 40, 0);
-    flyTo(o.pos, o.target, 1400);
+    flyTo(o.pos, o.target, 1100);
   }
 
   // --------------------------------------------------------------------------
@@ -903,13 +902,13 @@
   }
 
   function close360() {
+    const returnId = state.selectedId || "vale_dos_encantos";
     resumeLoop();
     overlay.classList.remove("is-open");
     overlay.setAttribute("aria-hidden", "true");
     try {
       history.replaceState(null, "", location.pathname + location.search);
     } catch (e) { /* noop */ }
-    // Libera o contexto WebGL do iframe após o fechamento da transição
     unloadTimer = setTimeout(() => {
       if (!overlay.classList.contains("is-open") && iframe) {
         iframe.src = "about:blank";
@@ -917,7 +916,7 @@
         iframe = null;
       }
     }, 1200);
-    later(() => selectRegion("vale_europeu", { noSequence: true }), 320);
+    later(() => selectRegion(returnId, { noSequence: true }), 260);
   }
   backBtn.addEventListener("click", close360);
 
@@ -972,7 +971,7 @@
     else if (state.selectedId) goOverview();
   });
 
-  // Toolbar
+  // Toolbar + suporte a tela cheia móvel e integração VR/360° do iframe
   $("btnGeoOverview").addEventListener("click", goOverview);
   $("btnGeoRotate").addEventListener("click", (e) => {
     controls.autoRotate = !controls.autoRotate;
@@ -1011,14 +1010,14 @@
     hintEl.classList.add("is-hidden");
   }
 
-  // Deep link: ?regiao=vale_europeu | #rio-da-luz-360
+  // Deep link: ?regiao=vale_dos_encantos | ?regiao=vale_europeu | #rio-da-luz-360
   function handleDeepLink() {
     const params = new URLSearchParams(location.search);
     const reg = params.get("regiao");
     if (location.hash === "#rio-da-luz-360") {
-      setTimeout(() => goToRioDaLuz(true), 2300);
+      setTimeout(() => goToRioDaLuz(true), 1500);
     } else if (reg && state.byId[reg]) {
-      setTimeout(() => selectRegion(reg, { noSequence: params.get("auto360") === "0" }), 2300);
+      setTimeout(() => selectRegion(reg, { noSequence: params.get("auto360") === "0" }), 1500);
     }
   }
 
@@ -1030,6 +1029,7 @@
     state.h = window.innerHeight;
     renderer.setSize(state.w, state.h, false);
     camera.aspect = state.w / state.h;
+    if (state.model) computeOverview();
     applyViewOffset();
     if (!card.hidden) state.viewOffTarget = state.w > 820 ? 195 : 0;
     requestRender();
@@ -1043,7 +1043,6 @@
   window.addEventListener("resize", resize);
 
   let prevFrameNow = null;
-  let lastDistRefresh = 0;
 
   function tick(now) {
     state.rafId = 0;
@@ -1058,7 +1057,7 @@
     let offsetMoving = false;
     const offDiff = state.viewOffTarget - state.viewOffX;
     if (Math.abs(offDiff) > 0.5) {
-      state.viewOffX += offDiff * (1 - Math.exp(-8 * dt));
+      state.viewOffX += offDiff * (1 - Math.exp(-9 * dt));
       applyViewOffset();
       offsetMoving = true;
     } else if (state.viewOffX !== state.viewOffTarget) {
@@ -1073,11 +1072,6 @@
       state.pickPending = false;
       const r = pick();
       setHover(r ? r.id : null);
-    }
-
-    if (state.selectedId === "vale_europeu" && now - lastDistRefresh > 120) {
-      lastDistRefresh = now;
-      refreshClasses();
     }
 
     if (state.topMesh) {
