@@ -23,13 +23,20 @@
 }
 
 html, body {
-  width: 100vw;
-  height: 100vh;
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-touch-callout: none;
   background: #0a1410;
   font-family: var(--font-sans);
   color: #ffffff;
   user-select: none;
+  -webkit-user-select: none;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -43,12 +50,84 @@ html, body {
   height: 100%;
   cursor: grab;
   overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: none;
 }
 
 #panoCanvas {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
+}
+
+/* Modo Tela Cheia Imersivo (iPhone / Safari / WhatsApp / iFrame + Android/Desktop) */
+html.pseudo-fullscreen,
+body.pseudo-fullscreen {
+  height: 100lvh;
+  height: 100dvh;
+  width: 100vw;
+  position: fixed;
+  inset: 0;
+}
+
+body.pseudo-fullscreen .gmaps-floating-shell,
+body.pseudo-fullscreen .bottom-left-ecosystem-bar,
+body.pseudo-fullscreen #btnStandaloneBackToSCMap,
+body.pseudo-fullscreen .place-selector-shell,
+body.pseudo-fullscreen .top-thumbs-bar,
+body.pseudo-fullscreen .category-filter-bar,
+body.pseudo-fullscreen .bottom-center-dock .dock-btn:not(#btnFullscreen) {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: scale(0.92);
+}
+
+body.pseudo-fullscreen .bottom-center-dock {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  bottom: max(14px, env(safe-area-inset-bottom));
+}
+
+body.pseudo-fullscreen #btnFullscreen {
+  width: auto;
+  padding: 0 16px;
+  gap: 6px;
+  height: 38px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  white-space: nowrap;
+  background: rgba(11, 93, 59, 0.90);
+  border: 1px solid rgba(134, 239, 172, 0.55);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.48);
+  pointer-events: auto !important;
+  opacity: 1 !important;
+}
+
+.fs-toast-pill {
+  position: fixed;
+  top: max(18px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 90;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.88);
+  border: 1px solid rgba(134, 239, 172, 0.45);
+  color: #ecfdf5;
+  font: 700 12.5px/1.2 var(--font-sans);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  animation: fadeInToast 0.2s ease;
+}
+
+@keyframes fadeInToast {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 
 #hotspotsContainer,
@@ -991,6 +1070,7 @@ body.satellite-split-open .gmaps-icon-btn {
   width: 100%;
   height: 100%;
   display: block;
+  touch-action: none;
 }
 
 .glb-loading-badge {
@@ -1038,16 +1118,20 @@ body.satellite-split-open .gmaps-icon-btn {
 
 .glb-interaction-hint {
   position: absolute;
-  bottom: 12px;
+  bottom: 10px;
   left: 50%;
   transform: translateX(-50%);
+  max-width: calc(100% - 20px);
   padding: 5px 12px;
-  background: rgba(10, 14, 18, 0.78);
+  background: rgba(10, 14, 18, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 999px;
   color: #cbd5e1;
   font-size: 11px;
+  text-align: center;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   pointer-events: none;
 }
 
@@ -2544,6 +2628,10 @@ body.satellite-split-open .bottom-left-ecosystem-bar {
   .rdl-enxaimel-columns {
     grid-template-columns: 1fr;
   }
+  .rdl-enxaimel-header {
+    padding: 10px 14px;
+    gap: 8px;
+  }
   .sc-map-split {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr 195px;
@@ -2552,13 +2640,52 @@ body.satellite-split-open .bottom-left-ecosystem-bar {
     border-left: none;
     border-top: 1px solid rgba(255, 255, 255, 0.14);
   }
+  .split-modal-backdrop {
+    padding: 8px;
+  }
   .split-modal-window {
+    width: 100%;
+    height: min(90dvh, 760px);
     grid-template-columns: 1fr;
-    grid-template-rows: 46% 54%;
-    height: 92vh;
+    grid-template-rows: 52% 48%;
+    border-radius: 14px;
+  }
+  .modal-3d-TopBar {
+    padding: 6px 10px;
+  }
+  .glb-controls-hud {
+    top: 8px;
+    right: 8px;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .glb-hud-btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+  .glb-interaction-hint {
+    bottom: 6px;
+    font-size: 10px;
+    padding: 4px 9px;
+  }
+  .editorial-close-btn {
+    top: 10px;
+    right: 10px;
+    width: 34px;
+    height: 34px;
+  }
+  .editorial-scroll-area {
+    padding: 16px 18px 20px;
+  }
+  .editorial-serif-title {
+    font-size: 21px;
+  }
+  .bottom-center-dock {
+    bottom: max(12px, env(safe-area-inset-bottom));
   }
   .gmaps-floating-shell {
-    top: 14px;
+    top: max(12px, env(safe-area-inset-top));
     left: 12px;
   }
   .place-selector-panel {

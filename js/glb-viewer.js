@@ -258,7 +258,7 @@ window.GLBViewer = (function () {
           <button type="button" class="glb-hud-btn" id="glbBtnZoomOut" title="Afastar Zoom">−</button>
         </div>
         <div class="glb-interaction-hint">
-          🖱️ Arraste para girar • Botão direito / Shift+arraste para mover • Roda para zoom
+          Arraste para girar • Pinça ou roda para zoom
         </div>
       </div>
     `;
@@ -309,14 +309,14 @@ window.GLBViewer = (function () {
         vec3 n = normalize(vNormal);
         if (!gl_FrontFacing) n = -n;
 
-        // Iluminação de estúdio 3 pontos (Key solar + preenchimento hemisférico + luz de recorte)
-        vec3 keyDir = normalize(vec3(0.55, 0.85, 0.45));
-        vec3 rimDir = normalize(vec3(-0.6, 0.35, -0.7));
+        // Iluminação solar natural em 3 pontos para destacar o relevo no desktop e no celular
+        vec3 keyDir = normalize(vec3(0.50, 0.88, 0.42));
+        vec3 rimDir = normalize(vec3(-0.6, 0.45, -0.65));
         float keyDiff = max(dot(n, keyDir), 0.0);
-        float rimDiff = max(dot(n, rimDir), 0.0) * 0.22;
+        float rimDiff = max(dot(n, rimDir), 0.0) * 0.28;
         float hemi = 0.5 + 0.5 * n.y;
-        vec3 ambient = mix(vec3(0.18, 0.20, 0.22), vec3(0.40, 0.43, 0.46), hemi);
-        float light = 0.62 * keyDiff + rimDiff;
+        vec3 ambient = mix(vec3(0.28, 0.32, 0.35), vec3(0.56, 0.60, 0.62), hemi);
+        float light = 0.74 * keyDiff + rimDiff;
 
         vec4 baseLin = uBaseColor;
         if (uHasTex > 0.5) {
@@ -385,7 +385,24 @@ window.GLBViewer = (function () {
       autoRotate: true
     };
 
+    function computeAspectFraming(radius) {
+      const curW = Math.max(100, canvas.clientWidth || containerEl.clientWidth || 560);
+      const curH = Math.max(100, canvas.clientHeight || containerEl.clientHeight || 420);
+      const aspectRatio = curW / curH;
+      // Garante margem nas bordas esquerda/direita/topo considerando FOV vertical de 42°
+      const fitMult = aspectRatio < 1.15
+        ? Math.min(3.15, 2.38 / Math.max(0.75, aspectRatio))
+        : 1.72;
+      return {
+        pitch: aspectRatio < 1.15 ? 0.66 : 0.56,
+        dist: radius * fitMult
+      };
+    }
+
     function resetCamera() {
+      const framing = computeAspectFraming(cam.radius || 1);
+      cam.defaultPitch = framing.pitch;
+      cam.defaultDist = framing.dist;
       cam.targetYaw = cam.defaultYaw;
       cam.targetPitch = cam.defaultPitch;
       cam.targetDist = cam.defaultDist;
@@ -585,12 +602,16 @@ window.GLBViewer = (function () {
       const cz = (wMin[2] + wMax[2]) * 0.5;
       const radius = Math.max(1, Math.hypot(wMax[0] - wMin[0], wMax[1] - wMin[1], wMax[2] - wMin[2]) * 0.5);
 
+      const framing = computeAspectFraming(radius);
+
       cam.radius = radius;
       cam.defaultCenter = [cx, cy, cz];
       cam.targetCenter = [cx, cy, cz];
       cam.target = [cx, cy, cz];
-      cam.defaultDist = radius * 1.65;
-      cam.targetDist = cam.dist = radius * 1.65;
+      cam.defaultPitch = framing.pitch;
+      cam.pitch = cam.targetPitch = cam.defaultPitch;
+      cam.defaultDist = framing.dist;
+      cam.targetDist = cam.dist = cam.defaultDist;
 
       if (statusEl) {
         statusEl.style.display = "none";
@@ -642,13 +663,22 @@ window.GLBViewer = (function () {
       cam.targetDist = Math.max(cam.radius * 0.25, Math.min(cam.radius * 5.0, cam.targetDist * factor));
     };
 
-    // Suporte Touch básico
+    // Suporte Touch completo (1 dedo gira, 2 dedos pinça/zoom + move)
     let touchLastX = 0, touchLastY = 0;
+    let lastPinchDist = 0;
+    let lastPinchMidX = 0, lastPinchMidY = 0;
     const onTouchStart = e => {
       if (e.touches.length === 1) {
         dragMode = "orbit";
         touchLastX = e.touches[0].clientX;
         touchLastY = e.touches[0].clientY;
+        lastPinchDist = 0;
+      } else if (e.touches.length === 2) {
+        dragMode = "pinch";
+        const t0 = e.touches[0], t1 = e.touches[1];
+        lastPinchDist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        lastPinchMidX = (t0.clientX + t1.clientX) * 0.5;
+        lastPinchMidY = (t0.clientY + t1.clientY) * 0.5;
       }
     };
     const onTouchMove = e => {
@@ -660,6 +690,26 @@ window.GLBViewer = (function () {
         touchLastY = e.touches[0].clientY;
         cam.targetYaw -= dx * 0.008;
         cam.targetPitch = Math.max(-1.45, Math.min(1.48, cam.targetPitch + dy * 0.008));
+      } else if (e.touches.length === 2) {
+        e.preventDefault();
+        const t0 = e.touches[0], t1 = e.touches[1];
+        const dist = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
+        const midX = (t0.clientX + t1.clientX) * 0.5;
+        const midY = (t0.clientY + t1.clientY) * 0.5;
+        if (lastPinchDist > 5 && dist > 5) {
+          const ratio = lastPinchDist / dist;
+          cam.targetDist = Math.max(cam.radius * 0.25, Math.min(cam.radius * 5.0, cam.targetDist * ratio));
+        }
+        const mdx = midX - lastPinchMidX;
+        const mdy = midY - lastPinchMidY;
+        const panScale = cam.dist * 0.0014;
+        const cosY = Math.cos(cam.yaw), sinY = Math.sin(cam.yaw);
+        cam.targetCenter[0] -= (cosY * mdx) * panScale;
+        cam.targetCenter[2] -= (-sinY * mdx) * panScale;
+        cam.targetCenter[1] += mdy * panScale;
+        lastPinchDist = dist;
+        lastPinchMidX = midX;
+        lastPinchMidY = midY;
       }
     };
 
@@ -671,6 +721,7 @@ window.GLBViewer = (function () {
     canvas.addEventListener("touchstart", onTouchStart, { passive: true });
     canvas.addEventListener("touchmove", onTouchMove, { passive: false });
     canvas.addEventListener("touchend", onUp);
+    canvas.addEventListener("touchcancel", onUp);
 
     if (btnAuto) {
       btnAuto.addEventListener("click", () => {
@@ -713,7 +764,7 @@ window.GLBViewer = (function () {
       }
 
       gl.viewport(0, 0, pxW, pxH);
-      gl.clearColor(0.08, 0.11, 0.14, 1.0);
+      gl.clearColor(0.11, 0.16, 0.22, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
       gl.enable(gl.DEPTH_TEST);
       gl.disable(gl.CULL_FACE);

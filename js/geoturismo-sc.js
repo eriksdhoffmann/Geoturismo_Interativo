@@ -980,8 +980,30 @@
     requestRender();
   });
   $("btnGeoFullscreen").addEventListener("click", () => {
-    if (!document.fullscreenElement) document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
-    else document.exitFullscreen && document.exitFullscreen();
+    const docEl = document.documentElement;
+    const isFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+    if (!isFs) {
+      const req = docEl.requestFullscreen || docEl.webkitRequestFullscreen;
+      if (typeof req === "function") {
+        try {
+          const p = req.call(docEl, { navigationUI: "hide" });
+          if (p && typeof p.catch === "function") p.catch(() => {});
+        } catch (_) {}
+      }
+      document.body.classList.toggle("geo-pseudo-fs", !document.fullscreenElement);
+    } else {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (typeof exit === "function") {
+        try { exit.call(document); } catch (_) {}
+      }
+      document.body.classList.remove("geo-pseudo-fs");
+    }
+  });
+
+  window.addEventListener("message", (ev) => {
+    if (ev && ev.data && ev.data.type === "GEOSC_PSEUDO_FULLSCREEN") {
+      overlay.classList.toggle("is-child-fullscreen", Boolean(ev.data.active));
+    }
   });
 
   const hintEl = $("geoHint");
