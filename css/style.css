@@ -110,7 +110,7 @@ body.pseudo-fullscreen #btnFullscreen {
 
 .fs-toast-pill {
   position: fixed;
-  top: max(18px, env(safe-area-inset-top));
+  bottom: max(74px, calc(env(safe-area-inset-bottom) + 64px));
   left: 50%;
   transform: translateX(-50%);
   z-index: 90;
@@ -120,6 +120,7 @@ body.pseudo-fullscreen #btnFullscreen {
   border: 1px solid rgba(134, 239, 172, 0.45);
   color: #ecfdf5;
   font: 700 12.5px/1.2 var(--font-sans);
+  white-space: nowrap;
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.45);
   pointer-events: none;
   animation: fadeInToast 0.2s ease;
