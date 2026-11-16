@@ -3,432 +3,81 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>Vale do Rio da Luz — Imagens Drone 360° Reais | Jaraguá do Sul SC</title>
-
-  <!-- Fontes Tipográficas (Com fallback nativo caso esteja offline) -->
+  <title>Geoturismo SC — Mapa 3D das Regiões Turísticas de Santa Catarina</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Merriweather:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet" />
-
-  <!-- Leaflet CSS/JS para o Mapa Interativo de Santa Catarina (com fallback offline automático) -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- Estilos do Tour Virtual 360° -->
-  <link rel="stylesheet" href="css/style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Merriweather:wght@700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/geoturismo-sc.css" />
 </head>
-<body>
+<body class="geo-body">
 
-  <!-- ========================================================================
-       1. VIEWPORT ESFÉRICO 360° (WEBGL + CAMADA DE RÓTULOS 3D + CAMADA DE HOTSPOTS)
-       ======================================================================== -->
-  <main id="panoViewport" aria-label="Visualizador Panorâmico 360 Graus">
-    <canvas id="panoCanvas"></canvas>
-    <div id="labels3DContainer"></div>
-    <div id="hotspotsContainer"></div>
-  </main>
-
-  <!-- ========================================================================
-       3. ÍCONE LIMPO GOOGLE MAPS (CANTO SUPERIOR ESQUERDO)
-       ======================================================================== -->
-  <div id="googleMapsWidgetShell" class="gmaps-floating-shell ui-layer">
-    <button type="button" id="btnOpenSCMap" class="gmaps-icon-btn"
-      aria-label="Abrir Google Satélite com radar de visão e 26 pontos"
-      title="Abrir Google Satélite (Radar ao vivo + 26 pontos)">
-      <svg viewBox="0 0 64 64" width="52" height="52" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <defs>
-          <clipPath id="gmapsTileClipClean">
-            <rect x="4" y="10" width="46" height="46" rx="6" />
-          </clipPath>
-        </defs>
-        <!-- Ícone clássico estilo Google Maps sem caixa ao redor -->
-        <g clip-path="url(#gmapsTileClipClean)">
-          <rect x="4" y="10" width="46" height="46" fill="#1CA261" />
-          <polygon points="4,56 50,10 50,56" fill="#E2E8F0" />
-          <polygon points="4,56 50,56 27,33" fill="#4285F4" />
-          <line x1="25" y1="31" x2="52" y2="58" stroke="#FFFFFF" stroke-width="6" />
-          <line x1="2" y1="58" x2="52" y2="8" stroke="#FACC15" stroke-width="6.5" />
-          <!-- G geométrico nítido no quadrante verde -->
-          <path d="M 25.4 19.6 A 8.4 8.4 0 1 0 27.3 23.7 L 19.0 23.7 L 19.0 26.8 L 23.7 26.8 A 5.0 5.0 0 1 1 22.8 21.8 Z" fill="#FFFFFF" />
-        </g>
-        <!-- Pino vermelho Google Maps -->
-        <path d="M46 4C38.2 4 32 10.2 32 18c0 9.6 12.1 22.8 13.1 23.8.5.5 1.3.5 1.8 0C47.9 40.8 60 27.6 60 18 60 10.2 53.8 4 46 4z" fill="#EA4335" />
-        <circle cx="46" cy="18" r="5.2" fill="#801A14" />
-      </svg>
-    </button>
+  <!-- Palco 3D (three.js) -->
+  <div id="geoStage" class="geo-stage">
+    <canvas id="geoCanvas" aria-label="Mapa 3D interativo de Santa Catarina"></canvas>
   </div>
 
-  <!-- ========================================================================
-       5. BARRA INFERIOR DE CONTROLES (MINIMALISTA: ▦ + ⛶ + ▶)
-       ======================================================================== -->
-  <footer class="bottom-center-dock ui-layer" role="toolbar" aria-label="Controles do Passeio Virtual">
-    <button type="button" id="btnOpenScenesGrid" class="dock-btn dock-btn-grid" title="Escolher Lugar 360° (Vale, Schroeder Platz, Casa Rux)">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-        <rect x="3" y="3" width="4.8" height="4.8" rx="0.8" />
-        <rect x="9.6" y="3" width="4.8" height="4.8" rx="0.8" />
-        <rect x="16.2" y="3" width="4.8" height="4.8" rx="0.8" />
-        <rect x="3" y="9.6" width="4.8" height="4.8" rx="0.8" />
-        <rect x="9.6" y="9.6" width="4.8" height="4.8" rx="0.8" />
-        <rect x="16.2" y="9.6" width="4.8" height="4.8" rx="0.8" />
-        <rect x="3" y="16.2" width="4.8" height="4.8" rx="0.8" />
-        <rect x="9.6" y="16.2" width="4.8" height="4.8" rx="0.8" />
-        <rect x="16.2" y="16.2" width="4.8" height="4.8" rx="0.8" />
+  <!-- Rótulos das regiões + pino 360° (projetados do 3D para a tela) -->
+  <div id="geoLabels" class="geo-labels" aria-live="polite"></div>
+
+  <!-- Cabeçalho -->
+  <header class="geo-header">
+    <div class="geo-brand">
+      <svg viewBox="0 0 48 48" width="40" height="40" aria-hidden="true">
+        <path d="M6 30 L16 16 L23 25 L30 12 L42 30 Z" fill="none" stroke="#0f766e" stroke-width="3" stroke-linejoin="round"/>
+        <circle cx="35" cy="11" r="4" fill="#f59e0b"/>
+        <path d="M4 36 Q24 30 44 36" fill="none" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round"/>
       </svg>
-    </button>
-    <button type="button" id="btnFullscreen" class="dock-btn" title="Alternar Tela Cheia">
-      ⛶
-    </button>
-    <button type="button" id="btnAutoRotate" class="dock-btn" title="Iniciar/Pausar Giro Automático 360°">
-      ▶
-    </button>
-  </footer>
-
-  <!-- ========================================================================
-       6. POP-UP SPLIT-VIEW (TELA DIVIDIDA: FOTO ANOTADA OU MODELO 3D EXTERNO + TEXTO)
-          IDÊNTICO ÀS SCREENSHOTS 2 E 3 DO GEOHEREDITAS USP!
-       ======================================================================== -->
-  <div id="splitModalBackdrop" class="split-modal-backdrop" role="dialog" aria-modal="true">
-    <div class="split-modal-window">
-      <div id="modalLeftMedia" class="modal-left-media"></div>
-      <div id="modalRightEditorial" class="modal-right-editorial"></div>
+      <div>
+        <span class="geo-kicker">Geoturismo SC</span>
+        <h1>Regiões Turísticas de Santa Catarina</h1>
+      </div>
     </div>
-  </div>
+  </header>
 
-  <!-- ========================================================================
-       7. PAINEL DO MODO CRIADOR / EDITOR INTERATIVO 360° (REPLICAÇÃO)
-       ======================================================================== -->
-  <aside id="editorSidePanel" class="editor-side-panel ui-layer">
-    <div class="editor-panel-title">🛠️ Estúdio Criador 360° (Pitch & Yaw)</div>
-    <p class="editor-panel-help">
-      <strong>Como usar:</strong> Clique em qualquer ponto da foto 360° para capturar automaticamente suas coordenadas esféricas (<em>Pitch</em> e <em>Yaw</em>) e criar um novo ponto clicável!
-    </p>
-
-    <!-- Upload de foto 360° própria -->
-    <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.25);">
-      <label class="ed-label" for="edUploadPanoInput">📷 Testar sua própria Foto 360° (.jpg/.png):</label>
-      <input type="file" id="edUploadPanoInput" accept="image/*" class="ed-input" style="margin-bottom:0;" />
-    </div>
-
-    <form id="formAddHotspot">
-      <div class="ed-field-row">
-        <div>
-          <label class="ed-label" for="edPitch">Pitch (Vertical °)</label>
-          <input type="number" step="0.1" id="edPitch" class="ed-input" value="-10.0" required />
-        </div>
-        <div>
-          <label class="ed-label" for="edYaw">Yaw (Horizontal °)</label>
-          <input type="number" step="0.1" id="edYaw" class="ed-input" value="15.0" required />
-        </div>
-      </div>
-
-      <label class="ed-label" for="edHotspotType">Tipo de Ação ao Clicar</label>
-      <select id="edHotspotType" class="ed-select">
-        <option value="info">📖 Abrir Pop-up com Foto & Informações</option>
-        <option value="3d">🧊 Abrir Modelo 3D Externo (Sketchfab / Iframe)</option>
-        <option value="scene">🌐 Viajar para outra Foto 360°</option>
-      </select>
-
-      <label class="ed-label" for="edTitle">Título do Ponto Turístico / Geossítio</label>
-      <input type="text" id="edTitle" class="ed-input" placeholder="Ex: Mirante da Serra ou Fortaleza" required />
-
-      <!-- Campos para Pop-up de Informação -->
-      <div id="edGroupInfo">
-        <label class="ed-label" for="edSubtitleLead">Destaque Verde (Subtítulo)</label>
-        <input type="text" id="edSubtitleLead" class="ed-input" placeholder="Resumo em destaque verde..." />
-
-        <label class="ed-label" for="edParagraph">Texto Explicativo</label>
-        <textarea id="edParagraph" rows="2" class="ed-textarea" placeholder="Explicação detalhada do local..."></textarea>
-
-        <label class="ed-label" for="edDidYouKnow">Quadro Amarelo "Você sabia?"</label>
-        <input type="text" id="edDidYouKnow" class="ed-input" placeholder="Curiosidade fascinante sobre o lugar..." />
-
-        <label class="ed-label" for="edImageUrl">URL ou Caminho da Foto do Pop-up</label>
-        <input type="text" id="edImageUrl" class="ed-input" placeholder="assets/fotos/lagoa_conceicao.jpg" />
-      </div>
-
-      <!-- Campos para Modelo 3D Externo -->
-      <div id="edGroup3D" style="display: none;">
-        <label class="ed-label" for="ed3DUrl">Link do Modelo 3D (Sketchfab / Embed URL)</label>
-        <input type="text" id="ed3DUrl" class="ed-input" placeholder="https://sketchfab.com/models/UID/embed" />
-
-        <label class="ed-label" for="ed3DLead">Destaque Verde</label>
-        <input type="text" id="ed3DLead" class="ed-input" placeholder="Explore a maquete 3D interativa ao lado..." />
-
-        <label class="ed-label" for="ed3DDesc">Descrição do Modelo 3D</label>
-        <textarea id="ed3DDesc" rows="2" class="ed-textarea" placeholder="Detalhes sobre o relevo ou monumento 3D..."></textarea>
-      </div>
-
-      <!-- Campos para Transição entre Fotos 360° -->
-      <div id="edGroupScene" style="display: none;">
-        <label class="ed-label" for="edTargetScene">Foto 360° de Destino</label>
-        <select id="edTargetScene" class="ed-select"></select>
-      </div>
-
-      <button type="submit" class="ed-btn-primary">➕ Adicionar Ponto Clicável na Esfera 360°</button>
-    </form>
-
-    <label class="ed-label" for="edExportJsonTextarea">Código JSON dos Hotspots desta Cena (para salvar em dados-sc.js):</label>
-    <textarea id="edExportJsonTextarea" rows="4" class="ed-textarea" readonly style="font-family: monospace; font-size: 11px;"></textarea>
-    <button type="button" id="btnCopyExportJson" class="ed-btn-secondary">📋 Gerar & Copiar Código JSON da Cena</button>
+  <!-- Legenda: Roteiros Turísticos (clicável) -->
+  <aside class="geo-legend" aria-label="Roteiros turísticos">
+    <h2>Roteiros Turísticos</h2>
+    <ul id="geoLegendList"></ul>
   </aside>
 
-  <!-- ========================================================================
-       8. MODAL: ÍNDICE DE PANORAMAS 360° (3 LUGARES PRINCIPAIS)
-       ======================================================================== -->
-  <div id="scenesGridModal" class="aux-drawer-modal ui-layer">
-    <div class="aux-modal-card">
-      <div class="aux-modal-header">
-        <h3>▦ Escolher Lugar 360° — Vale Tombado do Rio da Luz</h3>
-        <button type="button" class="aux-close-btn" data-close-drawer="scenesGridModal">✕</button>
-      </div>
-      <div class="aux-modal-body">
-        <div id="scenesGridContainer" class="scenes-grid-container"></div>
-      </div>
-    </div>
+  <!-- Card de informações da região selecionada -->
+  <section id="geoInfoCard" class="geo-card" aria-live="polite" hidden></section>
+
+  <!-- Barra de ferramentas -->
+  <nav class="geo-toolbar" aria-label="Controles do mapa">
+    <button type="button" id="btnGeoOverview" title="Visão geral do estado">⟲ <span>Visão geral</span></button>
+    <button type="button" id="btnGeoRotate" title="Giro automático">↻ <span>Girar</span></button>
+    <button type="button" id="btnGeoFullscreen" title="Tela cheia">⛶</button>
+  </nav>
+
+  <div id="geoHint" class="geo-hint">Clique em uma região · Arraste para girar · Role para aproximar</div>
+  <div id="geoToast" class="geo-toast" role="status"></div>
+
+  <!-- Carregamento -->
+  <div id="geoLoading" class="geo-loading">
+    <div class="geo-spinner"></div>
+    <p>Carregando o relevo 3D de Santa Catarina…</p>
   </div>
 
-  <!-- ========================================================================
-       8B. MODAL: MAPA CULTURAL TURÍSTICO — ROTA LUMIAR (ESTILO ROTA ENXAIMEL)
-       ======================================================================== -->
-  <div id="rdlIllustratedModal" class="aux-drawer-modal ui-layer">
-    <div class="aux-modal-card rdl-enxaimel-card" style="width: min(1240px, 96vw);">
-      <header class="rdl-enxaimel-header">
-        <div class="rdl-enxaimel-brand">
-          <svg viewBox="0 0 40 28" width="36" height="26" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <polygon points="20,2 38,14 20,26 2,14" fill="none" stroke="#c8a96e" stroke-width="2.2"/>
-            <line x1="11" y1="8" x2="29" y2="20" stroke="#c8a96e" stroke-width="1.6"/>
-            <line x1="29" y1="8" x2="11" y2="20" stroke="#c8a96e" stroke-width="1.6"/>
-            <line x1="20" y1="2" x2="20" y2="26" stroke="#c8a96e" stroke-width="1.6"/>
-          </svg>
-          <div class="rdl-brand-titles">
-            <span class="rdl-brand-kicker">ROTA DO VALE</span>
-            <strong class="rdl-brand-main">Rota Lumiar</strong>
-          </div>
-        </div>
-
-        <nav class="rdl-enxaimel-nav" id="rdlCategoryNavBar" aria-label="Categorias da Rota Lumiar">
-          <button type="button" class="rdl-nav-link active" data-cat="all">Todos (26)</button>
-          <button type="button" class="rdl-nav-link" data-cat="atrativos">Atrativos</button>
-          <button type="button" class="rdl-nav-link" data-cat="compras">Compras</button>
-          <button type="button" class="rdl-nav-link" data-cat="gastronomia">Gastronomia</button>
-          <button type="button" class="rdl-nav-link" data-cat="hospedagem">Hospedagem &amp; Clubes</button>
-        </nav>
-
-        <div class="rdl-enxaimel-head-actions">
-          <span class="rdl-navy-pill">Rio da Luz &amp; Testo Alto</span>
-          <button type="button" class="rdl-close-cream-btn" data-close-drawer="rdlIllustratedModal" title="Fechar">✕</button>
-        </div>
-      </header>
-
-      <div class="aux-modal-body rdl-enxaimel-body">
-        <div class="rdl-top-controls-strip">
-          <div class="rdl-map-mode-bar">
-            <button type="button" id="btnRdlViewFront" class="rdl-mode-btn active">🗺️ Mapa Ilustrado (Pinos 1–26)</button>
-            <button type="button" id="btnRdlViewBack" class="rdl-mode-btn">📄 Guia Oficial (Verso)</button>
-          </div>
-          <div class="rdl-filter-bar" id="rdlRegionFilterBar">
-            <button type="button" class="rdl-filter-chip active" data-region="all">Todo o Percurso (26)</button>
-            <button type="button" class="rdl-filter-chip" data-region="rio_da_luz">Rio da Luz (1–14)</button>
-            <button type="button" class="rdl-filter-chip" data-region="testo_alto">Testo Alto (15–26)</button>
-          </div>
-          <div class="rdl-zoom-toolbar" id="rdlZoomToolbar">
-            <span class="rdl-zoom-hint">🔍 Zoom:</span>
-            <div class="rdl-zoom-controls">
-              <button type="button" id="btnRdlZoomOut" class="rdl-zoom-btn" title="Diminuir zoom">−</button>
-              <span id="rdlZoomLevelLabel" class="rdl-zoom-badge">100%</span>
-              <button type="button" id="btnRdlZoomIn" class="rdl-zoom-btn" title="Aumentar zoom">+</button>
-              <button type="button" id="btnRdlZoomReset" class="rdl-zoom-btn rdl-zoom-reset" title="Voltar para 100%">100%</button>
-              <button type="button" id="btnRdlExpandMap" class="rdl-zoom-btn rdl-zoom-expand" title="Expandir área do mapa">⛶ Expandir</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="rdl-illustrated-layout">
-          <div class="rdl-map-stage-wrap">
-            <div id="rdlInteractiveMapBox" class="rdl-map-canvas-box zoomable"></div>
-          </div>
-
-          <div class="rdl-right-panel">
-            <div id="rdlPointDetailBox" class="rdl-point-detail-box"></div>
-            <div class="rdl-enxaimel-footer-info">
-              <p id="rdlIntroLead" class="rdl-intro-note"></p>
-              <div id="rdlCreditsFooter" class="rdl-credits-line"></div>
-            </div>
-          </div>
-        </div>
-
-        <section class="rdl-directory-section" id="rdlDirectorySection" aria-label="Pontos por categoria">
-          <div id="rdlInteractiveListBox" class="rdl-enxaimel-columns"></div>
-        </section>
-      </div>
-    </div>
+  <!-- Overlay da Foto 360° (abre o passeio virtual existente) -->
+  <div id="tour360Overlay" class="tour360-overlay" aria-hidden="true">
+    <div class="tour360-loading"><div class="geo-spinner light"></div><p>Abrindo a foto 360° do Vale do Rio da Luz…</p></div>
+    <button type="button" id="btnBackToMap" class="tour360-back">← Voltar ao mapa de SC</button>
   </div>
 
-  <!-- ========================================================================
-       9. MODAL: GOOGLE MAPS SATÉLITE (CONE DE VISÃO + 26 PONTOS GPS)
-       ======================================================================== -->
-  <div id="scMapModal" class="aux-drawer-modal ui-layer">
-    <div class="aux-modal-card" style="width: min(1220px, 96vw);">
-      <div class="aux-modal-header">
-        <h3 style="display:flex;align-items:center;gap:8px;">
-          <svg viewBox="0 0 64 64" width="20" height="20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M32 6C20.4 6 11 15.4 11 27c0 6.1 2.7 11.7 7 15.6L32 58l14-15.4c4.3-3.9 7-9.5 7-15.6C53 15.4 43.6 6 32 6z" fill="#EA4335"/>
-            <path d="M32 6C20.4 6 11 15.4 11 27c0 3.7 1 7.2 2.7 10.2l18.3-22V6z" fill="#4285F4"/>
-            <path d="M13.7 37.2c1.2 2 2.7 3.9 4.3 5.4L32 58V35.2l-18.3 2z" fill="#FBBC04"/>
-            <path d="M32 35.2V58l14-15.4c1.6-1.5 3.1-3.3 4.3-5.4L32 15.2v20z" fill="#34A853"/>
-            <circle cx="32" cy="26" r="8.2" fill="#FFFFFF"/>
-          </svg>
-          <span>Google Satélite Ao Vivo — Cone de Visão &amp; Pontos do Vale (26 Pontos)</span>
-        </h3>
-        <div style="display:flex;align-items:center;gap:8px;">
-          <button type="button" id="btnToggleScMapExpand" class="sc-quick-btn" title="Alternar entre tela dividida ao vivo e tela cheia">
-            ⤢ Expandir Lista (26)
-          </button>
-          <button type="button" class="aux-close-btn" data-close-drawer="scMapModal">✕</button>
-        </div>
-      </div>
-      <div class="aux-modal-body sc-map-modal-body">
-        <div id="scMapQuickBar" class="sc-map-quick-bar">
-          <button type="button" class="sc-quick-btn sc-filter-btn active" data-map-filter="pano360">🧭 Radar 360° Ao Vivo</button>
-          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="all">🎯 Todos (26 Pontos)</button>
-          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="rio_da_luz">🌿 Rio da Luz (1–14)</button>
-          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="testo_alto">🏡 Testo Alto (15–26)</button>
-        </div>
-        <div class="sc-map-split">
-          <div id="leafletSCMap" class="sc-map-canvas"></div>
-          <aside id="scMapPointsSidebar" class="sc-map-sidebar" aria-label="Lista dos 26 pontos da Rota Lumiar"></aside>
-        </div>
-      </div>
-    </div>
-  </div>
+  <footer class="geo-credits">
+    Modelo 3D base: <a href="https://3dmap.app/geoheritage/ra/index.php?id=sc" target="_blank" rel="noopener">3dmap.app · Geoheritage</a>
+    · Limites: IBGE (2022) · Regiões: Mapa do Turismo Brasileiro / SANTUR
+  </footer>
 
-  <!-- ========================================================================
-       10. MODAL: EXPLICAÇÃO DA LÓGICA DE PROGRAMAÇÃO & COMO REPLICAR
-       ======================================================================== -->
-  <div id="logicGuideModal" class="aux-drawer-modal ui-layer">
-    <div class="aux-modal-card">
-      <div class="aux-modal-header">
-        <h3>🧠 Arquitetura & Lógica de Programação do Passeio Virtual 360° (Geohereditas -> GeoSC)</h3>
-        <button type="button" class="aux-close-btn" data-close-drawer="logicGuideModal">✕</button>
-      </div>
-      <div class="aux-modal-body">
-        <h4 style="color:#86efac; margin-bottom:8px;">1. Como funciona a Foto 360° Interativa (Projeção Equiretangular Esférica)</h4>
-        <p style="margin-bottom:14px; font-size:14px; color:#e2e8f0;">
-          Uma foto 360° é uma imagem plana na proporção <strong>2:1</strong> (ex.: <code>4096x2048</code> pixels) onde o eixo horizontal representa os <strong>360° de giro (Yaw: -180° a +180°)</strong> e o eixo vertical representa os <strong>180° de inclinação (Pitch: -90° chão a +90° céu)</strong>. Nosso motor WebGL (<code>js/engine360.js</code>) coloca a câmera no centro <code>(0,0,0)</code> de uma esfera virtual e projeta a textura ao redor do observador.
-        </p>
-
-        <h4 style="color:#86efac; margin-bottom:8px;">2. Como os Pontos Clicáveis (Hotspots) ficam "grudados" no lugar certo da paisagem?</h4>
-        <p style="margin-bottom:14px; font-size:14px; color:#e2e8f0;">
-          Cada ponto clicável guarda sua coordenada esférica <code>{ pitch, yaw }</code> em <code>js/dados-sc.js</code>. A 60 quadros por segundo, convertemos <code>(pitch, yaw)</code> em um vetor 3D unitário:
-          <br/><code style="color:#fde047;">x = cos(pitch) * sin(yaw) | y = sin(pitch) | z = cos(pitch) * cos(yaw)</code><br/>
-          Em seguida, aplicamos a rotação inversa da câmera e projetamos para o pixel <code>(X, Y)</code> da tela. Se <code>z_camera &gt; 0</code>, o botão fica visível na frente do usuário; se o usuário virar de costas (<code>z_camera &lt;= 0</code>), o botão é ocultado automaticamente!
-        </p>
-
-        <h4 style="color:#86efac; margin-bottom:8px;">3. Os 3 Tipos de Ação ao Clicar nos Hotspots</h4>
-        <ul style="margin-left:20px; margin-bottom:14px; font-size:14px; color:#e2e8f0;">
-          <li><strong><code>type: "info"</code> (Pop-up de Informação & Foto Anotada):</strong> Abre o modal dividido com a fotografia anotada à esquerda e o texto explicativo + quadro amarelo <em>"Você sabia?"</em> à direita.</li>
-          <li><strong><code>type: "3d"</code> (Modelo 3D Hospedado Externamente):</strong> Injeta no lado esquerdo do modal um <code>&lt;iframe src="https://sketchfab.com/models/ID/embed?autostart=1"&gt;</code> (ou Polycam / Luma AI / Three.js), permitindo girar a maquete 3D sem sair da foto 360°!</li>
-          <li><strong><code>type: "scene"</code> (Teleporte para outra Foto 360°):</strong> Aplica um zoom suave de câmera na direção do ponto clicado e carrega o próximo panorama 360° do grafo de cenas.</li>
-        </ul>
-
-        <h4 style="color:#86efac; margin-bottom:8px;">4. Como Replicar em Qualquer Outro Computador</h4>
-        <p style="font-size:14px; color:#e2e8f0;">
-          Toda a aplicação é <strong>100% independente de instalações pesadas</strong> (não exige Node.js nem Python). Basta copiar esta pasta ou usar o arquivo <code>GUIA_LOGICA_E_REPLICACAO.md</code> na raiz do projeto. Você também pode clicar em <strong>"🛠️ Criar Ponto / Trocar Foto"</strong> na barra inferior para carregar qualquer foto 360° do seu computador e clicar direto na imagem para gerar novos pontos!
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========================================================================
-       11. OVERLAY DE TRANSIÇÃO DE VOO ENTRE FOTOS 360°
-       ======================================================================== -->
-  <div id="sceneTransitionOverlay" class="scene-transition-overlay">
-    <div class="transition-banner" id="transitionTextLabel">Viajando para próxima foto 360°...</div>
-  </div>
-
-  <!-- ========================================================================
-       SCRIPTS DA APLICAÇÃO (ORDEM: FOTOS B64 -> MODELO GLB -> DADOS -> VIEWER 3D -> MOTOR 360°)
-       ======================================================================== -->
-  <script src="js/drone-panos-b64.js"></script>
-  <script src="js/modelo-3d-glb.js"></script>
-  <script src="js/rota-lumiar-data.js"></script>
-  <script src="js/rota-lumiar-road-path.js"></script>
-  <script src="js/dados-sc.js"></script>
-  <script src="js/glb-viewer.js"></script>
-  <script src="js/panorama-generator.js"></script>
-  <script src="js/engine360.js"></script>
-  <script>
-    // Suporte a carregamento direto com visualização ativada via URL (?scene=...&action=modal3d|map|editor|scmap|rux_info)
-    window.addEventListener("load", () => {
-      const params = new URLSearchParams(window.location.search);
-      const sceneParam = params.get("scene");
-      const action = params.get("action");
-      if (!sceneParam && !action) return;
-      setTimeout(() => {
-        if (sceneParam && window.GeoSC360 && typeof window.GeoSC360.goToScene === "function") {
-          window.GeoSC360.goToScene(sceneParam, false);
-        }
-        const pitchParam = params.get("pitch");
-        const yawParam = params.get("yaw");
-        setTimeout(() => {
-          if ((pitchParam !== null || yawParam !== null) && window.GeoSC360 && typeof window.GeoSC360.setView === "function") {
-            window.GeoSC360.setView(
-              pitchParam !== null ? Number(pitchParam) : undefined,
-              yawParam !== null ? Number(yawParam) : undefined
-            );
-          }
-          if (action === "modal3d") {
-            const el = document.querySelector('[data-id="hs_v04_3d_relevo"]');
-            if (el) el.click();
-          } else if (action === "modal_info") {
-            const el = document.querySelector('[data-id="hs_v04_info_vale"]');
-            if (el) el.click();
-          } else if (action === "rux_info") {
-            const el = document.querySelector('[data-id="hs_rux_info"]');
-            if (el) el.click();
-          } else if (action === "sch_info") {
-            const el = document.querySelector('[data-id="hs_sch_info"]');
-            if (el) el.click();
-          } else if (action === "map") {
-            if (window.GeoSC360 && typeof window.GeoSC360.openRotaLumiar === "function") {
-              window.GeoSC360.openRotaLumiar();
-            }
-            if (params.get("side") === "back") {
-              const btnBack = document.getElementById("btnRdlViewBack");
-              if (btnBack) btnBack.click();
-            }
-            if (params.get("expand") === "1") {
-              const btnExp = document.getElementById("btnRdlExpandMap");
-              if (btnExp) btnExp.click();
-            }
-            const zoomClicks = Number(params.get("zoomclicks") || "0");
-            if (zoomClicks > 0) {
-              const btnIn = document.getElementById("btnRdlZoomIn");
-              for (let i = 0; i < zoomClicks && btnIn; i++) btnIn.click();
-            }
-          } else if (action === "editor") {
-            const btn = document.getElementById("btnToggleEditor");
-            if (btn) btn.click();
-          } else if (action === "scmap") {
-            const btn = document.getElementById("btnOpenSCMap");
-            if (btn) btn.click();
-            const mapFilter = params.get("filter");
-            if (mapFilter) {
-              setTimeout(() => {
-                const fbtn = document.querySelector(`#scMapQuickBar [data-map-filter="${mapFilter}"]`);
-                if (fbtn) fbtn.click();
-                if (params.get("expand") === "1") {
-                  const expBtn = document.getElementById("btnToggleScMapExpand");
-                  if (expBtn) expBtn.click();
-                }
-              }, 350);
-            }
-          } else if (action === "travel" && window.GeoSC360) {
-            window.GeoSC360.goToScene(params.get("to") || "schroeder_platz_03", true);
-          }
-        }, sceneParam ? 500 : 0);
-      }, 1200);
-    });
-  </script>
+  <!-- Bibliotecas (three.js r147 local, funciona via file://) -->
+  <script src="js/vendor/three.min.js"></script>
+  <script src="js/vendor/OrbitControls.js"></script>
+  <script src="js/vendor/GLTFLoader.js"></script>
+  <!-- Dados -->
+  <script src="js/sc-regioes-turisticas.js"></script>
+  <script src="js/sc-mapa3d-glb.js"></script>
+  <!-- Aplicação -->
+  <script src="js/geoturismo-sc.js"></script>
 </body>
 </html>

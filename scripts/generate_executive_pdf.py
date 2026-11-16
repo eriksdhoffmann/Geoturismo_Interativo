@@ -27,14 +27,11 @@ html_content = f"""<!DOCTYPE html>
 <meta charset="UTF-8">
 <title>Proposta Técnica — Soluções Tecnológicas para Gestão, Inteligência e Promoção do Turismo (SETUR-SC)</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Merriweather:ital,wght@0,300;0,700;1,300&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
   @page {{
     size: A4 portrait;
-    margin: 15mm 15mm 18mm 15mm;
-    @bottom-right {{
-      content: counter(page);
-    }}
+    margin: 12mm 15mm 12mm 15mm;
   }}
 
   * {{
@@ -47,8 +44,8 @@ html_content = f"""<!DOCTYPE html>
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: #1e293b;
     background: #ffffff;
-    line-height: 1.55;
-    font-size: 10pt;
+    line-height: 1.5;
+    font-size: 9.5pt;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }}
@@ -56,9 +53,11 @@ html_content = f"""<!DOCTYPE html>
   .page {{
     page-break-after: always;
     break-after: page;
-    min-height: 260mm;
+    height: 272mm;
+    max-height: 272mm;
     position: relative;
-    padding-bottom: 10mm;
+    padding-bottom: 8mm;
+    overflow: hidden;
   }}
 
   .page:last-child {{
@@ -72,8 +71,8 @@ html_content = f"""<!DOCTYPE html>
     justify-content: space-between;
     align-items: center;
     border-bottom: 2.5px solid #0284c7;
-    padding-bottom: 8px;
-    margin-bottom: 20px;
+    padding-bottom: 6px;
+    margin-bottom: 14px;
   }}
 
   .gov-brand {{
@@ -82,7 +81,7 @@ html_content = f"""<!DOCTYPE html>
   }}
 
   .gov-state {{
-    font-size: 11pt;
+    font-size: 10.5pt;
     font-weight: 800;
     color: #0f172a;
     letter-spacing: 0.5px;
@@ -90,7 +89,7 @@ html_content = f"""<!DOCTYPE html>
   }}
 
   .gov-dept {{
-    font-size: 8.5pt;
+    font-size: 8pt;
     font-weight: 600;
     color: #0284c7;
   }}
@@ -99,9 +98,9 @@ html_content = f"""<!DOCTYPE html>
     background: #f0f9ff;
     color: #0369a1;
     border: 1px solid #bae6fd;
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 8pt;
+    padding: 3px 8px;
+    border-radius: 5px;
+    font-size: 7.5pt;
     font-weight: 700;
   }}
 
@@ -113,8 +112,8 @@ html_content = f"""<!DOCTYPE html>
     display: flex;
     justify-content: space-between;
     border-top: 1px solid #e2e8f0;
-    padding-top: 6px;
-    font-size: 7.5pt;
+    padding-top: 5px;
+    font-size: 7pt;
     color: #64748b;
   }}
 
@@ -123,123 +122,123 @@ html_content = f"""<!DOCTYPE html>
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    height: 255mm;
+    height: 250mm;
   }}
 
   .cover-top {{
-    border-bottom: 4px solid #0284c7;
-    padding-bottom: 25px;
+    padding-bottom: 10px;
   }}
 
   .cover-kicker {{
     display: inline-block;
     background: #0284c7;
     color: #ffffff;
-    font-size: 8.5pt;
+    font-size: 8pt;
     font-weight: 800;
-    padding: 4px 12px;
+    padding: 3px 10px;
     border-radius: 4px;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    margin-bottom: 14px;
+    letter-spacing: 0.8px;
+    margin-bottom: 10px;
   }}
 
   .cover-title {{
-    font-size: 24pt;
+    font-size: 22pt;
     font-weight: 900;
     color: #0f172a;
-    line-height: 1.2;
-    margin-bottom: 12px;
+    line-height: 1.15;
+    margin-bottom: 8px;
   }}
 
   .cover-subtitle {{
-    font-size: 12.5pt;
+    font-size: 11pt;
     font-weight: 500;
     color: #475569;
-    line-height: 1.4;
+    line-height: 1.35;
+    margin-bottom: 14px;
   }}
 
   .cover-meta-grid {{
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 15px;
-    margin: 25px 0;
+    gap: 10px;
+    margin: 14px 0;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 16px;
+    border-radius: 8px;
+    padding: 12px;
   }}
 
   .meta-item strong {{
     display: block;
-    font-size: 7.5pt;
+    font-size: 7pt;
     text-transform: uppercase;
     color: #64748b;
-    margin-bottom: 2px;
+    margin-bottom: 1px;
   }}
 
   .meta-item span {{
-    font-size: 9.5pt;
-    font-weight: 600;
+    font-size: 9pt;
+    font-weight: 700;
     color: #0f172a;
   }}
 
   .cover-highlights {{
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 12px;
-    margin-bottom: 20px;
+    gap: 10px;
+    margin-bottom: 14px;
   }}
 
   .highlight-card {{
     background: #ffffff;
     border: 1px solid #cbd5e1;
     border-top: 3px solid #0284c7;
-    border-radius: 8px;
-    padding: 12px;
+    border-radius: 6px;
+    padding: 10px;
   }}
 
   .highlight-card h4 {{
-    font-size: 9pt;
+    font-size: 8.5pt;
     font-weight: 800;
     color: #0f172a;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
   }}
 
   .highlight-card p {{
-    font-size: 8pt;
+    font-size: 7.5pt;
     color: #475569;
-    line-height: 1.35;
+    line-height: 1.3;
   }}
 
   .cover-summary-box {{
     background: #f0fdf4;
     border-left: 4px solid #16a34a;
-    padding: 14px;
-    border-radius: 0 8px 8px 0;
+    padding: 12px;
+    border-radius: 0 6px 6px 0;
   }}
 
   .cover-summary-box h3 {{
-    font-size: 10.5pt;
+    font-size: 9.5pt;
     color: #166534;
     font-weight: 800;
     margin-bottom: 4px;
   }}
 
   .cover-summary-box p {{
-    font-size: 8.5pt;
+    font-size: 8pt;
     color: #14532d;
-    line-height: 1.45;
+    line-height: 1.4;
   }}
 
   /* INNER PAGES */
   h2.section-heading {{
-    font-size: 14pt;
+    font-size: 13pt;
     font-weight: 800;
     color: #0f172a;
     border-left: 4px solid #0284c7;
-    padding-left: 10px;
-    margin-bottom: 14px;
+    padding-left: 8px;
+    margin-bottom: 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -248,17 +247,17 @@ html_content = f"""<!DOCTYPE html>
   .item-box {{
     background: #ffffff;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin-bottom: 12px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    border-radius: 7px;
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.02);
   }}
 
   .item-box-header {{
     display: flex;
     align-items: center;
     gap: 8px;
-    margin-bottom: 6px;
+    margin-bottom: 5px;
   }}
 
   .item-num {{
@@ -266,62 +265,67 @@ html_content = f"""<!DOCTYPE html>
     color: #ffffff;
     font-size: 8pt;
     font-weight: 800;
-    width: 22px;
-    height: 22px;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
   }}
 
   .item-title {{
-    font-size: 10.5pt;
+    font-size: 10pt;
     font-weight: 800;
     color: #0f172a;
   }}
 
   .item-body {{
-    font-size: 9pt;
+    font-size: 8.8pt;
     color: #334155;
-    line-height: 1.5;
+    line-height: 1.45;
     text-align: justify;
   }}
 
   .item-body p {{
-    margin-bottom: 6px;
+    margin-bottom: 4px;
   }}
 
-  .callout-box {{
-    background: #eff6ff;
-    border-left: 3px solid #3b82f6;
-    padding: 8px 12px;
-    border-radius: 0 6px 6px 0;
-    margin-top: 6px;
-    font-size: 8.5pt;
-    color: #1e40af;
+  .item-body p:last-child {{
+    margin-bottom: 0;
+  }}
+
+  .badge-geolab {{
+    background: #e0f2fe;
+    color: #0369a1;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 7.5pt;
+    display: inline-block;
   }}
 
   /* TABLES */
   table.custom-table {{
     width: 100%;
     border-collapse: collapse;
-    margin: 12px 0;
-    font-size: 8.5pt;
+    margin: 8px 0;
+    font-size: 8pt;
   }}
 
   table.custom-table th {{
     background: #0f172a;
     color: #ffffff;
     text-align: left;
-    padding: 8px 10px;
+    padding: 6px 8px;
     font-weight: 700;
-    font-size: 8pt;
+    font-size: 7.5pt;
     text-transform: uppercase;
     letter-spacing: 0.5px;
   }}
 
   table.custom-table td {{
-    padding: 8px 10px;
+    padding: 6px 8px;
     border-bottom: 1px solid #e2e8f0;
     color: #334155;
     vertical-align: top;
@@ -335,47 +339,47 @@ html_content = f"""<!DOCTYPE html>
   .prancha-grid {{
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
-    margin-top: 10px;
+    gap: 10px;
+    margin-top: 8px;
   }}
 
   .prancha-card {{
     border: 1px solid #cbd5e1;
-    border-radius: 8px;
+    border-radius: 7px;
     overflow: hidden;
     background: #f8fafc;
   }}
 
   .prancha-img {{
     width: 100%;
-    height: 155px;
+    height: 145px;
     object-fit: cover;
     display: block;
     border-bottom: 1px solid #e2e8f0;
   }}
 
   .prancha-caption {{
-    padding: 8px 10px;
+    padding: 6px 8px;
   }}
 
   .prancha-title {{
-    font-size: 8.5pt;
+    font-size: 8pt;
     font-weight: 800;
     color: #0f172a;
     margin-bottom: 2px;
   }}
 
   .prancha-desc {{
-    font-size: 7.5pt;
+    font-size: 7.2pt;
     color: #475569;
-    line-height: 1.35;
+    line-height: 1.3;
   }}
 
   /* SIGNATURE SECTION */
   .signature-section {{
-    margin-top: 25px;
+    margin-top: 14px;
     border-top: 1px solid #cbd5e1;
-    padding-top: 15px;
+    padding-top: 10px;
     display: flex;
     justify-content: space-between;
     align-items: flex-end;
@@ -387,18 +391,18 @@ html_content = f"""<!DOCTYPE html>
 
   .sig-line {{
     border-bottom: 1px solid #475569;
-    width: 220px;
-    margin-bottom: 6px;
+    width: 200px;
+    margin-bottom: 4px;
   }}
 
   .sig-name {{
-    font-size: 9pt;
+    font-size: 8.5pt;
     font-weight: 800;
     color: #0f172a;
   }}
 
   .sig-role {{
-    font-size: 8pt;
+    font-size: 7.5pt;
     color: #64748b;
   }}
 </style>
@@ -422,49 +426,49 @@ html_content = f"""<!DOCTYPE html>
         <span class="cover-kicker">Inteligência Territorial & Promoção Turística</span>
         <h1 class="cover-title">Plataforma GeoSC 360°</h1>
         <p class="cover-subtitle">
-          Solução Tecnológica Aberta de Alta Performance para Gestão, Inteligência, Geoturismo e Promoção Imersiva dos Destinos Catarinenses
+          Solução Tecnológica Aberta de Gestão, Inteligência e Promoção Imersiva dos Destinos Turísticos Catarinenses
         </p>
 
         <div class="cover-meta-grid">
           <div class="meta-item">
             <strong>Destinatário Oficial:</strong>
             <span>Secretaria de Estado do Turismo (SETUR-SC)</span>
-            <small style="color:#64748b; display:block;">A/C: Secretário do Turismo & Edgar (edgar@setur.sc.gov.br)</small>
+            <small style="color:#64748b; display:block;">A/C: Secretário de Turismo & Edgar (edgar@setur.sc.gov.br)</small>
           </div>
           <div class="meta-item">
-            <strong>Origem / Proponente:</strong>
-            <span>Prof. Chico & Equipe Técnica</span>
-            <small style="color:#64748b; display:block;">Projeto Geohereditas / GeoSC 360°</small>
+            <strong>Liderança & Execução Técnica:</strong>
+            <span>GeoLab & UDESC</span>
+            <small style="color:#64748b; display:block;">Coordenação: Prof. Chico & Equipe Técnica GeoLab</small>
           </div>
           <div class="meta-item">
             <strong>Âmbito de Aplicação:</strong>
-            <span>Santa Catarina (295 Municípios / 13 Regiões Turísticas)</span>
+            <span>Polos e Regiões Turísticas de Santa Catarina</span>
           </div>
           <div class="meta-item">
-            <strong>Arquitetura & Base Tecnológica:</strong>
-            <span>Motor WebGL Nativo 60 FPS • Modelos 3D (.GLB) • Código Aberto</span>
+            <strong>Ambiente & Repositório:</strong>
+            <span>GitHub (Código Aberto, Transparência & Governança Pública)</span>
           </div>
         </div>
 
         <div class="cover-highlights">
           <div class="highlight-card">
-            <h4>Imersão Aérea & Solo</h4>
-            <p>Panoramas 360° capturados por drones com ancoragem matemática precisa de pontos de interesse.</p>
+            <h4>Protagonismo GeoLab</h4>
+            <p>O GeoLab executa todo o trabalho técnico de campo, captação 360°, modelagem e implantação no local.</p>
           </div>
           <div class="highlight-card">
-            <h4>Maquetes 3D Interativas</h4>
-            <p>Visualização tridimensional (.GLB) do relevo, encostas e patrimônio arquitetônico histórico.</p>
+            <h4>Parceria UDESC & SETUR</h4>
+            <p>Sustentação acadêmica e científica com governança pública e soberania total do Estado sobre os dados.</p>
           </div>
           <div class="highlight-card">
-            <h4>Gestão Municipal Descentralizada</h4>
-            <p>Painel autônomo para municípios inserirem dados e fotos sem depender de programadores.</p>
+            <h4>Acesso Universal</h4>
+            <p>Visualização instantânea em qualquer celular, tablet ou computador, sem necessidade de baixar aplicativo.</p>
           </div>
         </div>
 
         <div class="cover-summary-box">
-          <h3>Resumo do Posicionamento Estratégico para Santa Catarina</h3>
+          <h3>Resumo do Posicionamento Estratégico</h3>
           <p>
-            O <strong>GeoSC 360°</strong> atende perfeitamente à demanda da SETUR-SC por uma ferramenta inovadora, acessível e de soberania pública. Diferente de plataformas comerciais de alto custo recorrente (como Matterport e 3DVista), a solução opera sobre infraestrutura web estática aberta, eliminando mensalidades por tráfego, garantindo compatibilidade universal com qualquer smartphone ou totem turístico e permitindo que o Estado e seus municípios construam um catálogo digital vivo e perene de seus atrativos.
+            O <strong>GeoSC 360°</strong> atende de forma direta e estruturada à consulta da SETUR-SC. Trata-se de uma solução integralmente conduzida pelo <strong>GeoLab</strong> em parceria com a <strong>UDESC</strong>, que une o trabalho de campo presencial nos destinos catarinenses à tecnologia de navegação imersiva e repositório colaborativo via <strong>GitHub</strong>. Diferente de ferramentas comerciais fechadas, garante autonomia pública ao Estado, valoriza o turismo cultural e de natureza e posiciona Santa Catarina na vanguarda da promoção turística digital.
           </p>
         </div>
       </div>
@@ -477,7 +481,7 @@ html_content = f"""<!DOCTYPE html>
   </div>
 
   <!-- ======================================================================
-       PÁGINA 2: RESPOSTAS AOS ITENS 1, 2, 3 E 4
+       PÁGINA 2: RESPOSTAS DIRETAS AOS ITENS 1, 2, 3 E 4
        ====================================================================== -->
   <div class="page">
     <div class="gov-header">
@@ -490,7 +494,7 @@ html_content = f"""<!DOCTYPE html>
 
     <h2 class="section-heading">
       Questionário de Avaliação Técnica
-      <span style="font-size:8pt; font-weight:500; color:#64748b;">Conforme solicitação SETUR-SC</span>
+      <span style="font-size:7.5pt; font-weight:500; color:#64748b;">Estrutura Direta conforme Solicitação SETUR-SC</span>
     </h2>
 
     <!-- ITEM 1 -->
@@ -501,11 +505,8 @@ html_content = f"""<!DOCTYPE html>
       </div>
       <div class="item-body">
         <p>
-          O <strong>GeoSC 360°</strong> é uma plataforma web imersiva de inteligência territorial, promoção turística e educação patrimonial desenvolvida para o Estado de Santa Catarina. A solução integra passeios virtuais interativos em <strong>360° em altíssima definição (capturas aéreas por drone e terrestres)</strong> com um motor gráfico próprio em <strong>WebGL</strong>, visualização de <strong>modelos tridimensionais (maquetes 3D topográficas e arquitetônicas em formato .GLB e Sketchfab)</strong>, camadas cartográficas interativas (mapas georreferenciados Leaflet e ilustrados temáticos) e rótulos 3D de relevo ancorados na paisagem.
+          Desenvolvida pelo <strong>GeoLab</strong> em parceria com a <strong>UDESC</strong>, a plataforma <strong>GeoSC 360°</strong> é uma solução web imersiva de promoção e inteligência turística para Santa Catarina. A plataforma integra passeios virtuais interativos em 360° (aéreos por drone e terrestres), maquetes tridimensionais do relevo e do patrimônio arquitetônico, cartografia temática ilustrada e pontos interativos na paisagem. Funciona com navegação fluida em qualquer navegador (celular, tablet ou computador), sem necessidade de instalar aplicativos, exibindo fotos, textos explicativos e maquetes 3D ao clicar nos atrativos.
         </p>
-        <div class="callout-box">
-          <strong>Principais Funcionalidades:</strong> Navegação panorâmica fluida a 60 FPS com zoom óptico (HFOV 38° a 115°); pontos clicáveis (hotspots) esféricos com janelas modais <em>Split-View</em> (mídia anotada + texto técnico-editorial); visualizador 3D offline integrado; transições de voo entre cenas; e um Estúdio Criador autônomo para cadastro imediato de novos atrativos.
-        </div>
       </div>
     </div>
 
@@ -517,10 +518,7 @@ html_content = f"""<!DOCTYPE html>
       </div>
       <div class="item-body">
         <p>
-          A solução resolve a <strong>fragmentação na divulgação dos atrativos catarinenses</strong> e supera a barreira da <em>invisibilidade digital</em> enfrentada pelo turismo rural, de natureza, histórico e de interior. Enquanto a promoção convencional se limita a fotos estáticas bidimensionais ou folhetos em PDF pouco atraentes, o sistema proporciona uma pré-experiência imersiva que qualifica a tomada de decisão do turista, estimula o aumento da permanência média no destino e desconcentra o fluxo turístico do litoral para os vales, serra e oeste.
-        </p>
-        <p>
-          Adicionalmente, atende à carência de dados georreferenciados interpretados: o visitante não apenas contempla o cenário, mas compreende a história da imigração, as características geomorfológicas da Mata Atlântica e a infraestrutura receptiva local (gastronomia, pousadas, cervejarias e artesanato), valorizando o <strong>Geoturismo</strong> como diferencial competitivo internacional.
+          A solução resolve a <strong>fragmentação e a invisibilidade digital</strong> dos destinos turísticos catarinenses, especialmente do turismo rural, cultural e de interior. Supera a divulgação tradicional estática (fotos isoladas e PDFs) através de uma pré-experiência imersiva que atrai o turista e amplia sua permanência no destino. Além disso, organiza dados georreferenciados interpretados sobre história, natureza e serviços turísticos (gastronomia, hospedagem e patrimônio), fortalecendo o turismo de experiência e desconcentrando o fluxo turístico em Santa Catarina.
         </p>
       </div>
     </div>
@@ -533,16 +531,16 @@ html_content = f"""<!DOCTYPE html>
       </div>
       <div class="item-body">
         <p>
-          A metodologia estrutura-se em um fluxo contínuo de 3 etapas integradas:
+          O sistema opera em uma dinâmica em três etapas executadas pelo <strong>GeoLab</strong>:
         </p>
         <p>
-          <strong>1. Captação e Georreferenciamento de Dados Espaciais:</strong> Voo com drones fotogramétricos para geração de imagens panorâmicas equirretangulares (proporção 2:1) calibradas em coordenadas esféricas de azimute (<em>Yaw</em>: -180° a +180°) e elevação (<em>Pitch</em>: -90° a +90°).
+          <strong>1. Trabalho de campo e captação espacial:</strong> A equipe técnica do GeoLab realiza voos de drone e fotografias terrestres em 360° de alta resolução em cada localidade turística.
         </p>
         <p>
-          <strong>2. Curadoria Editorial e Modelagem 3D:</strong> Estruturação de metadados dos atrativos turísticos em fichas padronizadas, com textos validados por historiadores e geógrafos, fotografias de detalhe e maquetes 3D de relevo e patrimônio arquitetônico.
+          <strong>2. Curadoria editorial e modelagem tridimensional:</strong> O GeoLab faz o processamento dos dados, produz as maquetes 3D de relevo e patrimônio e estrutura as narrativas históricas e turísticas validadas de cada atrativo.
         </p>
         <p>
-          <strong>3. Motor WebGL Ultraleve Multiplataforma:</strong> O sistema roda diretamente no navegador web de qualquer dispositivo (computador, smartphone, tablet ou totem de autoatendimento) sem exigir instalação de aplicativo ou plug-in. Utiliza <em>Raycasting</em> matemático para projetar os marcadores interativos em tempo real sobre a esfera virtual a 60 FPS com consumo mínimo de banda.
+          <strong>3. Publicação em plataforma web aberta:</strong> O conteúdo é disponibilizado online para acesso instantâneo pelo público em qualquer dispositivo conectado à internet, com carregamento rápido e navegação interativa intuitiva.
         </p>
       </div>
     </div>
@@ -551,14 +549,11 @@ html_content = f"""<!DOCTYPE html>
     <div class="item-box">
       <div class="item-box-header">
         <span class="item-num">4</span>
-        <h3 class="item-title">Cases e experiências: Destinos, regiões e instituições com a solução implementada</h3>
+        <h3 class="item-title">Cases e experiências: Destinos e regiões onde a solução já está implementada</h3>
       </div>
       <div class="item-body">
         <p>
-          A solução tem sua base conceitual e tecnológica respaldada no <strong>Projeto Geohereditas do Instituto de Geociências da USP (IGc-USP)</strong>, referência nacional em inventariação e difusão científica do patrimônio natural e geológico. Em Santa Catarina, o sistema possui implementação piloto pioneira e de grande sucesso no <strong>Vale do Rio da Luz (Jaraguá do Sul ↔ Pomerode)</strong>, primeira Paisagem Cultural do Brasil tombada pelo IPHAN nos Roteiros Nacionais de Imigração.
-        </p>
-        <p>
-          No piloto catarinense, foram catalogados e georreferenciados <strong>21 atrativos</strong> (englobando casarões históricos enxaimel, sociedades de tiro tradicionais, igrejas centenárias e o relevo da Serra do Mar), conectando a rota enxaimel à maquete 3D (.GLB) e ao mapa oficial ilustrado. O sistema conta ainda com protótipos de roteiros em <strong>Florianópolis</strong> (Lagoa e Ponte Hercílio Luz), <strong>Serra Catarinense</strong> (Serra do Rio do Rastro e Morro da Igreja/Pedra Furada) e no <strong>Geoparque Mundial da UNESCO Caminhos dos Cânions do Sul</strong> (Cânion do Itaimbezinho/Praia Grande), demonstrando prontidão para expansão em escala estadual.
+          O principal case de sucesso implementado pelo <strong>GeoLab / UDESC</strong> é o passeio virtual do <strong>Vale do Rio da Luz (Jaraguá do Sul ↔ Pomerode)</strong>, primeira Paisagem Cultural do Brasil tombada pelo IPHAN nos Roteiros Nacionais de Imigração. No projeto, o GeoLab mapeou e integrou <strong>21 atrativos turísticos e culturais</strong> (casarões históricos da Rota Enxaimel, sociedades de tiro tradicionais, igrejas centenárias e o relevo da região), associando fotos 360°, maquetes tridimensionais e mapa ilustrado oficial, comprovando o impacto direto na divulgação qualificada e na valorização patrimonial do destino.
         </p>
       </div>
     </div>
@@ -570,7 +565,7 @@ html_content = f"""<!DOCTYPE html>
   </div>
 
   <!-- ======================================================================
-       PÁGINA 3: RESPOSTAS AOS ITENS 5, 6 E COMPARATIVO DE CUSTOS
+       PÁGINA 3: RESPOSTAS AOS ITENS 5 E 6 (GITHUB, UDESC & GEOLAB, R$ 1 MILHÃO)
        ====================================================================== -->
   <div class="page">
     <div class="gov-header">
@@ -585,14 +580,14 @@ html_content = f"""<!DOCTYPE html>
     <div class="item-box">
       <div class="item-box-header">
         <span class="item-num">5</span>
-        <h3 class="item-title">Alimentação de dados (Input): Inserção pela SETUR-SC e gestores municipais</h3>
+        <h3 class="item-title">Alimentação de dados (Input): Inserção pela SETUR-SC, UDESC/GeoLab e GitHub</h3>
       </div>
       <div class="item-body">
         <p>
-          <strong>Sim, a possibilidade é total, nativa e faz parte do design central da solução.</strong> A plataforma conta com o módulo integrado <strong>"Estúdio Criador / Gestor Municipal"</strong>, acessível diretamente na interface. Os técnicos da SETUR-SC e secretarias municipais de turismo podem carregar novos arquivos panorâmicos 360° (.jpg/.png de drone ou câmera 360°) e clicar sobre qualquer feição da paisagem: a função matemática de <em>Raycasting Inverso</em> calcula instantaneamente o <em>Pitch</em> e o <em>Yaw</em> exatos daquele ponto.
+          <strong>Sim, com governança e colaboração total.</strong> A gestão e alimentação da plataforma são viabilizadas pela parceria institucional entre a <strong>UDESC</strong> e o <strong>GeoLab</strong>, que tem o protagonismo de liderar e executar todo o processo técnico, modelagem e curadoria dos dados.
         </p>
         <p>
-          Em seguida, o gestor preenche formulários visuais simples (título, história, fotos complementares, link de vídeo ou maquete 3D) e o sistema gera automaticamente os dados estruturados em JSON. Para a gestão estadual em larga escala, a plataforma pode ser conectada aos bancos de dados existentes da SETUR-SC via API REST ou camadas GeoJSON/PostGIS, permitindo auditoria centralizada e aprovação de novos pontos pelos técnicos estaduais antes de irem a público.
+          A solução adota o <strong>GitHub</strong> como ambiente oficial de repositório, versionamento e hospedagem de código aberto, assegurando total transparência, integridade e facilidade de atualização colaborativa. A SETUR-SC e os gestores municipais de turismo podem fornecer novos conteúdos, fotos e roteiros diretamente à equipe do GeoLab, que realiza o processamento técnico, validação e publicação das novas cenas no repositório GitHub, além de contar com a interface de cadastro simplificada da própria plataforma.
         </p>
       </div>
     </div>
@@ -601,92 +596,58 @@ html_content = f"""<!DOCTYPE html>
     <div class="item-box">
       <div class="item-box-header">
         <span class="item-num">6</span>
-        <h3 class="item-title">Custos: Custo anual aproximado para disponibilizar e operar em toda Santa Catarina</h3>
+        <h3 class="item-title">Custos: Custo para disponibilizar e operar em Santa Catarina (R$ 1 Milhão para o GeoLab)</h3>
       </div>
       <div class="item-body">
         <p>
-          Por ser concebido sobre uma <strong>arquitetura de código aberto (Open Source) e tecnologia estática WebGL ultraleve</strong>, o GeoSC 360° rompe radicalmente com os modelos predatórios de plataformas privadas que cobram mensalidades por volume de acessos ou taxas de licenciamento por cena hospedada (como Matterport e softwares proprietários de passeios virtuais).
+          O custo estimado é de <strong>R$ 1.000.000,00 (um milhão de reais) destinado ao GeoLab</strong>, sendo esse valor correspondente ao trabalho completo de ir a campo e implantar/instalar toda a estrutura técnica diretamente nos destinos e polos turísticos de Santa Catarina.
         </p>
         <p>
-          O custo de <strong>hospedagem e tráfego em nuvem é residual ou zero</strong> quando hospedado na própria infraestrutura do Governo do Estado (CIASC / nuvem governamental) ou via CDNs de altíssima velocidade. O investimento operacional anual destina-se quase integralmente à governança, sustentação técnica, curadoria de dados e capacitação das equipes municipais:
+          Esse investimento de 1 milhão contempla integralmente o protagonismo operacional do <strong>GeoLab</strong> nas seguintes frentes de trabalho:
         </p>
 
         <table class="custom-table">
           <thead>
             <tr>
-              <th style="width:25%;">Componente Operacional</th>
-              <th style="width:50%;">Descrição & Abrangência Estadual</th>
-              <th style="width:25%;">Estimativa Anual</th>
+              <th style="width:30%;">Frente de Trabalho (GeoLab)</th>
+              <th style="width:50%;">Atividades Realizadas no Local (Destinos de SC)</th>
+              <th style="width:20%;">Alocação</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><strong>1. Infraestrutura & Nuvem</strong></td>
-              <td>Hospedagem em nuvem estadual (CIASC) ou CDN global, SSL, CDN de mídia e distribuição de alta velocidade com tráfego ilimitado.</td>
-              <td><strong style="color:#16a34a;">Custo Marginal</strong><br><small>(R$ 0 a R$ 6.000/ano)</small></td>
+              <td><strong>1. Deslocamento & Campo no Local</strong></td>
+              <td>Ida presencial das equipes técnicas aos destinos turísticos de SC para levantamento in loco, planejamento de rotas e articulação regional.</td>
+              <td>Equipe Técnica GeoLab</td>
             </tr>
             <tr>
-              <td><strong>2. Sustentação Técnica & Manutenção</strong></td>
-              <td>Manutenção evolutiva do motor WebGL, suporte técnico contínuo à equipe da SETUR-SC, correção de compatibilidade e atualizações de segurança.</td>
-              <td><strong>R$ 36.000 a R$ 60.000/ano</strong><br><small>(R$ 3.000 a R$ 5.000/mês)</small></td>
+              <td><strong>2. Implantação da Estrutura Técnica</strong></td>
+              <td>Captação aerofotogramétrica com drones 360°, fotos terrestres em altíssima definição, mapeamento topográfico e georreferenciamento.</td>
+              <td>Operação GeoLab</td>
             </tr>
             <tr>
-              <td><strong>3. Curadoria & Capacitação Municipal</strong></td>
-              <td>Workshops online de capacitação para gestores dos 295 municípios, manuais operacionais e homologação de conteúdos turísticos inseridos.</td>
-              <td><strong>R$ 24.000 a R$ 40.000/ano</strong><br><small>(Pacote estadual anual)</small></td>
+              <td><strong>3. Modelagem 3D & Curadoria</strong></td>
+              <td>Construção de maquetes tridimensionais do relevo e do patrimônio arquitetônico histórico, redação editorial e validação patrimonial.</td>
+              <td>Laboratório GeoLab</td>
+            </tr>
+            <tr>
+              <td><strong>4. Gestão no GitHub & Sustentação</strong></td>
+              <td>Integração de todos os roteiros no repositório GitHub, suporte contínuo à SETUR-SC, atualização das cenas e hospedagem aberta ilimitada.</td>
+              <td>Parceria UDESC / GeoLab</td>
             </tr>
             <tr style="background:#f0fdf4;">
-              <td><strong style="color:#15803d;">TOTAL ESTIMADO ANUAL</strong></td>
-              <td><strong style="color:#15803d;">Operação, governança e disponibilidade contínua para todo o Estado de Santa Catarina</strong></td>
-              <td><strong style="color:#15803d; font-size:10pt;">R$ 60.000 a R$ 100.000/ano</strong></td>
+              <td><strong style="color:#15803d;">VALOR TOTAL DO CONTRATO</strong></td>
+              <td><strong style="color:#15803d;">Estruturação completa, trabalho de campo e implantação da solução no território de SC</strong></td>
+              <td><strong style="color:#15803d; font-size:9.5pt;">R$ 1.000.000,00</strong></td>
             </tr>
           </tbody>
         </table>
 
-        <div class="callout-box" style="background:#fefce8; border-color:#ca8a04; color:#854d0e;">
-          <strong>Nota sobre Campanhas de Novas Fotos/Voos de Drone:</strong> As captações de novas imagens aéreas nos municípios podem ser realizadas gradualmente utilizando drones que os próprios municípios ou consórcios regionais já possuem, ou através de termos de cooperação com universidades públicas (UFSC, UDESC) e editais da FAPESC/SETUR.
-        </div>
+        <p style="font-size:8pt; color:#475569; margin-top:4px;">
+          * A infraestrutura web no GitHub e servidores abertos não gera cobranças por visualização nem custos de licenças proprietárias, concentrando 100% dos recursos no trabalho de campo e na implantação presencial da estrutura nos municípios.
+        </p>
       </div>
     </div>
-
-    <!-- COMPARATIVO ESTRATÉGICO -->
-    <h3 style="font-size:10pt; font-weight:800; color:#0f172a; margin-top:12px; margin-bottom:6px;">Comparativo Estratégico de Soluções para o Setor Público</h3>
-    <table class="custom-table" style="font-size:7.5pt;">
-      <thead>
-        <tr>
-          <th>Critério de Avaliação</th>
-          <th>GeoSC 360° (Nossa Solução)</th>
-          <th>Matterport / 3DVista</th>
-          <th>Google Street View</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><strong>Propriedade dos Dados</strong></td>
-          <td><strong style="color:#16a34a;">100% Pública e do Estado de SC</strong></td>
-          <td>Privada / Presa ao fornecedor</td>
-          <td>Privada / Da Alphabet Inc.</td>
-        </tr>
-        <tr>
-          <td><strong>Custo por Visualização / Cenas</strong></td>
-          <td><strong style="color:#16a34a;">Zero (Tráfego Livre Ilimitado)</strong></td>
-          <td>Cobrança por cena e por usuário</td>
-          <td>Gratuito com anúncios / restrições</td>
-        </tr>
-        <tr>
-          <td><strong>Modelos 3D (.GLB / Relevo)</strong></td>
-          <td><strong style="color:#16a34a;">Integrado no próprio modal</strong></td>
-          <td>Apenas nuvem de pontos interna</td>
-          <td>Não possui suporte a 3D</td>
-        </tr>
-        <tr>
-          <td><strong>Interpretação e Geoturismo</strong></td>
-          <td><strong style="color:#16a34a;">Foco editorial em história e geologia</strong></td>
-          <td>Genérico (focado em imobiliárias)</td>
-          <td>Apenas nomes de ruas comerciais</td>
-        </tr>
-      </tbody>
-    </table>
 
     <div class="doc-footer">
       <span>SETUR-SC • Levantamento de Soluções Tecnológicas para o Turismo</span>
@@ -708,11 +669,11 @@ html_content = f"""<!DOCTYPE html>
 
     <h2 class="section-heading">
       Item 7: Demonstração Visual das Interfaces e Funcionalidades
-      <span style="font-size:8pt; font-weight:500; color:#64748b;">Capturas Reais do Sistema</span>
+      <span style="font-size:7.5pt; font-weight:500; color:#64748b;">Capturas Reais Desenvolvidas pelo GeoLab</span>
     </h2>
 
-    <p style="font-size:8.5pt; color:#475569; margin-bottom:10px;">
-      Em atendimento à solicitação da SETUR-SC, apresentamos a seguir as 4 pranchas visuais representativas dos módulos operacionais da plataforma. As imagens e o vídeo de demonstração em alta definição seguem anexados digitalmente a este relatório.
+    <p style="font-size:8pt; color:#475569; margin-bottom:8px;">
+      Em atendimento à solicitação da SETUR-SC, apresentamos as 4 pranchas visuais representativas dos módulos operacionais da plataforma. As imagens em alta definição e o vídeo de demonstração seguem anexados digitalmente a este relatório.
     </p>
 
     <div class="prancha-grid">
@@ -720,9 +681,9 @@ html_content = f"""<!DOCTYPE html>
       <div class="prancha-card">
         <img src="{b64_1}" alt="Interface de Navegação Drone 360" class="prancha-img">
         <div class="prancha-caption">
-          <div class="prancha-title">Figura 1 — Navegação 360° em Alta Definição (Drone WebGL)</div>
+          <div class="prancha-title">Figura 1 — Navegação 360° por Drone (Trabalho de Campo GeoLab)</div>
           <div class="prancha-desc">
-            Vista panorâmica aérea do Vale do Rio da Luz com HUD de telemetria, bússola de navegação, marcadores clicáveis pulsantes e rótulos 3D de relevo (Pico Malwee e atrativos culturais).
+            Vista panorâmica aérea do Vale do Rio da Luz com bússola de navegação, pontos interativos e identificação dos atrativos culturais e naturais.
           </div>
         </div>
       </div>
@@ -731,9 +692,9 @@ html_content = f"""<!DOCTYPE html>
       <div class="prancha-card">
         <img src="{b64_2}" alt="Split-View com Modelo 3D" class="prancha-img">
         <div class="prancha-caption">
-          <div class="prancha-title">Figura 2 — Pop-up Split-View: Maquete 3D (.GLB) e Curadoria</div>
+          <div class="prancha-title">Figura 2 — Maquete 3D Interativa e Curadoria Histórica</div>
           <div class="prancha-desc">
-            Modal dividido com modelo tridimensional real interativo de relevo à esquerda e card técnico-editorial com contexto histórico, tombamento IPHAN e curiosidade "Você sabia?" à direita.
+            Janela interativa com maquete tridimensional do relevo à esquerda e card com contexto histórico, patrimônio e curiosidades à direita.
           </div>
         </div>
       </div>
@@ -744,7 +705,7 @@ html_content = f"""<!DOCTYPE html>
         <div class="prancha-caption">
           <div class="prancha-title">Figura 3 — Mapa Interativo Oficial do Roteiro Turístico</div>
           <div class="prancha-desc">
-            Cartografia ilustrada com todos os 21 pontos do roteiro catalogados (Igrejas, Clubes de Tiro, Casarões Enxaimel e Cervejarias). Clicar no ponto gira a foto 360° automaticamente até o atrativo.
+            Cartografia ilustrada com todos os 21 pontos do roteiro catalogados. Clicar no atrativo gira a foto 360° automaticamente até o local.
           </div>
         </div>
       </div>
@@ -753,19 +714,19 @@ html_content = f"""<!DOCTYPE html>
       <div class="prancha-card">
         <img src="{b64_4}" alt="Estúdio de Entrada de Dados Municipal" class="prancha-img">
         <div class="prancha-caption">
-          <div class="prancha-title">Figura 4 — Estúdio Gestor Municipal (Alimentação de Dados)</div>
+          <div class="prancha-title">Figura 4 — Estúdio de Alimentação e Integração com GitHub</div>
           <div class="prancha-desc">
-            Painel lateral para upload de fotos 360° próprias e cálculo automático de Pitch/Yaw ao clicar na imagem, permitindo aos municípios alimentarem seus atrativos sem programar.
+            Painel de suporte para inclusão de novos pontos e integração direta com o repositório GitHub sob curadoria técnica do GeoLab.
           </div>
         </div>
       </div>
     </div>
 
     <!-- VÍDEO E ANEXOS -->
-    <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:8px; padding:12px; margin-top:14px;">
-      <h4 style="font-size:9pt; font-weight:800; color:#0f172a; margin-bottom:4px;">🎬 Vídeo de Demonstração em MP4 (Anexo)</h4>
-      <p style="font-size:8pt; color:#334155; line-height:1.4;">
-        Acompanha esta proposta o arquivo de vídeo <strong><code>GeoSC_360_Demonstracao_SETUR.mp4</code></strong> (32 segundos, 720p HD, 4.6 MB), demonstrando a fluidez de navegação em 360°, a rotação das maquetes 3D em tempo real e a dinâmica do mapa oficial do destino.
+    <div style="background:#f1f5f9; border:1px solid #cbd5e1; border-radius:6px; padding:8px 10px; margin-top:10px;">
+      <h4 style="font-size:8.5pt; font-weight:800; color:#0f172a; margin-bottom:2px;">🎬 Vídeo de Demonstração em MP4 (Anexo)</h4>
+      <p style="font-size:7.5pt; color:#334155; line-height:1.35;">
+        Acompanha esta proposta o vídeo <strong><code>GeoSC_360_Demonstracao_SETUR.mp4</code></strong> (32 segundos, 720p HD), demonstrando a fluidez de navegação em 360°, a interação com maquetes 3D em tempo real e a dinâmica do mapa oficial do destino.
       </p>
     </div>
 
@@ -773,13 +734,13 @@ html_content = f"""<!DOCTYPE html>
     <div class="signature-section">
       <div class="sig-block">
         <div class="sig-line"></div>
-        <div class="sig-name">Prof. Chico & Coordenação Técnica</div>
-        <div class="sig-role">Projeto GeoSC 360° • Geoturismo & Inteligência Territorial</div>
+        <div class="sig-name">Prof. Chico & Equipe GeoLab</div>
+        <div class="sig-role">Laboratório GeoLab • Parceria UDESC & SETUR-SC</div>
       </div>
 
       <div class="sig-block" style="text-align:right;">
-        <div style="font-size:8pt; color:#64748b;">
-          Florianópolis / Jaraguá do Sul — SC<br>
+        <div style="font-size:7.5pt; color:#64748b;">
+          Santa Catarina<br>
           Novembro de 2026
         </div>
       </div>
@@ -811,7 +772,7 @@ cmd = [
     HTML_PATH
 ]
 
-print("Rendering PDF via headless Chrome...")
+print("Rendering updated PDF via headless Chrome...")
 res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
 if os.path.exists(PDF_PATH):
     size_mb = os.path.getsize(PDF_PATH) / (1024 * 1024)

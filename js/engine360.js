@@ -1342,6 +1342,8 @@
     const creditsFooter = document.getElementById("rdlCreditsFooter");
     const filterBar = document.getElementById("rdlRegionFilterBar");
     const categoryBar = document.getElementById("rdlCategoryNavBar");
+    const pdfToolbar = document.getElementById("rdlPdfToolbar");
+    const btnDiorama = document.getElementById("btnRdlViewDiorama");
     const btnFront = document.getElementById("btnRdlViewFront");
     const btnBack = document.getElementById("btnRdlViewBack");
     const btnZoomIn = document.getElementById("btnRdlZoomIn");
@@ -1349,7 +1351,6 @@
     const btnZoomReset = document.getElementById("btnRdlZoomReset");
     const btnExpandMap = document.getElementById("btnRdlExpandMap");
     const zoomLabel = document.getElementById("rdlZoomLevelLabel");
-    const layoutEl = document.querySelector("#rdlIllustratedModal .rdl-illustrated-layout");
     if (!mapBox || !listBox) return;
 
     const rotaData = window.ROTA_LUMIAR_DATA;
@@ -1369,8 +1370,8 @@
 
     let currentRegion = "all";
     let currentCategory = "all";
-    let selectedNum = 1;
-    let mapSide = "front";
+    let selectedNum = null;
+    let mapSide = "diorama";
     let zoomScale = 1;
     let panX = 0;
     let panY = 0;
@@ -1392,6 +1393,7 @@
     }
 
     function applyZoomTransform() {
+      if (mapSide === "diorama") return;
       const stage = document.getElementById("rdlZoomStage");
       if (!stage) return;
 
@@ -1431,6 +1433,7 @@
     }
 
     function setZoomAround(nextScale, focusClientX, focusClientY) {
+      if (mapSide === "diorama") return;
       const clamped = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, nextScale));
       const rect = mapBox.getBoundingClientRect();
       if (!rect.width) {
@@ -1453,10 +1456,63 @@
       zoomScale = 1;
       panX = 0;
       panY = 0;
+      mapBox.style.height = "";
       applyZoomTransform();
     }
 
+    function updateDioramaPinStates() {
+      mapBox.querySelectorAll(".rdl-teardrop-pin").forEach(pin => {
+        const num = Number(pin.dataset.pointNum);
+        const pt = rotaData.points.find(p => p.num === num);
+        const matchesCat = currentCategory === "all" || (pt && (pt.category || "atrativos") === currentCategory);
+        const matchesReg = currentRegion === "all" || (pt && pt.regionKey === currentRegion);
+        pin.classList.toggle("is-dimmed", !(matchesCat && matchesReg));
+        pin.classList.toggle("active", num === selectedNum);
+      });
+    }
+
     function renderMapSide() {
+      const vecData = window.ROTA_LUMIAR_VECTOR_MAP;
+      const isDiorama = mapSide === "diorama" && Boolean(vecData);
+
+      mapBox.classList.toggle("mode-diorama", isDiorama);
+      mapBox.classList.toggle("mode-pdf", !isDiorama);
+      mapBox.classList.toggle("zoomable", !isDiorama);
+      if (pdfToolbar) {
+        pdfToolbar.style.display = isDiorama ? "none" : "flex";
+      }
+
+      if (btnDiorama) btnDiorama.classList.toggle("active", isDiorama);
+      if (btnFront) btnFront.classList.toggle("active", mapSide === "front");
+      if (btnBack) btnBack.classList.toggle("active", mapSide === "back");
+
+      if (isDiorama) {
+        mapBox.style.height = "";
+        mapBox.innerHTML = `<div class="rdl-diorama-wrap">${vecData.svgMarkup}</div>`;
+        const wrap = mapBox.querySelector(".rdl-diorama-wrap");
+        if (wrap) {
+          rotaData.points.forEach(p => {
+            const pos = (vecData.pinPositions && vecData.pinPositions[p.num]) || { x: p.x, y: p.y };
+            const pin = document.createElement("button");
+            pin.type = "button";
+            const catClass = `cat-${p.category || "atrativos"}`;
+            pin.className = `rdl-teardrop-pin ${catClass} ${p.sceneId ? "has-360" : ""} ${p.num === selectedNum ? "active" : ""}`;
+            pin.style.left = `${pos.x}%`;
+            pin.style.top = `${pos.y}%`;
+            pin.dataset.pointNum = String(p.num);
+            pin.setAttribute("aria-label", `${p.num}. ${p.name}`);
+            pin.innerHTML = `
+              <span class="rdl-pin-num">${p.num}</span>
+              <span class="rdl-pin-tooltip">${p.num}. ${p.name}${p.sceneId ? " 📷 360°" : ""}</span>
+            `;
+            pin.addEventListener("click", () => selectRotaPoint(p.num, false));
+            wrap.appendChild(pin);
+          });
+        }
+        updateDioramaPinStates();
+        return;
+      }
+
       const imgUrl = mapSide === "back"
         ? (rotaData.legendImage || "assets/fotos/mapa_rota_lumiar_info.jpg")
         : (rotaData.mapImage || "assets/fotos/mapa_rota_lumiar.jpg");
@@ -1487,8 +1543,6 @@
         });
       }
 
-      if (btnFront) btnFront.classList.toggle("active", mapSide === "front");
-      if (btnBack) btnBack.classList.toggle("active", mapSide === "back");
       applyZoomTransform();
     }
 
@@ -1496,19 +1550,20 @@
       mapBox.dataset.zoomBound = "true";
 
       mapBox.addEventListener("wheel", e => {
+        if (mapSide === "diorama") return;
         e.preventDefault();
         const factor = e.deltaY < 0 ? 1.24 : 0.8;
         setZoomAround(zoomScale * factor, e.clientX, e.clientY);
       }, { passive: false });
 
       mapBox.addEventListener("dblclick", e => {
-        if (e.target.closest(".rdl-map-pin-btn")) return;
+        if (mapSide === "diorama" || e.target.closest(".rdl-map-pin-btn")) return;
         const next = zoomScale > 1.3 ? 1 : 2.25;
         setZoomAround(next, e.clientX, e.clientY);
       });
 
       mapBox.addEventListener("mousedown", e => {
-        if (e.button !== 0 || zoomScale <= 1.01) {
+        if (mapSide === "diorama" || e.button !== 0 || zoomScale <= 1.01) {
           panMoved = false;
           return;
         }
@@ -1552,13 +1607,14 @@
       btnZoomReset.dataset.bound = "true";
       btnZoomReset.addEventListener("click", resetMapZoom);
     }
-    if (btnExpandMap && !btnExpandMap.dataset.bound && layoutEl) {
+    if (btnExpandMap && !btnExpandMap.dataset.bound) {
       btnExpandMap.dataset.bound = "true";
       btnExpandMap.addEventListener("click", () => {
-        const isExpanded = layoutEl.classList.toggle("expanded");
+        const isExpanded = mapBox.classList.toggle("is-wide-pdf");
+        mapBox.style.maxWidth = isExpanded ? "100%" : "";
         btnExpandMap.classList.toggle("active", isExpanded);
         btnExpandMap.textContent = isExpanded ? "⊟ Normal" : "⛶ Expandir";
-        setTimeout(applyZoomTransform, 220);
+        setTimeout(applyZoomTransform, 180);
       });
     }
 
@@ -1570,7 +1626,13 @@
     }
 
     function renderSelectedDetail(p) {
-      if (!detailBox || !p) return;
+      if (!detailBox) return;
+      if (!p) {
+        detailBox.hidden = true;
+        detailBox.innerHTML = "";
+        return;
+      }
+      detailBox.hidden = false;
       const gmapsHref = buildGoogleMapsHref(p);
       const catInfo = catById[p.category] || categories[0];
       const contactLine = p.contatoUrl
@@ -1582,6 +1644,7 @@
         : "";
 
       detailBox.innerHTML = `
+        <button type="button" class="rdl-detail-close-btn" id="btnCloseRdlDetail" title="Fechar detalhes">✕</button>
         <div class="rdl-detail-head">
           <span class="rdl-list-badge cat-${p.category || "atrativos"}">${p.num}</span>
           <div>
@@ -1608,6 +1671,15 @@
         </div>
       `;
 
+      const closeDetailBtn = detailBox.querySelector("#btnCloseRdlDetail");
+      if (closeDetailBtn) {
+        closeDetailBtn.addEventListener("click", () => {
+          selectedNum = null;
+          renderSelectedDetail(null);
+          updateDioramaPinStates();
+          listBox.querySelectorAll("[data-card-num]").forEach(row => row.classList.remove("active"));
+        });
+      }
       const sceneBtn = detailBox.querySelector("[data-open-scene]");
       if (sceneBtn) {
         sceneBtn.addEventListener("click", () => {
@@ -1652,16 +1724,19 @@
       listBox.querySelectorAll("[data-card-num]").forEach(row => {
         row.addEventListener("click", () => {
           selectRotaPoint(Number(row.getAttribute("data-card-num")), false);
-          if (detailBox) detailBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          if (detailBox && !detailBox.hidden) {
+            detailBox.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
         });
       });
     }
 
     function selectRotaPoint(num, scrollCard) {
-      const point = rotaData.points.find(pt => pt.num === num) || rotaData.points[0];
+      const point = rotaData.points.find(pt => pt.num === num);
       if (!point) return;
       selectedNum = point.num;
       renderSelectedDetail(point);
+      updateDioramaPinStates();
 
       mapBox.querySelectorAll(".rdl-map-pin-btn").forEach(pin => {
         pin.classList.toggle("active", Number(pin.dataset.pointNum) === point.num);
@@ -1675,6 +1750,14 @@
       });
     }
 
+    if (btnDiorama && !btnDiorama.dataset.bound) {
+      btnDiorama.dataset.bound = "true";
+      btnDiorama.addEventListener("click", () => {
+        mapSide = "diorama";
+        resetMapZoom();
+        renderMapSide();
+      });
+    }
     if (btnFront && !btnFront.dataset.bound) {
       btnFront.dataset.bound = "true";
       btnFront.addEventListener("click", () => {
@@ -1698,6 +1781,7 @@
           currentRegion = chip.getAttribute("data-region") || "all";
           filterBar.querySelectorAll("[data-region]").forEach(c => c.classList.toggle("active", c === chip));
           renderPointsCards();
+          updateDioramaPinStates();
         });
       });
     }
@@ -1708,17 +1792,14 @@
           currentCategory = tab.getAttribute("data-cat") || "all";
           categoryBar.querySelectorAll("[data-cat]").forEach(t => t.classList.toggle("active", t === tab));
           renderPointsCards();
-          if (currentCategory !== "all") {
-            const dirSec = document.getElementById("rdlDirectorySection");
-            if (dirSec) dirSec.scrollIntoView({ behavior: "smooth", block: "start" });
-          }
+          updateDioramaPinStates();
         });
       });
     }
 
+    renderSelectedDetail(null);
     renderMapSide();
     renderPointsCards();
-    selectRotaPoint(selectedNum, false);
   }
 
   function focusAndOpenRioDaLuzPoint(hotspotId, sceneId) {

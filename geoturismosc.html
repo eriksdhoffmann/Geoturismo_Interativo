@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Geoturismo SC — Mapa 3D das Regiões Turísticas de Santa Catarina</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Merriweather:wght@700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/geoturismo-sc.css" />
+</head>
+<body class="geo-body">
+
+  <!-- Palco 3D (three.js) -->
+  <div id="geoStage" class="geo-stage">
+    <canvas id="geoCanvas" aria-label="Mapa 3D interativo de Santa Catarina"></canvas>
+  </div>
+
+  <!-- Rótulos das regiões + pino 360° (projetados do 3D para a tela) -->
+  <div id="geoLabels" class="geo-labels" aria-live="polite"></div>
+
+  <!-- Cabeçalho -->
+  <header class="geo-header">
+    <div class="geo-brand">
+      <svg viewBox="0 0 48 48" width="40" height="40" aria-hidden="true">
+        <path d="M6 30 L16 16 L23 25 L30 12 L42 30 Z" fill="none" stroke="#0f766e" stroke-width="3" stroke-linejoin="round"/>
+        <circle cx="35" cy="11" r="4" fill="#f59e0b"/>
+        <path d="M4 36 Q24 30 44 36" fill="none" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round"/>
+      </svg>
+      <div>
+        <span class="geo-kicker">Geoturismo SC</span>
+        <h1>Regiões Turísticas de Santa Catarina</h1>
+      </div>
+    </div>
+  </header>
+
+  <!-- Legenda: Roteiros Turísticos (clicável) -->
+  <aside class="geo-legend" aria-label="Roteiros turísticos">
+    <h2>Roteiros Turísticos</h2>
+    <ul id="geoLegendList"></ul>
+  </aside>
+
+  <!-- Card de informações da região selecionada -->
+  <section id="geoInfoCard" class="geo-card" aria-live="polite" hidden></section>
+
+  <!-- Barra de ferramentas -->
+  <nav class="geo-toolbar" aria-label="Controles do mapa">
+    <button type="button" id="btnGeoOverview" title="Visão geral do estado">⟲ <span>Visão geral</span></button>
+    <button type="button" id="btnGeoRotate" title="Giro automático">↻ <span>Girar</span></button>
+    <button type="button" id="btnGeoFullscreen" title="Tela cheia">⛶</button>
+  </nav>
+
+  <div id="geoHint" class="geo-hint">Clique em uma região · Arraste para girar · Role para aproximar</div>
+  <div id="geoToast" class="geo-toast" role="status"></div>
+
+  <!-- Carregamento -->
+  <div id="geoLoading" class="geo-loading">
+    <div class="geo-spinner"></div>
+    <p>Carregando o relevo 3D de Santa Catarina…</p>
+  </div>
+
+  <!-- Overlay da Foto 360° (abre o passeio virtual existente) -->
+  <div id="tour360Overlay" class="tour360-overlay" aria-hidden="true">
+    <div class="tour360-loading"><div class="geo-spinner light"></div><p>Abrindo a foto 360° do Vale do Rio da Luz…</p></div>
+    <button type="button" id="btnBackToMap" class="tour360-back">← Voltar ao mapa de SC</button>
+  </div>
+
+  <footer class="geo-credits">
+    Modelo 3D base: <a href="https://3dmap.app/geoheritage/ra/index.php?id=sc" target="_blank" rel="noopener">3dmap.app · Geoheritage</a>
+    · Limites: IBGE (2022) · Regiões: Mapa do Turismo Brasileiro / SANTUR
+  </footer>
+
+  <!-- Bibliotecas (three.js r147 local, funciona via file://) -->
+  <script src="js/vendor/three.min.js"></script>
+  <script src="js/vendor/OrbitControls.js"></script>
+  <script src="js/vendor/GLTFLoader.js"></script>
+  <!-- Dados -->
+  <script src="js/sc-regioes-turisticas.js"></script>
+  <script src="js/sc-mapa3d-glb.js"></script>
+  <!-- Aplicação -->
+  <script src="js/geoturismo-sc.js"></script>
+</body>
+</html>
