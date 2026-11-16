@@ -90,6 +90,13 @@
     <button type="button" id="btnAutoRotate" class="dock-btn" title="Iniciar/Pausar Giro Automático 360°">
       ▶
     </button>
+    <button type="button" id="btnEnterVR" class="dock-btn dock-btn-vr"
+      aria-label="Entrar em Realidade Virtual (Meta Quest 3 / WebXR)"
+      title="Entrar em Realidade Virtual — Meta Quest 3 / WebXR">
+      <svg viewBox="0 0 24 18" width="22" height="17" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M3 2h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4.7a1.5 1.5 0 0 1-1.2-.6l-1.9-2.4a1.5 1.5 0 0 0-2.4 0l-1.9 2.4a1.5 1.5 0 0 1-1.2.6H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm4.6 4.5a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6zm8.8 0a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" />
+      </svg>
+    </button>
   </footer>
 
   <!-- ========================================================================
@@ -352,6 +359,24 @@
   </div>
 
   <!-- ========================================================================
+       12. STAGE DE REALIDADE VIRTUAL (META QUEST 3 WEBXR + SIMULADOR ESTÉREO)
+       ======================================================================== -->
+  <div id="vrOverlayStage" class="vr-overlay-stage" role="dialog" aria-label="Realidade Virtual Meta Quest 3">
+    <canvas id="vrWebGLCanvas" class="vr-webgl-canvas"></canvas>
+    <div id="vrSimBanner" class="vr-sim-banner">
+      <div class="vr-sim-badge">
+        <strong>🥽 Modo RV (Meta Quest 3 / WebXR)</strong>
+        <span>Arraste para olhar • Clique com o mouse/laser nos pontos, Maquete 3D e Rota Lumiar</span>
+      </div>
+      <div class="vr-sim-actions">
+        <button type="button" id="btnVrSimToggleStereo" class="vr-sim-btn">👁️ Lentes Estéreo (ON)</button>
+        <button type="button" id="btnVrSimRecenter" class="vr-sim-btn">↺ Centralizar</button>
+        <button type="button" id="btnVrSimExit" class="vr-sim-btn vr-sim-exit">✕ Sair do RV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
        SCRIPTS DA APLICAÇÃO (ORDEM: FOTOS B64 -> MODELO GLB -> DADOS -> VIEWER 3D -> MOTOR 360°)
        ======================================================================== -->
   <script src="js/drone-panos-b64.js"></script>
@@ -363,6 +388,7 @@
   <script src="js/glb-viewer.js"></script>
   <script src="js/panorama-generator.js"></script>
   <script src="js/engine360.js"></script>
+  <script src="js/vr-quest-engine.js"></script>
   <script>
     // Suporte a carregamento direto com visualização ativada via URL (?scene=...&action=modal3d|map|editor|scmap|rux_info)
     window.addEventListener("load", () => {
@@ -431,6 +457,19 @@
             }
           } else if (action === "travel" && window.GeoSC360) {
             window.GeoSC360.goToScene(params.get("to") || "schroeder_platz_03", true);
+          } else if (action === "vr" && window.GeoSCVR) {
+            window.GeoSCVR.enter().then(() => {
+              const vp = params.get("vrpanel");
+              if (vp === "glb") {
+                window.GeoSCVR.triggerAction({ type: "openGLB" });
+              } else if (vp === "rota" || vp === "scenes" || vp === "satellite") {
+                window.GeoSCVR.triggerAction({ type: "openPanel", panel: vp });
+              } else if (vp === "info") {
+                const sc = window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes[window.GeoSCVR.getVRState().sceneId];
+                const inf = sc && (sc.hotspots || []).find(h => h.type === "info");
+                if (inf) window.GeoSCVR.triggerAction({ type: "hotspot", hs: inf });
+              }
+            });
           }
         }, sceneParam ? 500 : 0);
       }, 1200);
