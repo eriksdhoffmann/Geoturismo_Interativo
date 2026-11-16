@@ -2420,6 +2420,14 @@
 
   // Exposição global para chamadas de botões externos / Mapa
   window.GeoSC360 = {
+    getState: function () {
+      return {
+        currentSceneId: state.currentSceneId,
+        yaw: state.yaw,
+        pitch: state.pitch,
+        hfov: state.hfov
+      };
+    },
     goToScene: function (sceneId, animate = true, keepSplitMap = false) {
       if (!(keepSplitMap && state.isScMapSplitOpen)) {
         closeAuxiliaryDrawers();

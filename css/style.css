@@ -2569,3 +2569,114 @@ body.satellite-split-open .bottom-left-ecosystem-bar {
     display: none;
   }
 }
+
+/* ============================================================================
+ * REALIDADE VIRTUAL — BOTÃO QUEST 3 E STAGE WEBXR / ESTÉREO
+ * ============================================================================ */
+.dock-btn.dock-btn-vr {
+  width: auto;
+  padding: 0 12px;
+  gap: 6px;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+  background: linear-gradient(135deg, #0ea5e9, #1d4ed8);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.34);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.45);
+}
+
+.dock-btn.dock-btn-vr:hover {
+  background: linear-gradient(135deg, #38bdf8, #2563eb);
+  transform: translateY(-2px);
+}
+
+.dock-btn.dock-btn-vr.vr-ready {
+  background: linear-gradient(135deg, #16a34a, #0ea5e9);
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.65);
+}
+
+body.vr-active .ui-layer,
+body.vr-active #btnStandaloneBackToSCMap {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.vr-overlay-stage {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  background: #020403;
+  touch-action: none;
+}
+
+.vr-webgl-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+.vr-sim-banner {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 960;
+  width: min(980px, calc(100vw - 24px));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  background: rgba(9, 17, 14, 0.84);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  border-radius: 14px;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55);
+}
+
+.vr-sim-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.vr-sim-badge strong {
+  color: #7dd3fc;
+  font-size: 13px;
+}
+
+.vr-sim-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vr-sim-btn {
+  padding: 7px 12px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font: 700 12px/1 var(--font-sans);
+  cursor: pointer;
+}
+
+.vr-sim-btn:hover {
+  background: rgba(56, 189, 248, 0.35);
+}
+
+.vr-sim-btn.vr-sim-exit {
+  background: #b91c1c;
+  border-color: rgba(254, 202, 202, 0.45);
+}
+
+.vr-sim-btn.vr-sim-exit:hover {
+  background: #dc2626;
+}
