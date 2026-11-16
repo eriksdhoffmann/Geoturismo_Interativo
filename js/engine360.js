@@ -780,6 +780,19 @@
     modalLeftContent.innerHTML = "";
   }
 
+  /**
+   * Calcula tan(hfov/2) ajustada pela razão de aspecto para impedir que telas portrait
+   * explodam o FOV vertical (>120° fisheye) e estiquem a fotografia 360°.
+   */
+  function getProjectionTanHalf(width, height) {
+    const aspect = width / Math.max(1, height);
+    const rawTanHalfX = Math.tan((state.hfov * DEG2RAD) * 0.5);
+    if (aspect >= 1.0) return rawTanHalfX;
+    const clampedVfovDeg = Math.min(96, state.hfov * (0.74 + 0.26 * aspect));
+    const tanHalfY = Math.tan((clampedVfovDeg * DEG2RAD) * 0.5);
+    return Math.min(rawTanHalfX, tanHalfY * aspect);
+  }
+
   // ===========================================================================
   // 4. LOOP DE RENDERIZAÇÃO 60 FPS E PROJEÇÃO MATEMÁTICA 3D -> 2D
   // ===========================================================================
@@ -817,7 +830,7 @@
     if (gl && shaderProgram && !gl.isContextLost()) {
       const yawRad = state.yaw * DEG2RAD;
       const pitchRad = state.pitch * DEG2RAD;
-      const tanHalfFov = Math.tan((state.hfov * DEG2RAD) * 0.5);
+      const tanHalfFov = getProjectionTanHalf(cssW, cssH);
       const aspect = cssW / Math.max(1, cssH);
 
       gl.useProgram(shaderProgram);
@@ -876,8 +889,8 @@
       return { visible: false, x: -9999, y: -9999, depth: cz };
     }
 
-    // 4. Projeção perspectiva usando a distância focal horizontal (hfov)
-    const tanHalfFov = Math.tan((state.hfov * DEG2RAD) * 0.5);
+    // 4. Projeção perspectiva usando a distância focal horizontal adaptativa
+    const tanHalfFov = getProjectionTanHalf(width, height);
     const focalLength = (width * 0.5) / tanHalfFov;
 
     const screenX = width * 0.5 + (cx / cz) * focalLength;
@@ -902,7 +915,7 @@
     const ndcX = ((clientX - rect.left) / width) * 2 - 1;
     const ndcY = 1 - ((clientY - rect.top) / height) * 2;
 
-    const tanHalfFov = Math.tan((state.hfov * DEG2RAD) * 0.5);
+    const tanHalfFov = getProjectionTanHalf(width, height);
     const aspect = width / Math.max(1, height);
 
     // Raio no espaço da câmera
@@ -983,30 +996,82 @@
   // ===========================================================================
   function bindViewerEvents() {
     const viewport = document.getElementById("panoViewport");
+    const activePointers = new Map();
+    let pinchLastDist = 0;
+
+    function computeEffectiveHFovDeg() {
+      const w = Math.max(1, viewport.clientWidth || window.innerWidth);
+      const h = Math.max(1, viewport.clientHeight || window.innerHeight);
+      return (2 * Math.atan(getProjectionTanHalf(w, h))) * (180 / Math.PI);
+    }
+
+    function getPinchDistance() {
+      const pts = Array.from(activePointers.values());
+      if (pts.length < 2) return 0;
+      return Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+    }
 
     viewport.addEventListener("pointerdown", e => {
       if (e.target.closest(".hotspot-marker") || e.target.closest(".ui-layer")) return;
-      state.isDragging = true;
-      state.dragStartX = e.clientX;
-      state.dragStartY = e.clientY;
-      state.pointerDownX = e.clientX;
-      state.pointerDownY = e.clientY;
-      viewport.style.cursor = state.editorMode ? "crosshair" : "grabbing";
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (activePointers.size === 1) {
+        state.isDragging = true;
+        state.dragStartX = e.clientX;
+        state.dragStartY = e.clientY;
+        state.pointerDownX = e.clientX;
+        state.pointerDownY = e.clientY;
+        viewport.style.cursor = state.editorMode ? "crosshair" : "grabbing";
+      } else if (activePointers.size === 2) {
+        // Segundo dedo inicia pinça de zoom sem puxar ou saltar a câmera
+        state.isDragging = false;
+        pinchLastDist = getPinchDistance();
+      }
     });
 
     window.addEventListener("pointermove", e => {
+      if (!activePointers.has(e.pointerId)) return;
+      activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      if (activePointers.size >= 2) {
+        const curDist = getPinchDistance();
+        if (pinchLastDist > 0 && curDist > 0) {
+          const delta = curDist - pinchLastDist;
+          state.targetHfov = Math.max(38, Math.min(115, state.targetHfov - delta * 0.18));
+        }
+        pinchLastDist = curDist;
+        return;
+      }
+
       if (!state.isDragging) return;
       const dx = e.clientX - state.dragStartX;
       const dy = e.clientY - state.dragStartY;
       state.dragStartX = e.clientX;
       state.dragStartY = e.clientY;
 
-      const speed = state.hfov / 420;
+      // Velocidade proporcional ao campo de visão efetivo e largura da tela (sem puxões no retrato)
+      const effHfov = computeEffectiveHFovDeg();
+      const vw = Math.max(240, viewport.clientWidth || window.innerWidth);
+      const speed = effHfov / vw;
       state.targetYaw = normalizeYaw(state.targetYaw - dx * speed);
       state.targetPitch = Math.max(-85, Math.min(85, state.targetPitch + dy * speed));
     });
 
-    window.addEventListener("pointerup", e => {
+    function handlePointerEnd(e) {
+      if (!activePointers.has(e.pointerId)) return;
+      const remainingBefore = activePointers.size;
+      activePointers.delete(e.pointerId);
+      pinchLastDist = 0;
+
+      if (activePointers.size === 1) {
+        const last = Array.from(activePointers.values())[0];
+        state.dragStartX = last.x;
+        state.dragStartY = last.y;
+        state.isDragging = true;
+        return;
+      }
+
+      if (!state.isDragging && remainingBefore > 1) return;
       if (!state.isDragging) return;
       state.isDragging = false;
       viewport.style.cursor = state.editorMode ? "crosshair" : "grab";
@@ -1019,6 +1084,14 @@
         populateEditorCoordinates(coords.pitch, coords.yaw);
         showClickCrosshairFeedback(e.clientX, e.clientY, coords);
       }
+    }
+
+    window.addEventListener("pointerup", handlePointerEnd);
+    window.addEventListener("pointercancel", handlePointerEnd);
+
+    // Bloqueia zoom/rebote nativo do Safari iOS sobre o panorama 360°
+    ["gesturestart", "gesturechange", "gestureend"].forEach(evtName => {
+      viewport.addEventListener(evtName, e => e.preventDefault(), { passive: false });
     });
 
     viewport.addEventListener("wheel", e => {
@@ -1239,15 +1312,77 @@
       });
     }
 
-    // Botão Tela Cheia
+    // Botão Tela Cheia (com fallback imersivo para iPhone / Safari mobile)
     const btnFs = document.getElementById("btnFullscreen");
     if (btnFs) {
-      btnFs.addEventListener("click", () => {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen().catch(() => {});
-        } else {
-          document.exitFullscreen().catch(() => {});
+      const isNativeFsActive = () => Boolean(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+
+      const syncFsButton = () => {
+        const active = isNativeFsActive() || document.body.classList.contains("pseudo-fullscreen");
+        btnFs.classList.toggle("active", active);
+      };
+
+      const togglePseudoFullscreen = () => {
+        const next = !document.body.classList.contains("pseudo-fullscreen");
+        document.body.classList.toggle("pseudo-fullscreen", next);
+        if (next) {
+          try { window.scrollTo(0, 1); } catch (_) {}
         }
+        syncFsButton();
+      };
+
+      btnFs.addEventListener("click", () => {
+        const docEl = document.documentElement;
+        if (!isNativeFsActive() && !document.body.classList.contains("pseudo-fullscreen")) {
+          const req = docEl.requestFullscreen ||
+            docEl.webkitRequestFullscreen ||
+            docEl.mozRequestFullScreen ||
+            docEl.msRequestFullscreen;
+          if (typeof req === "function") {
+            try {
+              const p = req.call(docEl);
+              if (p && typeof p.catch === "function") {
+                p.catch(() => togglePseudoFullscreen());
+              } else {
+                setTimeout(() => { if (!isNativeFsActive()) togglePseudoFullscreen(); else syncFsButton(); }, 120);
+              }
+            } catch (_) {
+              togglePseudoFullscreen();
+            }
+          } else {
+            togglePseudoFullscreen();
+          }
+        } else if (isNativeFsActive()) {
+          const exit = document.exitFullscreen ||
+            document.webkitExitFullscreen ||
+            document.mozCancelFullScreen ||
+            document.msExitFullscreen;
+          if (typeof exit === "function") {
+            try {
+              const p = exit.call(document);
+              if (p && typeof p.catch === "function") p.catch(() => {});
+            } catch (_) {}
+          }
+          document.body.classList.remove("pseudo-fullscreen");
+          syncFsButton();
+        } else {
+          togglePseudoFullscreen();
+        }
+      });
+
+      ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach(evt => {
+        document.addEventListener(evt, () => {
+          if (!isNativeFsActive()) {
+            // Mantém estado limpo caso usuário saia pela tecla ESC ou gesto do sistema
+            document.body.classList.remove("pseudo-fullscreen");
+          }
+          syncFsButton();
+        });
       });
     }
 
