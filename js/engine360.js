@@ -444,6 +444,17 @@
             <strong class="hs-3d-tag">3D</strong>
           </span>
         `;
+      } else if (hs.type === "streetview" || hs.iconStyle === "streetview-pill") {
+        innerHTML = `
+          <span class="hs-pulse"></span>
+          <span class="hs-oval-streetview">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+              <circle cx="12" cy="4.2" r="2.7"/>
+              <path d="M15.6 8.2H8.4c-1.1 0-2 .9-2 2v4.3c0 .7.6 1.3 1.3 1.3h.8v5.2c0 .7.6 1.3 1.3 1.3h4.4c.7 0 1.3-.6 1.3-1.3v-5.2h.8c.7 0 1.3-.6 1.3-1.3v-4.3c0-1.1-.9-2-2-2z"/>
+            </svg>
+            <strong class="hs-sv-tag">RUA 360°</strong>
+          </span>
+        `;
       } else if (hs.type === "scene" || hs.iconStyle === "portal-thumb") {
         const targetScene = window.TOUR_SC_DATA.scenes[hs.targetSceneId];
         const thumbUrl = targetScene ? (targetScene.staticPhoto || targetScene.thumbPhoto) : "assets/fotos/lagoa_conceicao.jpg";
@@ -485,6 +496,7 @@
       // Tooltip flutuante ao passar o mouse
       const typeLabel =
         hs.type === "3d" ? "🧊 Modelo 3D Externo" :
+        hs.type === "streetview" ? "🚶 Google Street View 360°" :
         hs.type === "scene" ? "🌐 Ir para Foto 360°" : "📖 Informação & Foto";
 
       innerHTML += hs.hideTooltipBadge
@@ -530,8 +542,29 @@
   }
 
   // ===========================================================================
-  // 3. AÇÃO AO CLICAR EM UM HOTSPOT (INFO POPUP, 3D SKETCHFAB OU OUTRA FOTO 360°)
+  // 3. AÇÃO AO CLICAR EM UM HOTSPOT (INFO POPUP, 3D, STREET VIEW OU OUTRA FOTO 360°)
   // ===========================================================================
+  function buildStreetViewEmbedUrl(lat, lng, heading, pitch) {
+    const h = Math.round(((Number(heading) || 0) % 360 + 360) % 360);
+    const p = Math.round(Number(pitch) || 0);
+    return `https://maps.google.com/maps?layer=c&cbll=${lat},${lng}&cbp=12,${h},0,0,${p}&output=svembed`;
+  }
+
+  function buildStreetViewAppUrl(lat, lng, heading, pitch) {
+    const h = Math.round(((Number(heading) || 0) % 360 + 360) % 360);
+    const p = Math.round(Number(pitch) || 0);
+    return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}&heading=${h}&pitch=${p}&fov=85`;
+  }
+
+  function getDefaultRioDaLuzStreetViews() {
+    return [
+      { id: "sv_patio_rux", label: "🏛️ Casa Rux (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 190, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
+      { id: "sv_estrada_rux", label: "🛣️ Estrada Casa Rux (JGS-489)", lat: -26.5363, lng: -49.1430, heading: 95, pitch: 2, author: "Google Street View Oficial • R. Erwin Rux, 663" },
+      { id: "sv_patio_schroeder", label: "🏡 Schroeder Platz (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 135, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
+      { id: "sv_estrada_principal", label: "🚗 Estrada Rio da Luz (R. Eurico Duwe)", lat: -26.53915, lng: -49.14815, heading: 20, pitch: 2, author: "Google Street View Oficial • R. Eurico Duwe" }
+    ];
+  }
+
   function handleHotspotClick(hs) {
     // Centraliza suavemente a câmera na direção do ponto clicado
     state.targetYaw = hs.yaw;
@@ -547,20 +580,23 @@
 
     if (hs.type === "3d") {
       openSplitModal3D(hs);
+    } else if (hs.type === "streetview") {
+      openSplitModalStreetView(hs, 0);
     } else {
       openSplitModalInfo(hs);
     }
   }
 
   /**
-   * Abre o Pop-up Split-View de INFORMAÇÃO (Idêntico à Screenshot 2 do Geohereditas)
+   * Abre o Pop-up Split-View de INFORMAÇÃO (Com Barra Integrada Foto <-> Google Street View 360°)
    */
   function openSplitModalInfo(hs) {
     cleanupPrevious3D();
 
+    let photoStageHTML = "";
     if (hs.showcaseCard) {
       const sc = hs.showcaseCard;
-      modalLeftContent.innerHTML = `
+      photoStageHTML = `
         <div class="annotated-photo-wrapper">
           <div class="showcase-art-panel">
             <span class="showcase-art-badge">🏛️ ${sc.badge || "Patrimônio Cultural Tombado"}</span>
@@ -586,7 +622,6 @@
         </div>
       `;
     } else {
-      // Lado Esquerdo: Imagem anotada com setas indicando feições geológicas/turísticas
       const annotationsHTML = (hs.imageAnnotations || []).map(ann => `
         <div class="geo-photo-annotation" style="left: ${ann.x}%; top: ${ann.y}%;">
           <div class="geo-ann-label">${ann.label}</div>
@@ -594,7 +629,7 @@
         </div>
       `).join("");
 
-      modalLeftContent.innerHTML = `
+      photoStageHTML = `
         <div class="annotated-photo-wrapper">
           <img src="${hs.image || 'assets/fotos/lagoa_conceicao.jpg'}" alt="${hs.title}" class="modal-main-photo ${hs.fitContain ? 'fit-contain' : ''}" />
           <div class="annotations-overlay">
@@ -607,9 +642,224 @@
       `;
     }
 
-    // Lado Direito: Card Editorial Branco com botão verde [X], título serifado e caixa "Você sabia?"
-    renderRightEditorialCard(hs);
+    const svViews = Array.isArray(hs.streetViewViews) && hs.streetViewViews.length > 0
+      ? hs.streetViewViews
+      : null;
+
+    if (svViews) {
+      const firstSv = svViews[0];
+      const extUrl = buildStreetViewAppUrl(firstSv.lat, firstSv.lng, firstSv.heading, firstSv.pitch);
+      modalLeftContent.innerHTML = `
+        <div class="modal-sv-wrapper">
+          <div class="modal-sv-TopBar">
+            <button type="button" class="btn-sv-mode active" data-info-media-tab="photo">
+              🖼️ Foto / Arte
+            </button>
+            ${svViews.map((v, idx) => `
+              <button type="button" class="btn-sv-mode" data-info-media-tab="sv" data-sv-idx="${idx}" title="Ver no Google Street View 360°: ${v.label}">
+                ${v.label}
+              </button>
+            `).join("")}
+            <a id="infoModalSvAppLink" href="${extUrl}" target="_blank" rel="noopener noreferrer" class="btn-sv-external-link" title="Abrir este ponto em 360° no aplicativo do Google Maps">
+              ↗️ Abrir no App Maps
+            </a>
+          </div>
+          <div id="infoPhotoPane" class="info-media-pane" style="display:flex;flex:1;min-height:0;width:100%;">
+            ${photoStageHTML}
+          </div>
+          <div id="infoStreetViewPane" class="iframe-sv-container" style="display:none;">
+            <iframe id="infoStreetViewIframe" title="Google Street View 360° — ${hs.title}" src="about:blank" frameborder="0" allow="accelerometer; gyroscope; fullscreen" allowfullscreen></iframe>
+            <div class="sv-badge-footer">
+              <span class="sv-pegman-badge">🚶 STREET VIEW 360°</span>
+              <span id="infoSvFooterAuthor">${firstSv.author || "Google Street View Oficial"}</span>
+              <span id="infoSvFooterCoords" class="sv-footer-coords">GPS: ${firstSv.lat.toFixed(5)}, ${firstSv.lng.toFixed(5)}</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const photoPane = document.getElementById("infoPhotoPane");
+      const svPane = document.getElementById("infoStreetViewPane");
+      const svIframe = document.getElementById("infoStreetViewIframe");
+      const appLink = document.getElementById("infoModalSvAppLink");
+      const footerAuthor = document.getElementById("infoSvFooterAuthor");
+      const footerCoords = document.getElementById("infoSvFooterCoords");
+
+      modalLeftContent.querySelectorAll("[data-info-media-tab]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          modalLeftContent.querySelectorAll("[data-info-media-tab]").forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          const tabType = btn.getAttribute("data-info-media-tab");
+          if (tabType === "photo") {
+            if (photoPane) photoPane.style.display = "flex";
+            if (svPane) svPane.style.display = "none";
+          } else {
+            const idx = Number(btn.getAttribute("data-sv-idx") || "0");
+            const v = svViews[idx] || svViews[0];
+            if (photoPane) photoPane.style.display = "none";
+            if (svPane) svPane.style.display = "flex";
+            const targetSrc = buildStreetViewEmbedUrl(v.lat, v.lng, v.heading, v.pitch);
+            if (svIframe && svIframe.getAttribute("src") !== targetSrc) {
+              svIframe.setAttribute("src", targetSrc);
+            }
+            if (appLink) appLink.setAttribute("href", buildStreetViewAppUrl(v.lat, v.lng, v.heading, v.pitch));
+            if (footerAuthor) footerAuthor.textContent = v.author || "Google Street View Oficial";
+            if (footerCoords) footerCoords.textContent = `GPS: ${v.lat.toFixed(5)}, ${v.lng.toFixed(5)}`;
+          }
+        });
+      });
+    } else {
+      modalLeftContent.innerHTML = photoStageHTML;
+    }
+
+    renderRightEditorialCard(hs, svViews ? svViews[0] : null);
     splitModal.classList.add("open");
+  }
+
+  /**
+   * Abre o Pop-up Split-View dedicado do GOOGLE STREET VIEW 360° (Opção 1 Recomendada + Atalho Opção 3)
+   */
+  function openSplitModalStreetView(hs, initialIdx = 0) {
+    cleanupPrevious3D();
+
+    const views = Array.isArray(hs.streetViewViews) && hs.streetViewViews.length > 0
+      ? hs.streetViewViews
+      : getDefaultRioDaLuzStreetViews();
+    const activeIdx = Math.max(0, Math.min(views.length - 1, Number(initialIdx) || 0));
+    const currentView = views[activeIdx];
+    const embedUrl = buildStreetViewEmbedUrl(currentView.lat, currentView.lng, currentView.heading, currentView.pitch);
+    const appUrl = buildStreetViewAppUrl(currentView.lat, currentView.lng, currentView.heading, currentView.pitch);
+
+    modalLeftContent.innerHTML = `
+      <div class="modal-sv-wrapper">
+        <div class="modal-sv-TopBar">
+          ${views.map((v, idx) => `
+            <button type="button" class="btn-sv-mode ${idx === activeIdx ? 'active' : ''}" data-sv-view-idx="${idx}">
+              ${v.label}
+            </button>
+          `).join("")}
+          <a id="svModalExternalAppLink" href="${appUrl}" target="_blank" rel="noopener noreferrer" class="btn-sv-external-link" title="Abrir panorama em 360° direto no aplicativo do Google Maps">
+            ↗️ Abrir no App Maps
+          </a>
+        </div>
+
+        <div id="streetViewMainStage" class="iframe-sv-container">
+          <iframe
+            id="svMainIframe"
+            title="${hs.title || 'Google Street View 360°'}"
+            src="${embedUrl}"
+            frameborder="0"
+            allow="accelerometer; gyroscope; fullscreen"
+            allowfullscreen>
+          </iframe>
+          <div class="sv-badge-footer">
+            <span class="sv-pegman-badge">🚶 STREET VIEW 360°</span>
+            <span id="svFooterAuthor">${currentView.author || "Google Street View Oficial"}</span>
+            <span id="svFooterCoords" class="sv-footer-coords">GPS: ${currentView.lat.toFixed(5)}, ${currentView.lng.toFixed(5)}</span>
+          </div>
+        </div>
+      </div>
+    `;
+
+    renderRightEditorialCard(hs, currentView);
+    splitModal.classList.add("open");
+
+    const svIframe = document.getElementById("svMainIframe");
+    const appLink = document.getElementById("svModalExternalAppLink");
+    const footerAuthor = document.getElementById("svFooterAuthor");
+    const footerCoords = document.getElementById("svFooterCoords");
+
+    modalLeftContent.querySelectorAll("[data-sv-view-idx]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.getAttribute("data-sv-view-idx") || "0");
+        const v = views[idx] || views[0];
+        modalLeftContent.querySelectorAll("[data-sv-view-idx]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        const nextEmbed = buildStreetViewEmbedUrl(v.lat, v.lng, v.heading, v.pitch);
+        const nextApp = buildStreetViewAppUrl(v.lat, v.lng, v.heading, v.pitch);
+        if (svIframe) svIframe.setAttribute("src", nextEmbed);
+        if (appLink) appLink.setAttribute("href", nextApp);
+        if (footerAuthor) footerAuthor.textContent = v.author || "Google Street View Oficial";
+        if (footerCoords) footerCoords.textContent = `GPS: ${v.lat.toFixed(5)}, ${v.lng.toFixed(5)}`;
+        const rightAppBtn = document.getElementById("btnEditorialOpenSvApp");
+        if (rightAppBtn) rightAppBtn.setAttribute("href", nextApp);
+      });
+    });
+  }
+
+  function openCurrentSceneStreetView() {
+    closeAuxiliaryDrawers();
+    const scene = window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes
+      ? window.TOUR_SC_DATA.scenes[state.currentSceneId]
+      : null;
+    if (!scene) return;
+
+    const svHotspot = (scene.hotspots || []).find(h => h.type === "streetview");
+    if (svHotspot) {
+      openSplitModalStreetView(svHotspot, 0);
+      return;
+    }
+
+    const lat = (scene.coordinates && scene.coordinates.lat) || -26.53915;
+    const lng = (scene.coordinates && scene.coordinates.lng) || -49.14815;
+    const heading = ((scene.headingOffsetDeg || 0) + state.yaw);
+    openSplitModalStreetView({
+      type: "streetview",
+      title: `${scene.placeMenuTitle || scene.shortTitle} — Google Street View 360°`,
+      subtitleLead: "Visão terrestre interativa em 360° sincronizada com o ponto atual do passeio aéreo.",
+      paragraphs: [
+        "Gire a câmera ao lado para explorar o nível da rua ou clique nas abas superiores para alternar entre os pátios históricos mapeados pelo GeoLab / UDESC e as estradas oficiais do Google Street View no Vale do Rio da Luz."
+      ],
+      didYouKnow: "Você pode abrir este mesmo ângulo 360° diretamente no aplicativo nativo do Google Maps clicando em 'Abrir no App Maps'!",
+      streetViewViews: [
+        { id: "sv_current", label: "📍 Ponto Atual (Nível da Rua)", lat, lng, heading, pitch: 0, author: "Google Street View 360°" },
+        ...getDefaultRioDaLuzStreetViews()
+      ]
+    }, 0);
+  }
+
+  function openRotaPointStreetView(pointNum) {
+    const pts = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
+      ? window.ROTA_LUMIAR_DATA.points
+      : [];
+    const pt = pts.find(p => p.num === Number(pointNum));
+    if (!pt) {
+      openCurrentSceneStreetView();
+      return;
+    }
+
+    closeAuxiliaryDrawers();
+
+    let views = [];
+    if (pt.num === 1) {
+      views = [
+        { id: "sv_rux_1", label: "🏛️ Fachada Casa Rux (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 190, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
+        { id: "sv_rux_2", label: "🛣️ Estrada R. Erwin Rux, 663", lat: -26.5363, lng: -49.1430, heading: 95, pitch: 2, author: "Google Street View Oficial • JGS-489" }
+      ];
+    } else if (pt.num === 2) {
+      views = [
+        { id: "sv_sch_1", label: "🏡 Fachada Schroeder Platz (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 135, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
+        { id: "sv_sch_2", label: "🛣️ Estrada R. Eurico Duwe", lat: -26.53915, lng: -49.14815, heading: 20, pitch: 2, author: "Google Street View Oficial" }
+      ];
+    } else {
+      views = [
+        { id: `sv_pt_${pt.num}`, label: `📍 Ponto ${pt.num}: ${pt.name}`, lat: pt.lat, lng: pt.lng, heading: 0, pitch: 0, author: `Coordenada Oficial • ${pt.endereco || pt.region}` },
+        ...getDefaultRioDaLuzStreetViews()
+      ];
+    }
+
+    openSplitModalStreetView({
+      type: "streetview",
+      title: `${pt.num}. ${pt.name} — Google Street View 360°`,
+      subtitleLead: `${pt.region} • ${pt.endereco || "Rota Lumiar"}`,
+      paragraphs: [
+        pt.description || "Atrativo cultural e turístico integrante da Rota Lumiar no Vale do Rio da Luz e Testo Alto.",
+        `Atendimento: ${pt.atendimento || "Consulte horários"} • Telefone: ${pt.telefone || "—"}`
+      ],
+      didYouKnow: "Se um trecho rural específico estiver dentro de propriedade particular fora do alcance do carro do Google, você pode alternar nas abas superiores para caminhar pela estrada principal do Vale ou abrir a rota direto no Google Maps!",
+      ctaOpenRotaLumiar: true,
+      streetViewViews: views
+    }, 0);
   }
 
   /**
@@ -719,7 +969,7 @@
     }
   }
 
-  function renderRightEditorialCard(hs) {
+  function renderRightEditorialCard(hs, activeSvView) {
     const paragraphsHTML = (hs.paragraphs || []).map(p => `<p class="editorial-body-p">${p}</p>`).join("");
     const didYouKnowHTML = hs.didYouKnow ? `
       <div class="did-you-know-card">
@@ -736,6 +986,27 @@
       </button>
     ` : "";
 
+    let svActionBlockHTML = "";
+    if (activeSvView) {
+      const appUrl = buildStreetViewAppUrl(activeSvView.lat, activeSvView.lng, activeSvView.heading, activeSvView.pitch);
+      const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${activeSvView.lat},${activeSvView.lng}`;
+      svActionBlockHTML = `
+        <div class="editorial-sv-actions">
+          ${hs.type === "info" ? `
+            <button type="button" id="btnEditorialActivateSvTab" class="editorial-sv-btn editorial-sv-btn-primary">
+              🚶 Ver no Google Street View 360° (Aqui na Janela)
+            </button>
+          ` : ""}
+          <a id="btnEditorialOpenSvApp" href="${appUrl}" target="_blank" rel="noopener noreferrer" class="editorial-sv-btn editorial-sv-btn-app">
+            ↗️ Abrir Street View no App Google Maps
+          </a>
+          <a href="${dirUrl}" target="_blank" rel="noopener noreferrer" class="editorial-sv-btn editorial-sv-btn-dir">
+            🚗 Como Chegar (Traçar Rota GPS) ↗
+          </a>
+        </div>
+      `;
+    }
+
     modalRightContent.innerHTML = `
       <div class="editorial-ornament-circle"></div>
       <button type="button" class="editorial-close-btn" id="btnCloseSplitModal" title="Fechar (ESC)">
@@ -748,6 +1019,7 @@
         <div class="editorial-paragraphs">
           ${paragraphsHTML}
         </div>
+        ${svActionBlockHTML}
         ${rotaCtaHTML}
         ${didYouKnowHTML}
       </div>
@@ -756,6 +1028,13 @@
     const closeBtn = document.getElementById("btnCloseSplitModal");
     if (closeBtn) {
       closeBtn.addEventListener("click", closeSplitModal);
+    }
+    const activateSvBtn = document.getElementById("btnEditorialActivateSvTab");
+    if (activateSvBtn) {
+      activateSvBtn.addEventListener("click", () => {
+        const firstSvTab = modalLeftContent.querySelector('[data-info-media-tab="sv"][data-sv-idx="0"]');
+        if (firstSvTab) firstSvTab.click();
+      });
     }
     const rotaBtn = document.getElementById("btnSplitOpenRotaLumiar");
     if (rotaBtn) {
@@ -1456,6 +1735,14 @@
       });
     }
 
+    // Botão Google Street View 360° (Nível da Rua) na Barra Inferior
+    const btnSvDock = document.getElementById("btnOpenStreetView");
+    if (btnSvDock) {
+      btnSvDock.addEventListener("click", () => {
+        openCurrentSceneStreetView();
+      });
+    }
+
     // Botões de fechar gavetas/modais auxiliares
     document.querySelectorAll("[data-close-drawer]").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -1860,6 +2147,9 @@
           ${emailLine}
         </div>
         <div class="rdl-detail-actions">
+          <button type="button" class="rdl-action-btn rdl-action-sv" data-open-sv-num="${p.num}">
+            🚶 Ver no Street View 360° (Nível da Rua)
+          </button>
           <a href="${gmapsHref}" target="_blank" rel="noopener noreferrer" class="rdl-action-btn rdl-action-gmaps">
             🗺️ Abrir no Google Maps ↗
           </a>
@@ -1874,6 +2164,12 @@
           renderSelectedDetail(null);
           updateDioramaPinStates();
           listBox.querySelectorAll("[data-card-num]").forEach(row => row.classList.remove("active"));
+        });
+      }
+      const svBtn = detailBox.querySelector("[data-open-sv-num]");
+      if (svBtn) {
+        svBtn.addEventListener("click", () => {
+          openRotaPointStreetView(Number(svBtn.getAttribute("data-open-sv-num")));
         });
       }
       const sceneBtn = detailBox.querySelector("[data-open-scene]");
@@ -2088,6 +2384,10 @@
         ${pt.telefone ? `<div style="font-size:11px;color:#475569;margin:2px 0;">📞 ${pt.telefone}</div>` : ""}
         <div style="font-size:10.5px;color:#64748b;font-family:monospace;margin-top:3px;">GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
         <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;">
+          <button type="button" onclick="window.GeoSC360.openRotaPointStreetView(${pt.num})"
+            style="width:100%;padding:7px 10px;background:#d97706;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11.5px;font-weight:800;">
+            🚶 Ver no Street View 360° (Nível da Rua)
+          </button>
           <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer"
             style="display:block;text-align:center;padding:7px 10px;background:#1d4ed8;color:#fff;border-radius:6px;text-decoration:none;font-size:11.5px;font-weight:800;">
             🗺️ Ir para o Google Maps ↗
@@ -2633,6 +2933,12 @@
     openRotaLumiar: function () {
       buildRioDaLuzIllustratedMap();
       openDrawer("rdlIllustratedModal");
+    },
+    openStreetView: function () {
+      openCurrentSceneStreetView();
+    },
+    openRotaPointStreetView: function (num) {
+      openRotaPointStreetView(num);
     },
     setView: function (pitch, yaw) {
       if (typeof pitch === "number" && !Number.isNaN(pitch)) {

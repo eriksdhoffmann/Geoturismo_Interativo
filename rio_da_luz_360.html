@@ -97,6 +97,14 @@
         <path fill-rule="evenodd" clip-rule="evenodd" d="M3 2h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4.7a1.5 1.5 0 0 1-1.2-.6l-1.9-2.4a1.5 1.5 0 0 0-2.4 0l-1.9 2.4a1.5 1.5 0 0 1-1.2.6H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm4.6 4.5a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6zm8.8 0a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" />
       </svg>
     </button>
+    <button type="button" id="btnOpenStreetView" class="dock-btn dock-btn-sv"
+      aria-label="Abrir Google Street View 360° ao Nível da Rua"
+      title="Google Street View 360° (Nível da Rua — Pátios & Estrada Rio da Luz)">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" aria-hidden="true">
+        <circle cx="12" cy="4.2" r="2.7" />
+        <path d="M15.6 8.2H8.4c-1.1 0-2 .9-2 2v4.3c0 .7.6 1.3 1.3 1.3h.8v5.2c0 .7.6 1.3 1.3 1.3h4.4c.7 0 1.3-.6 1.3-1.3v-5.2h.8c.7 0 1.3-.6 1.3-1.3v-4.3c0-1.1-.9-2-2-2z" />
+      </svg>
+    </button>
   </footer>
 
   <!-- ========================================================================
@@ -141,6 +149,7 @@
       <select id="edHotspotType" class="ed-select">
         <option value="info">📖 Abrir Pop-up com Foto & Informações</option>
         <option value="3d">🧊 Abrir Modelo 3D Externo (Sketchfab / Iframe)</option>
+        <option value="streetview">🚶 Abrir Google Street View 360° (Nível da Rua)</option>
         <option value="scene">🌐 Viajar para outra Foto 360°</option>
       </select>
 
@@ -421,6 +430,9 @@
           } else if (action === "sch_info") {
             const el = document.querySelector('[data-id="hs_sch_info"]');
             if (el) el.click();
+          } else if (action === "streetview") {
+            const btnSv = document.getElementById("btnOpenStreetView");
+            if (btnSv) btnSv.click();
           } else if (action === "map") {
             if (window.GeoSC360 && typeof window.GeoSC360.openRotaLumiar === "function") {
               window.GeoSC360.openRotaLumiar();
