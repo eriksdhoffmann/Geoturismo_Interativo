@@ -2911,7 +2911,7 @@
       }
     }
 
-    ["btnSatFloatingPegman", "btnToggleSatStreetView", "btnQuickBarPegman"].forEach(id => {
+    ["btnSatFloatingPegman", "btnToggleSatStreetView", "btnSatSvToggleBack", "btnSatFloatingPegmanExit"].forEach(id => {
       const btn = document.getElementById(id);
       if (btn) btn.classList.toggle("active", nextOpen);
     });
@@ -2977,7 +2977,7 @@
       });
     });
 
-    ["btnSatFloatingPegman", "btnToggleSatStreetView", "btnQuickBarPegman"].forEach(id => {
+    ["btnSatFloatingPegman", "btnToggleSatStreetView", "btnSatSvToggleBack", "btnSatFloatingPegmanExit"].forEach(id => {
       const btn = document.getElementById(id);
       if (btn && !btn.dataset.bound) {
         btn.dataset.bound = "true";
@@ -2998,28 +2998,6 @@
         }
       });
     });
-
-    const closeSvBtn = document.getElementById("btnSatSvClose");
-    if (closeSvBtn && !closeSvBtn.dataset.bound) {
-      closeSvBtn.dataset.bound = "true";
-      closeSvBtn.addEventListener("click", () => {
-        toggleSatelliteStreetView(false);
-      });
-    }
-
-    const maxSvBtn = document.getElementById("btnSatSvMaxToggle");
-    if (maxSvBtn && !maxSvBtn.dataset.bound) {
-      maxSvBtn.dataset.bound = "true";
-      maxSvBtn.addEventListener("click", () => {
-        const modal = document.getElementById("scMapModal");
-        if (!modal) return;
-        const isMax = modal.classList.toggle("sv-maximized");
-        maxSvBtn.textContent = isMax ? "⤡ Ver com Satélite" : "⤢ Tela Cheia";
-        if (state.leafletMap) {
-          setTimeout(() => state.leafletMap.invalidateSize(), 150);
-        }
-      });
-    }
   }
 
   function renderOfflineMapFallback(container, pts) {
