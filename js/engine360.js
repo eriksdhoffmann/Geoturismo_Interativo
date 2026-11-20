@@ -2384,9 +2384,9 @@
         ${pt.telefone ? `<div style="font-size:11px;color:#475569;margin:2px 0;">📞 ${pt.telefone}</div>` : ""}
         <div style="font-size:10.5px;color:#64748b;font-family:monospace;margin-top:3px;">GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
         <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;">
-          <button type="button" onclick="window.GeoSC360.openRotaPointStreetView(${pt.num})"
+          <button type="button" onclick="window.GeoSC360.openPointInSatelliteStreetView(${pt.num})"
             style="width:100%;padding:7px 10px;background:#d97706;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11.5px;font-weight:800;">
-            🚶 Ver no Street View 360° (Nível da Rua)
+            🚶 Abrir Boneco Street View Aqui
           </button>
           <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer"
             style="display:block;text-align:center;padding:7px 10px;background:#1d4ed8;color:#fff;border-radius:6px;text-decoration:none;font-size:11.5px;font-weight:800;">
@@ -2708,11 +2708,263 @@
       }).addTo(state.leafletMap);
 
       state.leafletMap.on("zoomend", () => updateLiveSatelliteRadar(true));
+      state.leafletMap.on("click", e => {
+        if (state.isSatStreetViewOpen && e && e.latlng) {
+          const snapped = snapToSatelliteStreetViewSpot(e.latlng.lat, e.latlng.lng);
+          setSatelliteStreetViewLocation(snapped.lat, snapped.lng, snapped.heading, snapped.pitch, snapped.label, snapped.spotId);
+        }
+      });
       bindScMapQuickButtons();
     }
 
+    bindScMapQuickButtons();
     state.leafletMap.invalidateSize();
     renderFilteredSatelliteMarkers(activeScMapFilter);
+  }
+
+  const SAT_SV_SPOTS = {
+    estrada_vale: {
+      id: "estrada_vale",
+      label: "🛣️ Estrada Rio da Luz (R. Eurico Duwe, 3672)",
+      lat: -26.53915,
+      lng: -49.14815,
+      heading: 20,
+      pitch: 2
+    },
+    casa_rux_patio: {
+      id: "casa_rux_patio",
+      label: "🏛️ Casa Rux 1915 (Pátio 360° • Acervo GeoLab UDESC)",
+      lat: -26.53617,
+      lng: -49.14234,
+      heading: 190,
+      pitch: 2
+    },
+    estrada_rux: {
+      id: "estrada_rux",
+      label: "🚴 Estrada Casa Rux (R. Erwin Rux, 663 / JGS-489)",
+      lat: -26.5363,
+      lng: -49.1430,
+      heading: 95,
+      pitch: 2
+    },
+    schroeder_patio: {
+      id: "schroeder_patio",
+      label: "🏡 Schroeder Platz (Pátio 360° • Acervo GeoLab UDESC)",
+      lat: -26.5384678,
+      lng: -49.1486893,
+      heading: 135,
+      pitch: 2
+    }
+  };
+
+  function snapToSatelliteStreetViewSpot(rawLat, rawLng) {
+    const specialSpots = [
+      SAT_SV_SPOTS.casa_rux_patio,
+      SAT_SV_SPOTS.schroeder_patio,
+      SAT_SV_SPOTS.estrada_rux,
+      SAT_SV_SPOTS.estrada_vale
+    ];
+    for (const sp of specialSpots) {
+      const d = Math.hypot(rawLat - sp.lat, rawLng - sp.lng);
+      if (d < 0.00075) {
+        return { lat: sp.lat, lng: sp.lng, heading: sp.heading, pitch: sp.pitch, label: sp.label, spotId: sp.id };
+      }
+    }
+
+    // Procura o vértice mais próximo nas estradas reais da Rota Lumiar
+    let bestLat = rawLat;
+    let bestLng = rawLng;
+    let bestHeading = 20;
+    let bestDist = Infinity;
+
+    if (Array.isArray(window.ROTA_LUMIAR_ROAD_LEGS)) {
+      window.ROTA_LUMIAR_ROAD_LEGS.forEach(leg => {
+        const coords = leg && leg.coords;
+        if (!Array.isArray(coords)) return;
+        for (let i = 0; i < coords.length; i++) {
+          const c = coords[i];
+          const d = Math.hypot(rawLat - c[0], rawLng - c[1]);
+          if (d < bestDist) {
+            bestDist = d;
+            bestLat = c[0];
+            bestLng = c[1];
+            const next = coords[Math.min(coords.length - 1, i + 1)] || coords[Math.max(0, i - 1)];
+            if (next && (next[0] !== c[0] || next[1] !== c[1])) {
+              const dy = next[0] - c[0];
+              const dx = (next[1] - c[1]) * Math.cos(c[0] * DEG2RAD);
+              bestHeading = ((Math.atan2(dx, dy) * RAD2DEG) % 360 + 360) % 360;
+            }
+          }
+        }
+      });
+    }
+
+    if (bestDist < 0.004) {
+      return {
+        lat: bestLat,
+        lng: bestLng,
+        heading: Math.round(bestHeading),
+        pitch: 2,
+        label: "🛣️ Estrada Selecionada com o Boneco Street View (Arraste no satélite para andar)",
+        spotId: ""
+      };
+    }
+
+    return {
+      lat: rawLat,
+      lng: rawLng,
+      heading: 20,
+      pitch: 2,
+      label: "📍 Ponto Selecionado no Satélite com o Boneco Street View",
+      spotId: ""
+    };
+  }
+
+  function ensureLeafletPegmanMarker(lat, lng) {
+    if (!state.leafletMap || typeof window.L === "undefined") return;
+    if (!state.leafletPegmanMarker) {
+      const pegmanIcon = window.L.divIcon({
+        className: "gsat-pegman-marker-wrap",
+        iconSize: [44, 52],
+        iconAnchor: [22, 46],
+        html: `
+          <div class="gsat-pegman-pin" title="Boneco Street View — Arraste para qualquer estrada no satélite!">
+            <div class="gsat-pegman-pulse"></div>
+            <div class="gsat-pegman-figure">
+              <svg viewBox="0 0 24 24" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="4.2" r="3" fill="#FACC15" stroke="#78350F" stroke-width="1.4"/>
+                <path d="M15.6 8.2H8.4c-1.1 0-2 .9-2 2v4.3c0 .7.6 1.3 1.3 1.3h.8v5.2c0 .7.6 1.3 1.3 1.3h4.4c.7 0 1.3-.6 1.3-1.3v-5.2h.8c.7 0 1.3-.6 1.3-1.3v-4.3c0-1.1-.9-2-2-2z" fill="#FACC15" stroke="#78350F" stroke-width="1.4"/>
+              </svg>
+            </div>
+          </div>
+        `
+      });
+
+      state.leafletPegmanMarker = window.L.marker([lat, lng], {
+        icon: pegmanIcon,
+        draggable: true,
+        zIndexOffset: 2500
+      }).addTo(state.leafletMap);
+
+      state.leafletPegmanMarker.on("dragend", () => {
+        const pos = state.leafletPegmanMarker.getLatLng();
+        if (!pos) return;
+        const snapped = snapToSatelliteStreetViewSpot(pos.lat, pos.lng);
+        setSatelliteStreetViewLocation(snapped.lat, snapped.lng, snapped.heading, snapped.pitch, snapped.label, snapped.spotId);
+      });
+    } else {
+      state.leafletPegmanMarker.setLatLng([lat, lng]);
+      if (!state.leafletMap.hasLayer(state.leafletPegmanMarker)) {
+        state.leafletPegmanMarker.addTo(state.leafletMap);
+      }
+    }
+  }
+
+  function setSatelliteStreetViewLocation(lat, lng, heading, pitch, label, spotId) {
+    const iframe = document.getElementById("satStreetViewIframe");
+    const appBtn = document.getElementById("btnSatSvOpenApp");
+    const statusText = document.getElementById("satSvStatusText");
+    const coordsText = document.getElementById("satSvCoordsText");
+
+    const embedUrl = buildStreetViewEmbedUrl(lat, lng, heading, pitch);
+    const appUrl = buildStreetViewAppUrl(lat, lng, heading, pitch);
+
+    if (iframe && iframe.getAttribute("src") !== embedUrl) {
+      iframe.setAttribute("src", embedUrl);
+    }
+    if (appBtn) {
+      appBtn.setAttribute("href", appUrl);
+    }
+    if (statusText) {
+      statusText.textContent = label || "🛣️ Street View 360° • Arraste o boneco amarelo no satélite para mover";
+    }
+    if (coordsText) {
+      coordsText.textContent = `GPS: ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`;
+    }
+
+    document.querySelectorAll("#satSvSpotsBar [data-sat-sv-spot]").forEach(btn => {
+      btn.classList.toggle("active", Boolean(spotId) && btn.getAttribute("data-sat-sv-spot") === spotId);
+    });
+
+    ensureLeafletPegmanMarker(lat, lng);
+    if (state.leafletMap) {
+      state.leafletMap.panTo([lat, lng], { animate: true });
+    }
+  }
+
+  function toggleSatelliteStreetView(forceState, customSpot) {
+    const modal = document.getElementById("scMapModal");
+    const pane = document.getElementById("scMapStreetViewPane");
+    if (!modal || !pane) return;
+
+    const nextOpen = typeof forceState === "boolean" ? forceState : !Boolean(state.isSatStreetViewOpen);
+    state.isSatStreetViewOpen = nextOpen;
+
+    modal.classList.toggle("sv-open", nextOpen);
+    pane.hidden = !nextOpen;
+    if (!nextOpen) {
+      modal.classList.remove("sv-maximized");
+      const maxBtn = document.getElementById("btnSatSvMaxToggle");
+      if (maxBtn) maxBtn.textContent = "⤢ Tela Cheia";
+      if (state.leafletPegmanMarker && state.leafletMap && state.leafletMap.hasLayer(state.leafletPegmanMarker)) {
+        state.leafletMap.removeLayer(state.leafletPegmanMarker);
+      }
+    }
+
+    ["btnSatFloatingPegman", "btnToggleSatStreetView", "btnQuickBarPegman"].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.toggle("active", nextOpen);
+    });
+
+    if (nextOpen) {
+      let spot = customSpot;
+      if (!spot) {
+        if (state.currentSceneId === "casa_rux_05") spot = SAT_SV_SPOTS.casa_rux_patio;
+        else if (state.currentSceneId === "casa_rux_cima_07") spot = SAT_SV_SPOTS.estrada_rux;
+        else if (state.currentSceneId === "schroeder_platz_03") spot = SAT_SV_SPOTS.schroeder_patio;
+        else spot = SAT_SV_SPOTS.estrada_vale;
+      }
+      setSatelliteStreetViewLocation(spot.lat, spot.lng, spot.heading, spot.pitch, spot.label, spot.id);
+    }
+
+    if (state.leafletMap) {
+      setTimeout(() => {
+        state.leafletMap.invalidateSize();
+      }, 150);
+    }
+  }
+
+  function openPointInSatelliteStreetView(pointNum) {
+    const pts = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
+      ? window.ROTA_LUMIAR_DATA.points
+      : [];
+    const pt = pts.find(p => p.num === Number(pointNum));
+    const modal = document.getElementById("scMapModal");
+    if (!modal || !modal.classList.contains("open")) {
+      openScMapModal(true);
+    }
+
+    setTimeout(() => {
+      if (!pt) {
+        toggleSatelliteStreetView(true);
+        return;
+      }
+      if (pt.num === 1) {
+        toggleSatelliteStreetView(true, SAT_SV_SPOTS.casa_rux_patio);
+      } else if (pt.num === 2) {
+        toggleSatelliteStreetView(true, SAT_SV_SPOTS.schroeder_patio);
+      } else {
+        const snapped = snapToSatelliteStreetViewSpot(pt.lat, pt.lng);
+        toggleSatelliteStreetView(true, {
+          id: "",
+          label: `📍 ${pt.num}. ${pt.name} (${pt.endereco || pt.region})`,
+          lat: snapped.lat,
+          lng: snapped.lng,
+          heading: snapped.heading,
+          pitch: 2
+        });
+      }
+    }, 180);
   }
 
   function bindScMapQuickButtons() {
@@ -2724,6 +2976,50 @@
         renderFilteredSatelliteMarkers(filterKey);
       });
     });
+
+    ["btnSatFloatingPegman", "btnToggleSatStreetView", "btnQuickBarPegman"].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn && !btn.dataset.bound) {
+        btn.dataset.bound = "true";
+        btn.addEventListener("click", () => {
+          toggleSatelliteStreetView();
+        });
+      }
+    });
+
+    document.querySelectorAll("#satSvSpotsBar [data-sat-sv-spot]").forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "true";
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-sat-sv-spot");
+        const sp = SAT_SV_SPOTS[key];
+        if (sp) {
+          setSatelliteStreetViewLocation(sp.lat, sp.lng, sp.heading, sp.pitch, sp.label, sp.id);
+        }
+      });
+    });
+
+    const closeSvBtn = document.getElementById("btnSatSvClose");
+    if (closeSvBtn && !closeSvBtn.dataset.bound) {
+      closeSvBtn.dataset.bound = "true";
+      closeSvBtn.addEventListener("click", () => {
+        toggleSatelliteStreetView(false);
+      });
+    }
+
+    const maxSvBtn = document.getElementById("btnSatSvMaxToggle");
+    if (maxSvBtn && !maxSvBtn.dataset.bound) {
+      maxSvBtn.dataset.bound = "true";
+      maxSvBtn.addEventListener("click", () => {
+        const modal = document.getElementById("scMapModal");
+        if (!modal) return;
+        const isMax = modal.classList.toggle("sv-maximized");
+        maxSvBtn.textContent = isMax ? "⤡ Ver com Satélite" : "⤢ Tela Cheia";
+        if (state.leafletMap) {
+          setTimeout(() => state.leafletMap.invalidateSize(), 150);
+        }
+      });
+    }
   }
 
   function renderOfflineMapFallback(container, pts) {
@@ -2939,6 +3235,12 @@
     },
     openRotaPointStreetView: function (num) {
       openRotaPointStreetView(num);
+    },
+    openPointInSatelliteStreetView: function (num) {
+      openPointInSatelliteStreetView(num);
+    },
+    toggleSatelliteStreetView: function (forceState) {
+      toggleSatelliteStreetView(forceState);
     },
     setView: function (pitch, yaw) {
       if (typeof pitch === "number" && !Number.isNaN(pitch)) {

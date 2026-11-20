@@ -168,31 +168,6 @@ window.TOUR_SC_DATA = {
             { id: "sv_patio_schroeder", label: "🏡 Pátio Schroeder Platz (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 135, pitch: 2, author: "Acervo GeoLab UDESC no Google Maps" }
           ],
           imageAnnotations: []
-        },
-
-        // Google Street View 360° ao Nível da Rua no Vale Tombado
-        {
-          id: "hs_v04_streetview",
-          type: "streetview",
-          category: "streetview",
-          iconStyle: "streetview-pill",
-          pitch: -34,
-          yaw: -68,
-          tooltip: "🚶 Google Street View 360°: Descer para a Estrada do Rio da Luz (R. Eurico Duwe)",
-          title: "Vale do Rio da Luz ao Nível da Rua (Google Street View 360°)",
-          subtitleLead: "Compare a vista aérea panorâmica do drone com a perspectiva terrestre ao caminhar pela Rua Eurico Duwe e pelos pátios históricos.",
-          paragraphs: [
-            "Enquanto o drone a 280 metros de altitude revela a estrutura macro da Paisagem Cultural (o rio, as várzeas agrícolas, os lotes coloniais compridos e as encostas de Mata Atlântica), o Google Street View permite descer ao nível do pedestre.",
-            "Utilize os botões no topo da janela ao lado para caminhar livremente pelas setas do asfalto na Rua Eurico Duwe e na Rua Erwin Rux (JGS-489), ou visitar os panoramas terrestres 360° capturados pelo GeoLab/UDESC nos pátios da Casa Rux e do Schroeder Platz."
-          ],
-          didYouKnow: "Os panoramas terrestres internos dos pátios da Casa Rux e do Schroeder Platz disponíveis na base oficial do Google Maps foram mapeados e publicados pela equipe do GeoLab / UDESC!",
-          ctaOpenRotaLumiar: true,
-          streetViewViews: [
-            { id: "sv_estrada_principal", label: "🛣️ Estrada R. Eurico Duwe (Andar na Rua)", lat: -26.53915, lng: -49.14815, heading: 20, pitch: 2, author: "Google Street View Oficial • R. Eurico Duwe, 3672" },
-            { id: "sv_estrada_rux", label: "🚴 Estrada Casa Rux (663 JGS-489)", lat: -26.5363, lng: -49.1430, heading: 95, pitch: 2, author: "Google Street View Oficial • R. Erwin Rux, 663" },
-            { id: "sv_patio_rux", label: "🏛️ Fachada Casa Rux (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 190, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
-            { id: "sv_patio_schroeder", label: "🏡 Fachada Schroeder Platz (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 135, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" }
-          ]
         }
       ]
     },
@@ -289,29 +264,6 @@ window.TOUR_SC_DATA = {
             { id: "sv_estrada_schroeder", label: "🛣️ Andar na Estrada (R. Eurico Duwe)", lat: -26.53915, lng: -49.14815, heading: 20, pitch: 2, author: "Google Street View Oficial • Estrada do Vale" }
           ],
           imageAnnotations: []
-        },
-
-        // Google Street View 360° da Casa do Schroeder Platz
-        {
-          id: "hs_sch_streetview",
-          type: "streetview",
-          category: "streetview",
-          iconStyle: "streetview-pill",
-          pitch: -24,
-          yaw: -16,
-          tooltip: "🚶 Google Street View 360°: Pátio Schroeder Platz & Rua Eurico Duwe",
-          title: "Schroeder Platz no Google Street View 360° (Pátio & Rua)",
-          subtitleLead: "Gire em 360° no nível do pátio da Casa do Schroeder Platz ou caminhe pelo asfalto da Rua Eurico Duwe.",
-          paragraphs: [
-            "Nesta visualização integrada ao Google Street View, você explora o pátio da Casa do Schroeder Platz capturado em 360° pela equipe do GeoLab / UDESC diretamente na base oficial do Google Maps.",
-            "Para caminhar pela estrada usando as setas brancas no asfalto, clique na aba '🛣️ Andar na Estrada (R. Eurico Duwe)' na barra superior do visualizador ao lado."
-          ],
-          didYouKnow: "Você pode alternar a qualquer momento entre a foto aérea do drone, o panorama 360° terrestre do pátio e a caminhada pela estrada oficial do Google Street View!",
-          streetViewViews: [
-            { id: "sv_patio_schroeder", label: "🏡 Fachada Schroeder Platz (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 135, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
-            { id: "sv_jardim_schroeder", label: "🌳 Jardim & Biergarten (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 315, pitch: 0, author: "Acervo GeoLab UDESC no Google Street View" },
-            { id: "sv_estrada_schroeder", label: "🛣️ Andar na Estrada (R. Eurico Duwe)", lat: -26.53915, lng: -49.14815, heading: 20, pitch: 2, author: "Google Street View Oficial • R. Eurico Duwe" }
-          ]
         }
       ]
     },
@@ -420,29 +372,6 @@ window.TOUR_SC_DATA = {
             { id: "sv_jardim_rux", label: "🌴 Jardim & Vista da Rua (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 10, pitch: 0, author: "Acervo GeoLab UDESC no Google Street View" }
           ],
           imageAnnotations: []
-        },
-
-        // Google Street View 360° da Casa Rux (Pátio GeoLab & Estrada JGS-489)
-        {
-          id: "hs_rux_streetview",
-          type: "streetview",
-          category: "streetview",
-          iconStyle: "streetview-pill",
-          pitch: -24,
-          yaw: 18,
-          tooltip: "🚶 Google Street View 360°: Pátio da Casa Rux (GeoLab) & Estrada",
-          title: "Casa Rux (1915) no Google Street View 360°",
-          subtitleLead: "Inspecione de perto os tijolos aparentes, a estrutura de madeira Enxaimel e o rancho centenário no nível do solo.",
-          paragraphs: [
-            "Esta janela incorpora o Google Street View 360° oficial da Casa Rux. A primeira aba exibe a fotografia esférica de alta resolução registrada no pátio interno pelo GeoLab / UDESC e publicada no Google Maps.",
-            "Ao alternar para a aba '🛣️ Andar na Estrada (R. Erwin Rux, 663)', você vai para a ciclovia e pista da estrada JGS-489 em frente à propriedade, podendo caminhar pelo Vale do Rio da Luz clicando nas setas do Google."
-          ],
-          didYouKnow: "A combinação do Drone 360° (visão aérea do lote Waldhufendorf) com o Street View 360° (visão terrestre da fachada enxaimel) permite analisar tanto a geografia quanto a arquitetura histórica sem sair da página!",
-          streetViewViews: [
-            { id: "sv_patio_rux", label: "🏛️ Fachada Enxaimel 1915 (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 190, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
-            { id: "sv_estrada_rux", label: "🛣️ Andar na Estrada (R. Erwin Rux, 663)", lat: -26.5363, lng: -49.1430, heading: 95, pitch: 2, author: "Google Street View Oficial • JGS-489" },
-            { id: "sv_jardim_rux", label: "🌴 Jardim & Vista da Rua (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 10, pitch: 0, author: "Acervo GeoLab UDESC no Google Street View" }
-          ]
         }
       ]
     },
@@ -540,29 +469,6 @@ window.TOUR_SC_DATA = {
           imageAnnotations: [
             { label: "Casa Principal e Pátio Rural", x: 30, y: 38, arrowDir: "down" },
             { label: "Encosta com Mata Atlântica Preservada", x: 74, y: 32, arrowDir: "down" }
-          ]
-        },
-
-        // Google Street View 360° na Estrada JGS-489 visto de cima
-        {
-          id: "hs_cima_streetview",
-          type: "streetview",
-          category: "streetview",
-          iconStyle: "streetview-pill",
-          pitch: -34,
-          yaw: -88,
-          tooltip: "🚶 Google Street View 360°: Caminhar pela Estrada R. Erwin Rux (663 JGS-489)",
-          title: "Estrada Rural & Lote Colonial no Google Street View 360°",
-          subtitleLead: "Desça dos 165 metros de altitude diretamente para a ciclovia da Rua Erwin Rux em frente à Casa Rux.",
-          paragraphs: [
-            "Visto do alto pelo drone, percebemos como a estrada acompanha a cota segura fora da várzea de inundação do Rio da Luz. No Street View ao lado, você está posicionado exatamente sobre essa estrada (JGS-489 / R. Erwin Rux, 663).",
-            "Clique nas setas brancas sobre a pista para pedalar ou caminhar virtualmente ao longo do corredor cultural, ou mude para a aba do pátio interno da Casa Rux."
-          ],
-          didYouKnow: "A estrada do Rio da Luz possui ciclofaixa dedicada, sendo uma das rotas de cicloturismo cultural mais procuradas do norte catarinense!",
-          streetViewViews: [
-            { id: "sv_estrada_rux", label: "🛣️ Estrada em Frente à Casa Rux (JGS-489)", lat: -26.5363, lng: -49.1430, heading: 95, pitch: 2, author: "Google Street View Oficial • R. Erwin Rux, 663" },
-            { id: "sv_patio_rux", label: "🏛️ Fachada Enxaimel 1915 (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 190, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
-            { id: "sv_estrada_principal", label: "🚗 Estrada R. Eurico Duwe (Vale Tombado)", lat: -26.53915, lng: -49.14815, heading: 20, pitch: 2, author: "Google Street View Oficial • R. Eurico Duwe" }
           ]
         }
       ]
