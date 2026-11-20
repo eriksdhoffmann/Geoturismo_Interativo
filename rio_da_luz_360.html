@@ -294,7 +294,7 @@
           <span>Google Satélite Ao Vivo — Cone de Visão &amp; Pontos do Vale (26 Pontos)</span>
         </h3>
         <div style="display:flex;align-items:center;gap:8px;">
-          <button type="button" id="btnToggleSatStreetView" class="sc-quick-btn sc-pegman-header-btn" title="Ativar/Desativar Boneco do Google Street View 360° no Satélite">
+          <button type="button" id="btnToggleSatStreetView" class="sc-quick-btn sc-pegman-header-btn" title="Segure e arraste o boneco até uma rua do Rio da Luz (ou clique para ativar as ruas azuis do Street View)">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <circle cx="12" cy="4.2" r="2.7" fill="#FACC15" stroke="#78350F" stroke-width="0.9"/>
               <path d="M15.6 8.2H8.4c-1.1 0-2 .9-2 2v4.3c0 .7.6 1.3 1.3 1.3h.8v5.2c0 .7.6 1.3 1.3 1.3h4.4c.7 0 1.3-.6 1.3-1.3v-5.2h.8c.7 0 1.3-.6 1.3-1.3v-4.3c0-1.1-.9-2-2-2z" fill="#FACC15" stroke="#78350F" stroke-width="0.9"/>
@@ -317,16 +317,26 @@
         <div class="sc-map-split" id="scMapSplitGrid">
           <div class="sc-map-canvas-wrap">
             <div id="leafletSCMap" class="sc-map-canvas"></div>
-            <button type="button" id="btnSatFloatingPegman" class="sat-pegman-floating-btn"
-              title="Google Street View 360° — Clique para abrir em tela inteira (e clique novamente para voltar)">
-              <span class="sat-pegman-icon-box">
-                <svg viewBox="0 0 24 24" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                  <circle cx="12" cy="4.2" r="2.9" fill="#FACC15" stroke="#78350F" stroke-width="1.2"/>
-                  <path d="M15.6 8.2H8.4c-1.1 0-2 .9-2 2v4.3c0 .7.6 1.3 1.3 1.3h.8v5.2c0 .7.6 1.3 1.3 1.3h4.4c.7 0 1.3-.6 1.3-1.3v-5.2h.8c.7 0 1.3-.6 1.3-1.3v-4.3c0-1.1-.9-2-2-2z" fill="#FACC15" stroke="#78350F" stroke-width="1.2"/>
-                </svg>
-              </span>
-              <span class="sat-pegman-label">Street View</span>
-            </button>
+            <div id="satSvCoverageBanner" class="sat-sv-coverage-banner" hidden>
+              <span class="sat-sv-cov-dot"></span>
+              <span id="satSvCoverageBannerText">Ruas do Street View ativas — Segure e jogue o boneco amarelo em cima de qualquer rua azul do Rio da Luz</span>
+              <button type="button" id="btnSatSvCoverageCancel" class="sat-sv-cov-close" title="Desativar camada azul do Street View">✕</button>
+            </div>
+            <div class="sat-pegman-dock-wrap">
+              <div id="satPegmanHintBubble" class="sat-pegman-hint-bubble">
+                <span>Segure e jogue na rua</span>
+              </div>
+              <button type="button" id="btnSatFloatingPegman" class="sat-pegman-floating-btn"
+                title="Segure e arraste o boneco amarelo para jogar em cima das ruas do Rio da Luz e abrir o Street View 360°">
+                <span class="sat-pegman-icon-box">
+                  <svg class="sat-pegman-standing-svg" viewBox="0 0 24 24" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle cx="12" cy="4.2" r="2.9" fill="#FACC15" stroke="#78350F" stroke-width="1.2"/>
+                    <path d="M15.6 8.2H8.4c-1.1 0-2 .9-2 2v4.3c0 .7.6 1.3 1.3 1.3h.8v5.2c0 .7.6 1.3 1.3 1.3h4.4c.7 0 1.3-.6 1.3-1.3v-5.2h.8c.7 0 1.3-.6 1.3-1.3v-4.3c0-1.1-.9-2-2-2z" fill="#FACC15" stroke="#78350F" stroke-width="1.2"/>
+                  </svg>
+                </span>
+                <span class="sat-pegman-label">Street View</span>
+              </button>
+            </div>
           </div>
           <div id="scMapStreetViewPane" class="sc-map-sv-pane" hidden>
             <div class="sc-sv-toolbar">
@@ -370,6 +380,28 @@
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Boneco Amarelo (Pegman) Flutuante Arrastável + Círculo Verde embaixo dos pés (Estilo Google Maps) -->
+  <div id="satPegmanDragOverlay" class="sat-pegman-drag-overlay" hidden aria-hidden="true">
+    <div id="satPegmanDragPill" class="sat-pegman-drag-pill">Solte em cima da rua azul para abrir o Street View 360°</div>
+    <div id="satPegmanDanglingBody" class="sat-pegman-dangling-body">
+      <svg viewBox="0 0 36 52" width="38" height="54" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="pegmanGradBody" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#FEF08A" />
+            <stop offset="45%" stop-color="#FACC15" />
+            <stop offset="100%" stop-color="#D97706" />
+          </linearGradient>
+        </defs>
+        <circle cx="18" cy="8.5" r="6" fill="url(#pegmanGradBody)" stroke="#78350F" stroke-width="1.6" />
+        <circle cx="16.2" cy="6.8" r="1.9" fill="#FEF9C3" opacity="0.8" />
+        <path d="M12.2 15.8 C9.6 15.8 8.1 17.7 7.7 20.3 L6.5 28.8 C6.2 30.5 7.4 31.8 8.9 31.8 C10.2 31.8 11.2 30.8 11.5 29.3 L12.4 22.8 L12.9 22.8 L12.3 44.2 C12.2 46.1 13.6 47.5 15.3 47.5 C16.9 47.5 17.8 46.2 17.9 44.4 L18 33.4 L18.1 44.4 C18.2 46.2 19.1 47.5 20.7 47.5 C22.4 47.5 23.8 46.1 23.7 44.2 L23.1 22.8 L23.6 22.8 L24.5 29.3 C24.8 30.8 25.8 31.8 27.1 31.8 C28.6 31.8 29.8 30.5 29.5 28.8 L28.3 20.3 C27.9 17.7 26.4 15.8 23.8 15.8 Z"
+          fill="url(#pegmanGradBody)" stroke="#78350F" stroke-width="1.6" stroke-linejoin="round" />
+        <line x1="18" y1="20.5" x2="18" y2="33.4" stroke="#92400E" stroke-width="1.3" stroke-linecap="round" />
+      </svg>
+    </div>
+    <div id="satPegmanGreenCircle" class="sat-pegman-green-circle"></div>
   </div>
 
   <!-- ========================================================================
@@ -479,13 +511,27 @@
           } else if (action === "sch_info") {
             const el = document.querySelector('[data-id="hs_sch_info"]');
             if (el) el.click();
+          } else if (action === "streetview_drag") {
+            const btn = document.getElementById("btnOpenSCMap");
+            if (btn) btn.click();
+            setTimeout(() => {
+              const dLat = Number(params.get("lat") || "-26.5397");
+              const dLng = Number(params.get("lng") || "-49.14525");
+              if (window.GeoSC360 && typeof window.GeoSC360.setStreetViewDropMode === "function") {
+                window.GeoSC360.setStreetViewDropMode(true);
+                window.GeoSC360.previewPegmanDragAtLatLng(dLat, dLng, -10);
+              }
+            }, 550);
           } else if (action === "streetview") {
             const btn = document.getElementById("btnOpenSCMap");
             if (btn) btn.click();
             setTimeout(() => {
-              const pegmanBtn = document.getElementById("btnSatFloatingPegman");
-              if (pegmanBtn) pegmanBtn.click();
-            }, 450);
+              const dLat = Number(params.get("lat") || "-26.5378");
+              const dLng = Number(params.get("lng") || "-49.1473");
+              if (window.GeoSC360 && typeof window.GeoSC360.dropPegmanOnStreet === "function") {
+                window.GeoSC360.dropPegmanOnStreet(dLat, dLng);
+              }
+            }, 550);
           } else if (action === "map") {
             if (window.GeoSC360 && typeof window.GeoSC360.openRotaLumiar === "function") {
               window.GeoSC360.openRotaLumiar();
