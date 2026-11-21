@@ -53,8 +53,49 @@
     leafletRadarLayer: null,
     leafletFovPolygon: null,
     leafletAnchorMarker: null,
-    isScMapSplitOpen: false
+    leafletCanvasRenderer: null,
+    leafletSatelliteLayer: null,
+    leafletSvvLayer: null,
+    leafletCustomRouteLayer: null,
+    leafletAiLayer: null,
+    isScMapSplitOpen: false,
+    customRoute: {
+      origin: null,
+      waypoints: [],
+      destination: null
+    },
+    aiSearch: {
+      active: false,
+      query: "",
+      answer: "",
+      results: [],
+      trails: [],
+      loadingOsm: false,
+      reqId: 0
+    },
+    aiPoiByKey: {},
+    rioDaLuzLimitTimer: null
   };
+
+  function isAnyModalOrDrawerOpen() {
+    const splitOpen = Boolean(document.getElementById("splitModalBackdrop")?.classList.contains("open"));
+    const drawerOpen = Boolean(document.querySelector(".aux-drawer-modal.open"));
+    const editorOpen = Boolean(document.getElementById("editorSidePanel")?.classList.contains("open"));
+    const vrOpen = Boolean(document.getElementById("vrOverlayStage")?.classList.contains("open"));
+    const limitEl = document.getElementById("rioDaLuzLimitAlert");
+    const limitOpen = Boolean(limitEl && !limitEl.hidden);
+    return splitOpen || drawerOpen || editorOpen || vrOpen || limitOpen;
+  }
+
+  function syncModalUiState() {
+    const anyOpen = isAnyModalOrDrawerOpen();
+    document.body.classList.toggle("any-modal-open", anyOpen);
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: "GEOSC_MODAL_OPEN", open: anyOpen }, "*");
+      }
+    } catch (_) {}
+  }
 
   let gl = null;
   let shaderProgram = null;
@@ -475,7 +516,7 @@
         hs.iconStyle === "map-church" ||
         hs.iconStyle === "map-mountain"
       ) {
-        // Ícones da Legenda do Mapa Oficial (Montanha ⛰️, Igreja ⛪, Clube de Tiro ⚔️)
+        // Ícones da Legenda do Mapa Oficial (Montanha, Igreja, Clube de Tiro)
         innerHTML = `
           <span class="hs-pulse"></span>
           <span class="hs-map-legend-badge">${hs.badgeText || "★"}</span>
@@ -495,9 +536,8 @@
 
       // Tooltip flutuante ao passar o mouse
       const typeLabel =
-        hs.type === "3d" ? "🧊 Modelo 3D Externo" :
-        hs.type === "streetview" ? "🚶 Google Street View 360°" :
-        hs.type === "scene" ? "🌐 Ir para Foto 360°" : "📖 Informação & Foto";
+        hs.type === "3d" ? "Modelo 3D Externo" :
+        hs.type === "scene" ? "Ir para Foto 360°" : "Informação & Foto";
 
       innerHTML += hs.hideTooltipBadge
         ? `
@@ -556,15 +596,6 @@
     return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}&heading=${h}&pitch=${p}&fov=85`;
   }
 
-  function getDefaultRioDaLuzStreetViews() {
-    return [
-      { id: "sv_patio_rux", label: "🏛️ Casa Rux (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 190, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
-      { id: "sv_estrada_rux", label: "🛣️ Estrada Casa Rux (JGS-489)", lat: -26.5363, lng: -49.1430, heading: 95, pitch: 2, author: "Google Street View Oficial • R. Erwin Rux, 663" },
-      { id: "sv_patio_schroeder", label: "🏡 Schroeder Platz (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 135, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
-      { id: "sv_estrada_principal", label: "🚗 Estrada Rio da Luz (R. Eurico Duwe)", lat: -26.53915, lng: -49.14815, heading: 20, pitch: 2, author: "Google Street View Oficial • R. Eurico Duwe" }
-    ];
-  }
-
   function handleHotspotClick(hs) {
     // Centraliza suavemente a câmera na direção do ponto clicado
     state.targetYaw = hs.yaw;
@@ -580,15 +611,13 @@
 
     if (hs.type === "3d") {
       openSplitModal3D(hs);
-    } else if (hs.type === "streetview") {
-      openSplitModalStreetView(hs, 0);
     } else {
       openSplitModalInfo(hs);
     }
   }
 
   /**
-   * Abre o Pop-up Split-View de INFORMAÇÃO (Com Barra Integrada Foto <-> Google Street View 360°)
+   * Abre o Pop-up Split-View de INFORMAÇÃO (Fotos e texto editorial)
    */
   function openSplitModalInfo(hs) {
     cleanupPrevious3D();
@@ -599,14 +628,14 @@
       photoStageHTML = `
         <div class="annotated-photo-wrapper">
           <div class="showcase-art-panel">
-            <span class="showcase-art-badge">🏛️ ${sc.badge || "Patrimônio Cultural Tombado"}</span>
+            <span class="showcase-art-badge">${sc.badge || "Patrimônio Cultural Tombado"}</span>
             <div class="showcase-art-mat">
               <img src="${hs.image || 'assets/fotos/riodaluz/casa_rux_aquarela.png'}" alt="${hs.title}" class="showcase-art-img ${sc.coverMain ? '' : 'art-contain'}" />
             </div>
             <div class="showcase-art-footer">
               <div class="showcase-art-caption-wrap">
                 <span class="showcase-art-caption">${sc.caption || hs.title}</span>
-                ${sc.address ? `<span class="showcase-art-address">📌 ${sc.address}</span>` : ""}
+                ${sc.address ? `<span class="showcase-art-address">${sc.address}</span>` : ""}
               </div>
               ${sc.realPhoto ? `
                 <div class="showcase-real-card" title="Vista real no tour 360°">
@@ -617,7 +646,7 @@
             </div>
           </div>
           <div class="photo-caption-bar">
-            <span>📍 Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
+            <span>Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
           </div>
         </div>
       `;
@@ -636,230 +665,16 @@
             ${annotationsHTML}
           </div>
           <div class="photo-caption-bar">
-            <span>📍 Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
+            <span>Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
           </div>
         </div>
       `;
     }
 
-    const svViews = Array.isArray(hs.streetViewViews) && hs.streetViewViews.length > 0
-      ? hs.streetViewViews
-      : null;
-
-    if (svViews) {
-      const firstSv = svViews[0];
-      const extUrl = buildStreetViewAppUrl(firstSv.lat, firstSv.lng, firstSv.heading, firstSv.pitch);
-      modalLeftContent.innerHTML = `
-        <div class="modal-sv-wrapper">
-          <div class="modal-sv-TopBar">
-            <button type="button" class="btn-sv-mode active" data-info-media-tab="photo">
-              🖼️ Foto / Arte
-            </button>
-            ${svViews.map((v, idx) => `
-              <button type="button" class="btn-sv-mode" data-info-media-tab="sv" data-sv-idx="${idx}" title="Ver no Google Street View 360°: ${v.label}">
-                ${v.label}
-              </button>
-            `).join("")}
-            <a id="infoModalSvAppLink" href="${extUrl}" target="_blank" rel="noopener noreferrer" class="btn-sv-external-link" title="Abrir este ponto em 360° no aplicativo do Google Maps">
-              ↗️ Abrir no App Maps
-            </a>
-          </div>
-          <div id="infoPhotoPane" class="info-media-pane" style="display:flex;flex:1;min-height:0;width:100%;">
-            ${photoStageHTML}
-          </div>
-          <div id="infoStreetViewPane" class="iframe-sv-container" style="display:none;">
-            <iframe id="infoStreetViewIframe" title="Google Street View 360° — ${hs.title}" src="about:blank" frameborder="0" allow="accelerometer; gyroscope; fullscreen" allowfullscreen></iframe>
-            <div class="sv-badge-footer">
-              <span class="sv-pegman-badge">🚶 STREET VIEW 360°</span>
-              <span id="infoSvFooterAuthor">${firstSv.author || "Google Street View Oficial"}</span>
-              <span id="infoSvFooterCoords" class="sv-footer-coords">GPS: ${firstSv.lat.toFixed(5)}, ${firstSv.lng.toFixed(5)}</span>
-            </div>
-          </div>
-        </div>
-      `;
-
-      const photoPane = document.getElementById("infoPhotoPane");
-      const svPane = document.getElementById("infoStreetViewPane");
-      const svIframe = document.getElementById("infoStreetViewIframe");
-      const appLink = document.getElementById("infoModalSvAppLink");
-      const footerAuthor = document.getElementById("infoSvFooterAuthor");
-      const footerCoords = document.getElementById("infoSvFooterCoords");
-
-      modalLeftContent.querySelectorAll("[data-info-media-tab]").forEach(btn => {
-        btn.addEventListener("click", () => {
-          modalLeftContent.querySelectorAll("[data-info-media-tab]").forEach(b => b.classList.remove("active"));
-          btn.classList.add("active");
-          const tabType = btn.getAttribute("data-info-media-tab");
-          if (tabType === "photo") {
-            if (photoPane) photoPane.style.display = "flex";
-            if (svPane) svPane.style.display = "none";
-          } else {
-            const idx = Number(btn.getAttribute("data-sv-idx") || "0");
-            const v = svViews[idx] || svViews[0];
-            if (photoPane) photoPane.style.display = "none";
-            if (svPane) svPane.style.display = "flex";
-            const targetSrc = buildStreetViewEmbedUrl(v.lat, v.lng, v.heading, v.pitch);
-            if (svIframe && svIframe.getAttribute("src") !== targetSrc) {
-              svIframe.setAttribute("src", targetSrc);
-            }
-            if (appLink) appLink.setAttribute("href", buildStreetViewAppUrl(v.lat, v.lng, v.heading, v.pitch));
-            if (footerAuthor) footerAuthor.textContent = v.author || "Google Street View Oficial";
-            if (footerCoords) footerCoords.textContent = `GPS: ${v.lat.toFixed(5)}, ${v.lng.toFixed(5)}`;
-          }
-        });
-      });
-    } else {
-      modalLeftContent.innerHTML = photoStageHTML;
-    }
-
-    renderRightEditorialCard(hs, svViews ? svViews[0] : null);
+    modalLeftContent.innerHTML = photoStageHTML;
+    renderRightEditorialCard(hs);
     splitModal.classList.add("open");
-  }
-
-  /**
-   * Abre o Pop-up Split-View dedicado do GOOGLE STREET VIEW 360° (Opção 1 Recomendada + Atalho Opção 3)
-   */
-  function openSplitModalStreetView(hs, initialIdx = 0) {
-    cleanupPrevious3D();
-
-    const views = Array.isArray(hs.streetViewViews) && hs.streetViewViews.length > 0
-      ? hs.streetViewViews
-      : getDefaultRioDaLuzStreetViews();
-    const activeIdx = Math.max(0, Math.min(views.length - 1, Number(initialIdx) || 0));
-    const currentView = views[activeIdx];
-    const embedUrl = buildStreetViewEmbedUrl(currentView.lat, currentView.lng, currentView.heading, currentView.pitch);
-    const appUrl = buildStreetViewAppUrl(currentView.lat, currentView.lng, currentView.heading, currentView.pitch);
-
-    modalLeftContent.innerHTML = `
-      <div class="modal-sv-wrapper">
-        <div class="modal-sv-TopBar">
-          ${views.map((v, idx) => `
-            <button type="button" class="btn-sv-mode ${idx === activeIdx ? 'active' : ''}" data-sv-view-idx="${idx}">
-              ${v.label}
-            </button>
-          `).join("")}
-          <a id="svModalExternalAppLink" href="${appUrl}" target="_blank" rel="noopener noreferrer" class="btn-sv-external-link" title="Abrir panorama em 360° direto no aplicativo do Google Maps">
-            ↗️ Abrir no App Maps
-          </a>
-        </div>
-
-        <div id="streetViewMainStage" class="iframe-sv-container">
-          <iframe
-            id="svMainIframe"
-            title="${hs.title || 'Google Street View 360°'}"
-            src="${embedUrl}"
-            frameborder="0"
-            allow="accelerometer; gyroscope; fullscreen"
-            allowfullscreen>
-          </iframe>
-          <div class="sv-badge-footer">
-            <span class="sv-pegman-badge">🚶 STREET VIEW 360°</span>
-            <span id="svFooterAuthor">${currentView.author || "Google Street View Oficial"}</span>
-            <span id="svFooterCoords" class="sv-footer-coords">GPS: ${currentView.lat.toFixed(5)}, ${currentView.lng.toFixed(5)}</span>
-          </div>
-        </div>
-      </div>
-    `;
-
-    renderRightEditorialCard(hs, currentView);
-    splitModal.classList.add("open");
-
-    const svIframe = document.getElementById("svMainIframe");
-    const appLink = document.getElementById("svModalExternalAppLink");
-    const footerAuthor = document.getElementById("svFooterAuthor");
-    const footerCoords = document.getElementById("svFooterCoords");
-
-    modalLeftContent.querySelectorAll("[data-sv-view-idx]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const idx = Number(btn.getAttribute("data-sv-view-idx") || "0");
-        const v = views[idx] || views[0];
-        modalLeftContent.querySelectorAll("[data-sv-view-idx]").forEach(b => b.classList.remove("active"));
-        btn.classList.add("active");
-        const nextEmbed = buildStreetViewEmbedUrl(v.lat, v.lng, v.heading, v.pitch);
-        const nextApp = buildStreetViewAppUrl(v.lat, v.lng, v.heading, v.pitch);
-        if (svIframe) svIframe.setAttribute("src", nextEmbed);
-        if (appLink) appLink.setAttribute("href", nextApp);
-        if (footerAuthor) footerAuthor.textContent = v.author || "Google Street View Oficial";
-        if (footerCoords) footerCoords.textContent = `GPS: ${v.lat.toFixed(5)}, ${v.lng.toFixed(5)}`;
-        const rightAppBtn = document.getElementById("btnEditorialOpenSvApp");
-        if (rightAppBtn) rightAppBtn.setAttribute("href", nextApp);
-      });
-    });
-  }
-
-  function openCurrentSceneStreetView() {
-    closeAuxiliaryDrawers();
-    const scene = window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes
-      ? window.TOUR_SC_DATA.scenes[state.currentSceneId]
-      : null;
-    if (!scene) return;
-
-    const svHotspot = (scene.hotspots || []).find(h => h.type === "streetview");
-    if (svHotspot) {
-      openSplitModalStreetView(svHotspot, 0);
-      return;
-    }
-
-    const lat = (scene.coordinates && scene.coordinates.lat) || -26.53915;
-    const lng = (scene.coordinates && scene.coordinates.lng) || -49.14815;
-    const heading = ((scene.headingOffsetDeg || 0) + state.yaw);
-    openSplitModalStreetView({
-      type: "streetview",
-      title: `${scene.placeMenuTitle || scene.shortTitle} — Google Street View 360°`,
-      subtitleLead: "Visão terrestre interativa em 360° sincronizada com o ponto atual do passeio aéreo.",
-      paragraphs: [
-        "Gire a câmera ao lado para explorar o nível da rua ou clique nas abas superiores para alternar entre os pátios históricos mapeados pelo GeoLab / UDESC e as estradas oficiais do Google Street View no Vale do Rio da Luz."
-      ],
-      didYouKnow: "Você pode abrir este mesmo ângulo 360° diretamente no aplicativo nativo do Google Maps clicando em 'Abrir no App Maps'!",
-      streetViewViews: [
-        { id: "sv_current", label: "📍 Ponto Atual (Nível da Rua)", lat, lng, heading, pitch: 0, author: "Google Street View 360°" },
-        ...getDefaultRioDaLuzStreetViews()
-      ]
-    }, 0);
-  }
-
-  function openRotaPointStreetView(pointNum) {
-    const pts = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
-      ? window.ROTA_LUMIAR_DATA.points
-      : [];
-    const pt = pts.find(p => p.num === Number(pointNum));
-    if (!pt) {
-      openCurrentSceneStreetView();
-      return;
-    }
-
-    closeAuxiliaryDrawers();
-
-    let views = [];
-    if (pt.num === 1) {
-      views = [
-        { id: "sv_rux_1", label: "🏛️ Fachada Casa Rux (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 190, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
-        { id: "sv_rux_2", label: "🛣️ Estrada R. Erwin Rux, 663", lat: -26.5363, lng: -49.1430, heading: 95, pitch: 2, author: "Google Street View Oficial • JGS-489" }
-      ];
-    } else if (pt.num === 2) {
-      views = [
-        { id: "sv_sch_1", label: "🏡 Fachada Schroeder Platz (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 135, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
-        { id: "sv_sch_2", label: "🛣️ Estrada R. Eurico Duwe", lat: -26.53915, lng: -49.14815, heading: 20, pitch: 2, author: "Google Street View Oficial" }
-      ];
-    } else {
-      views = [
-        { id: `sv_pt_${pt.num}`, label: `📍 Ponto ${pt.num}: ${pt.name}`, lat: pt.lat, lng: pt.lng, heading: 0, pitch: 0, author: `Coordenada Oficial • ${pt.endereco || pt.region}` },
-        ...getDefaultRioDaLuzStreetViews()
-      ];
-    }
-
-    openSplitModalStreetView({
-      type: "streetview",
-      title: `${pt.num}. ${pt.name} — Google Street View 360°`,
-      subtitleLead: `${pt.region} • ${pt.endereco || "Rota Lumiar"}`,
-      paragraphs: [
-        pt.description || "Atrativo cultural e turístico integrante da Rota Lumiar no Vale do Rio da Luz e Testo Alto.",
-        `Atendimento: ${pt.atendimento || "Consulte horários"} • Telefone: ${pt.telefone || "—"}`
-      ],
-      didYouKnow: "Se um trecho rural específico estiver dentro de propriedade particular fora do alcance do carro do Google, você pode alternar nas abas superiores para caminhar pela estrada principal do Vale ou abrir a rota direto no Google Maps!",
-      ctaOpenRotaLumiar: true,
-      streetViewViews: views
-    }, 0);
+    syncModalUiState();
   }
 
   /**
@@ -878,7 +693,7 @@
         <div class="modal-3d-wrapper">
           <div class="modal-3d-TopBar">
             <span class="btn-3d-mode active" style="cursor: default;">
-              🏔️ Vale do Rio da Luz
+              Vale do Rio da Luz
             </span>
           </div>
 
@@ -888,6 +703,7 @@
 
       renderRightEditorialCard(hs);
       splitModal.classList.add("open");
+      syncModalUiState();
 
       const glbContainer = document.getElementById("localGLBContainer");
       cleanupPrevious3D();
@@ -902,10 +718,10 @@
       <div class="modal-3d-wrapper">
         <div class="modal-3d-TopBar">
           <button type="button" class="btn-3d-mode active" id="btnModeSketchfab">
-            🌐 Modelo 3D Externo (Sketchfab)
+            Modelo 3D Externo (Sketchfab)
           </button>
           <button type="button" class="btn-3d-mode" id="btnModeLocal3D">
-            🧊 Maquete 3D Interativa (Offline/Local)
+            Maquete 3D Interativa (Offline/Local)
           </button>
           ${hs.externalLink ? `
             <a href="${hs.externalLink}" target="_blank" rel="noopener noreferrer" class="btn-3d-external-link">
@@ -925,7 +741,6 @@
             webkitallowfullscreen="true">
           </iframe>
           <div class="sketchfab-badge-footer">
-            <span class="sf-cube-icon">🧊</span>
             <span>Hospedado externamente via <strong>Sketchfab 3D Embed</strong> • ${hs.author3D || "Acervo 3D SC"}</span>
           </div>
         </div>
@@ -938,6 +753,7 @@
 
     renderRightEditorialCard(hs);
     splitModal.classList.add("open");
+    syncModalUiState();
 
     const btnSketchfab = document.getElementById("btnModeSketchfab");
     const btnLocal3D = document.getElementById("btnModeLocal3D");
@@ -969,7 +785,7 @@
     }
   }
 
-  function renderRightEditorialCard(hs, activeSvView) {
+  function renderRightEditorialCard(hs) {
     const paragraphsHTML = (hs.paragraphs || []).map(p => `<p class="editorial-body-p">${p}</p>`).join("");
     const didYouKnowHTML = hs.didYouKnow ? `
       <div class="did-you-know-card">
@@ -982,35 +798,14 @@
 
     const rotaCtaHTML = hs.ctaOpenRotaLumiar ? `
       <button type="button" id="btnSplitOpenRotaLumiar" class="cta-rota-lumiar-btn">
-        🗺️ Abrir Mapa Interativo Rota Lumiar (Todos os 26 Pontos) ↗
+        Abrir Mapa Interativo Rota Lumiar (Todos os 26 Pontos) ↗
       </button>
     ` : "";
-
-    let svActionBlockHTML = "";
-    if (activeSvView) {
-      const appUrl = buildStreetViewAppUrl(activeSvView.lat, activeSvView.lng, activeSvView.heading, activeSvView.pitch);
-      const dirUrl = `https://www.google.com/maps/dir/?api=1&destination=${activeSvView.lat},${activeSvView.lng}`;
-      svActionBlockHTML = `
-        <div class="editorial-sv-actions">
-          ${hs.type === "info" ? `
-            <button type="button" id="btnEditorialActivateSvTab" class="editorial-sv-btn editorial-sv-btn-primary">
-              🚶 Ver no Google Street View 360° (Aqui na Janela)
-            </button>
-          ` : ""}
-          <a id="btnEditorialOpenSvApp" href="${appUrl}" target="_blank" rel="noopener noreferrer" class="editorial-sv-btn editorial-sv-btn-app">
-            ↗️ Abrir Street View no App Google Maps
-          </a>
-          <a href="${dirUrl}" target="_blank" rel="noopener noreferrer" class="editorial-sv-btn editorial-sv-btn-dir">
-            🚗 Como Chegar (Traçar Rota GPS) ↗
-          </a>
-        </div>
-      `;
-    }
 
     modalRightContent.innerHTML = `
       <div class="editorial-ornament-circle"></div>
       <button type="button" class="editorial-close-btn" id="btnCloseSplitModal" title="Fechar (ESC)">
-        ✕
+        ×
       </button>
       <div class="editorial-scroll-area">
         <div class="editorial-green-line"></div>
@@ -1019,7 +814,6 @@
         <div class="editorial-paragraphs">
           ${paragraphsHTML}
         </div>
-        ${svActionBlockHTML}
         ${rotaCtaHTML}
         ${didYouKnowHTML}
       </div>
@@ -1028,13 +822,6 @@
     const closeBtn = document.getElementById("btnCloseSplitModal");
     if (closeBtn) {
       closeBtn.addEventListener("click", closeSplitModal);
-    }
-    const activateSvBtn = document.getElementById("btnEditorialActivateSvTab");
-    if (activateSvBtn) {
-      activateSvBtn.addEventListener("click", () => {
-        const firstSvTab = modalLeftContent.querySelector('[data-info-media-tab="sv"][data-sv-idx="0"]');
-        if (firstSvTab) firstSvTab.click();
-      });
     }
     const rotaBtn = document.getElementById("btnSplitOpenRotaLumiar");
     if (rotaBtn) {
@@ -1057,6 +844,7 @@
     cleanupPrevious3D();
     splitModal.classList.remove("open");
     modalLeftContent.innerHTML = "";
+    syncModalUiState();
   }
 
   /**
@@ -1632,12 +1420,14 @@
         btnEditor.classList.toggle("active", state.editorMode);
         document.getElementById("editorSidePanel").classList.toggle("open", state.editorMode);
         document.getElementById("panoViewport").style.cursor = state.editorMode ? "crosshair" : "grab";
+        syncModalUiState();
       });
     }
 
     // Botão Tela Cheia (nativo no Android/Desktop + fallback imersivo real no iPhone/Safari/WhatsApp)
     const btnFs = document.getElementById("btnFullscreen");
     if (btnFs) {
+      const defaultFsIconHTML = btnFs.innerHTML;
       let toastTimer = null;
       const showFsToast = (msg) => {
         let el = document.getElementById("fsToastBanner");
@@ -1663,7 +1453,11 @@
       const syncFsButton = () => {
         const active = isNativeFsActive() || document.body.classList.contains("pseudo-fullscreen");
         btnFs.classList.toggle("active", active);
-        btnFs.textContent = active ? "⤡ Sair Tela Cheia" : "⛶";
+        if (active) {
+          btnFs.textContent = "Sair Tela Cheia";
+        } else {
+          btnFs.innerHTML = defaultFsIconHTML;
+        }
         btnFs.setAttribute("title", active ? "Sair da Tela Cheia" : "Alternar Tela Cheia");
         try {
           if (window.parent && window.parent !== window) {
@@ -1678,7 +1472,7 @@
         document.body.classList.toggle("pseudo-fullscreen", next);
         if (next) {
           try { window.scrollTo(0, 1); } catch (_) {}
-          showFsToast("⛶ Tela Cheia ativada");
+          showFsToast("Tela Cheia ativada");
         } else {
           showFsToast("Tela Cheia encerrada");
         }
@@ -1691,10 +1485,8 @@
         const panoEl = document.getElementById("panoViewport");
 
         if (!currentlyActive) {
-          // Aplica imediatamente o modo imersivo (funciona instantaneamente no iPhone/WhatsApp)
           setPseudoFullscreen(true);
 
-          // E tenta também ativar a API nativa Fullscreen (Android Chrome / Desktop / iPad)
           const req = docEl.requestFullscreen ||
             docEl.webkitRequestFullscreen ||
             docEl.mozRequestFullScreen ||
@@ -1729,7 +1521,6 @@
       ["fullscreenchange", "webkitfullscreenchange", "mozfullscreenchange", "MSFullscreenChange"].forEach(evt => {
         document.addEventListener(evt, () => {
           if (!isNativeFsActive() && document.body.classList.contains("pseudo-fullscreen")) {
-            // Se saiu do Fullscreen nativo pelo botão voltar/ESC do aparelho, encerra o modo imersivo
             document.documentElement.classList.remove("pseudo-fullscreen");
             document.body.classList.remove("pseudo-fullscreen");
           }
@@ -1744,14 +1535,6 @@
       btnPlay.addEventListener("click", () => {
         state.autoRotate = !state.autoRotate;
         btnPlay.classList.toggle("active", state.autoRotate);
-      });
-    }
-
-    // Botão Google Street View 360° (Nível da Rua) na Barra Inferior
-    const btnSvDock = document.getElementById("btnOpenStreetView");
-    if (btnSvDock) {
-      btnSvDock.addEventListener("click", () => {
-        openCurrentSceneStreetView();
       });
     }
 
@@ -1773,11 +1556,14 @@
         if (el) {
           el.classList.remove("open", "split-mode", "sv-open");
         }
+        syncModalUiState();
       });
     });
   }
 
-  function applyScMapDisplayMode(splitMode) {
+  let scMapLayoutTimer = null;
+
+  function applyScMapDisplayMode(splitMode, skipRefresh) {
     const modal = document.getElementById("scMapModal");
     const expandBtn = document.getElementById("btnToggleScMapExpand");
     if (!modal) return;
@@ -1785,13 +1571,16 @@
     document.body.classList.toggle("satellite-split-open", splitMode);
     state.isScMapSplitOpen = splitMode;
     if (expandBtn) {
-      expandBtn.textContent = splitMode ? "⤢ Expandir Lista (26)" : "⤡ Modo Dividido (Ao Vivo)";
+      expandBtn.textContent = splitMode ? "Expandir Lista (26)" : "Modo Dividido (Ao Vivo)";
     }
-    if (state.leafletMap) {
-      setTimeout(() => {
-        state.leafletMap.invalidateSize();
+    if (!skipRefresh && state.leafletMap) {
+      if (scMapLayoutTimer) clearTimeout(scMapLayoutTimer);
+      scMapLayoutTimer = setTimeout(() => {
+        if (!state.leafletMap) return;
+        state.leafletMap.stop();
+        state.leafletMap.invalidateSize({ animate: false, pan: false });
         renderFilteredSatelliteMarkers(splitMode ? "pano360" : activeScMapFilter);
-      }, 140);
+      }, 160);
     }
   }
 
@@ -1800,11 +1589,13 @@
     const modal = document.getElementById("scMapModal");
     if (!modal) return;
     modal.classList.add("open");
-    applyScMapDisplayMode(Boolean(splitMode));
     if (splitMode) {
       activeScMapFilter = "pano360";
     }
-    setTimeout(() => initOrUpdateLeafletMap(), 140);
+    applyScMapDisplayMode(Boolean(splitMode), true);
+    syncModalUiState();
+    if (scMapLayoutTimer) clearTimeout(scMapLayoutTimer);
+    scMapLayoutTimer = setTimeout(() => initOrUpdateLeafletMap(), 160);
   }
 
   function openDrawer(id) {
@@ -1812,6 +1603,7 @@
     if (!el) return;
     closeAuxiliaryDrawers();
     el.classList.add("open");
+    syncModalUiState();
   }
 
   function toggleDrawer(id) {
@@ -1820,6 +1612,7 @@
     const isOpen = el.classList.contains("open");
     closeAuxiliaryDrawers();
     if (!isOpen) el.classList.add("open");
+    syncModalUiState();
   }
 
   function closeAuxiliaryDrawers() {
@@ -1836,6 +1629,7 @@
     setSatelliteStreetViewCoverageVisible(false);
     hidePegmanDragOverlay();
     setPlaceSelectorOpen(false);
+    syncModalUiState();
   }
 
   /**
@@ -2010,7 +1804,7 @@
             pin.setAttribute("aria-label", `${p.num}. ${p.name}`);
             pin.innerHTML = `
               <span class="rdl-pin-num">${p.num}</span>
-              <span class="rdl-pin-tooltip">${p.num}. ${p.name}${p.sceneId ? " 📷 360°" : ""}</span>
+              <span class="rdl-pin-tooltip">${p.num}. ${p.name}${p.sceneId ? " 360°" : ""}</span>
             `;
             pin.addEventListener("click", () => selectRotaPoint(p.num, false));
             wrap.appendChild(pin);
@@ -2120,7 +1914,7 @@
         const isExpanded = mapBox.classList.toggle("is-wide-pdf");
         mapBox.style.maxWidth = isExpanded ? "100%" : "";
         btnExpandMap.classList.toggle("active", isExpanded);
-        btnExpandMap.textContent = isExpanded ? "⊟ Normal" : "⛶ Expandir";
+        btnExpandMap.textContent = isExpanded ? "Normal" : "Expandir";
         setTimeout(applyZoomTransform, 180);
       });
     }
@@ -2147,11 +1941,11 @@
         : "";
       const emailLine = p.email ? `<div><strong>E-mail:</strong> ${p.email}</div>` : "";
       const tourBtn = p.sceneId
-        ? `<button type="button" class="rdl-action-btn rdl-action-360" data-open-scene="${p.sceneId}">🌐 Ver Panorama 360° Aqui</button>`
+        ? `<button type="button" class="rdl-action-btn rdl-action-360" data-open-scene="${p.sceneId}">Ver Panorama 360° Aqui</button>`
         : "";
 
       detailBox.innerHTML = `
-        <button type="button" class="rdl-detail-close-btn" id="btnCloseRdlDetail" title="Fechar detalhes">✕</button>
+        <button type="button" class="rdl-detail-close-btn" id="btnCloseRdlDetail" title="Fechar detalhes">×</button>
         <div class="rdl-detail-head">
           <span class="rdl-list-badge cat-${p.category || "atrativos"}">${p.num}</span>
           <div>
@@ -2171,11 +1965,8 @@
           ${emailLine}
         </div>
         <div class="rdl-detail-actions">
-          <button type="button" class="rdl-action-btn rdl-action-sv" data-open-sv-num="${p.num}">
-            🚶 Ver no Street View 360° (Nível da Rua)
-          </button>
           <a href="${gmapsHref}" target="_blank" rel="noopener noreferrer" class="rdl-action-btn rdl-action-gmaps">
-            🗺️ Abrir no Google Maps ↗
+            Abrir no Google Maps ↗
           </a>
           ${tourBtn}
         </div>
@@ -2188,12 +1979,6 @@
           renderSelectedDetail(null);
           updateDioramaPinStates();
           listBox.querySelectorAll("[data-card-num]").forEach(row => row.classList.remove("active"));
-        });
-      }
-      const svBtn = detailBox.querySelector("[data-open-sv-num]");
-      if (svBtn) {
-        svBtn.addEventListener("click", () => {
-          openRotaPointStreetView(Number(svBtn.getAttribute("data-open-sv-num")));
         });
       }
       const sceneBtn = detailBox.querySelector("[data-open-scene]");
@@ -2354,7 +2139,7 @@
         </div>
         <div class="sgc-body">
           <h4>${sc.placeMenuTitle || sc.title}</h4>
-          <p class="sgc-muni">📍 ${sc.municipality}</p>
+          <p class="sgc-muni">${sc.municipality}</p>
           <p class="sgc-desc">${sc.placeMenuDesc || sc.ecosystemSummary}</p>
         </div>
       </div>
@@ -2385,6 +2170,995 @@
     return pts;
   }
 
+  function escapeHtml(str) {
+    return String(str || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function normalizeRouteKey(keyOrNum) {
+    if (keyOrNum === null || keyOrNum === undefined) return "";
+    const s = String(keyOrNum).trim();
+    if (!s) return "";
+    if (s.startsWith("pt:") || s.startsWith("osm:")) return s;
+    if (/^\d+$/.test(s)) return `pt:${Number(s)}`;
+    return s;
+  }
+
+  function resolveRoutePoint(keyOrNum) {
+    const key = normalizeRouteKey(keyOrNum);
+    if (!key) return null;
+    if (key.startsWith("osm:") && state.aiPoiByKey && state.aiPoiByKey[key]) {
+      return state.aiPoiByKey[key];
+    }
+    const pts = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
+      ? window.ROTA_LUMIAR_DATA.points
+      : [];
+    const num = Number(key.replace(/^pt:/, ""));
+    const pt = pts.find(p => p.num === num);
+    if (!pt || typeof pt.lat !== "number" || typeof pt.lng !== "number") return null;
+    return {
+      key: `pt:${pt.num}`,
+      num: pt.num,
+      name: pt.name,
+      region: pt.region,
+      endereco: pt.endereco || pt.region,
+      lat: pt.lat,
+      lng: pt.lng,
+      source: "Rota Lumiar"
+    };
+  }
+
+  function getRouteSequenceItems() {
+    const seq = [];
+    const originItem = state.customRoute.origin ? resolveRoutePoint(state.customRoute.origin) : null;
+    const stopItems = (state.customRoute.waypoints || []).map(resolveRoutePoint).filter(Boolean);
+    const destItem = state.customRoute.destination ? resolveRoutePoint(state.customRoute.destination) : null;
+    if (originItem) seq.push({ role: "origin", label: "O", item: originItem });
+    stopItems.forEach((it, idx) => seq.push({ role: "stop", label: `P${idx + 1}`, idx, item: it }));
+    if (destItem) seq.push({ role: "destination", label: "D", item: destItem });
+    return seq;
+  }
+
+  function buildCustomGoogleMapsDirectionsUrl() {
+    const originItem = state.customRoute.origin ? resolveRoutePoint(state.customRoute.origin) : null;
+    let stopItems = (state.customRoute.waypoints || []).map(resolveRoutePoint).filter(Boolean);
+    let destItem = state.customRoute.destination ? resolveRoutePoint(state.customRoute.destination) : null;
+
+    if (!destItem && stopItems.length >= 1) {
+      destItem = stopItems[stopItems.length - 1];
+      stopItems = stopItems.slice(0, -1);
+    }
+    if (!destItem) return "";
+
+    const params = ["api=1", "travelmode=driving"];
+    if (originItem) {
+      params.push(`origin=${originItem.lat.toFixed(6)},${originItem.lng.toFixed(6)}`);
+    }
+    if (stopItems.length > 0) {
+      const wpStr = stopItems.map(it => `${it.lat.toFixed(6)},${it.lng.toFixed(6)}`).join("|");
+      params.push(`waypoints=${encodeURIComponent(wpStr)}`);
+    }
+    params.push(`destination=${destItem.lat.toFixed(6)},${destItem.lng.toFixed(6)}`);
+    return `https://www.google.com/maps/dir/?${params.join("&")}`;
+  }
+
+  function updateRouteQuickBadge() {
+    const btn = document.getElementById("btnScMapQuickRoute");
+    if (!btn) return;
+    const count = (state.customRoute.origin ? 1 : 0)
+      + state.customRoute.waypoints.length
+      + (state.customRoute.destination ? 1 : 0);
+    btn.textContent = `Minha Rota (${count})`;
+    btn.classList.toggle("active", count > 0);
+  }
+
+  function getPointRouteRoleFlags(keyOrNum) {
+    const key = normalizeRouteKey(keyOrNum);
+    const wpIdx = state.customRoute.waypoints.indexOf(key);
+    return {
+      isOrigin: state.customRoute.origin === key,
+      stopIndex: wpIdx,
+      isStop: wpIdx !== -1,
+      isDest: state.customRoute.destination === key
+    };
+  }
+
+  function refreshAllRouteViews() {
+    updateRouteQuickBadge();
+    renderCustomRoutePanel();
+    renderCustomRouteOnMap();
+
+    const sidebar = document.getElementById("scMapPointsSidebar");
+    if (sidebar) {
+      sidebar.querySelectorAll("[data-route-role]").forEach(btn => {
+        const key = normalizeRouteKey(btn.getAttribute("data-route-key"));
+        const role = btn.getAttribute("data-route-role");
+        const flags = getPointRouteRoleFlags(key);
+        if (role === "origin") {
+          btn.classList.toggle("is-active", flags.isOrigin);
+          btn.textContent = flags.isOrigin ? "Origem ✓" : "Origem";
+        } else if (role === "stop") {
+          btn.classList.toggle("is-active", flags.isStop);
+          btn.textContent = flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada";
+        } else if (role === "destination") {
+          btn.classList.toggle("is-active", flags.isDest);
+          btn.textContent = flags.isDest ? "Destino ✓" : "Destino";
+        }
+      });
+    }
+
+    if (state.leafletMarkers) {
+      const pts = getRotaPointsForMap("all");
+      Object.entries(state.leafletMarkers).forEach(([numStr, marker]) => {
+        const pt = pts.find(p => p.num === Number(numStr));
+        if (pt && marker && marker.getPopup && marker.getPopup()) {
+          marker.setPopupContent(buildRotaPointGooglePopupHTML(pt));
+        }
+      });
+    }
+  }
+
+  function setRoutePointRole(keyOrNum, role, focusRoutePanel) {
+    const item = resolveRoutePoint(keyOrNum);
+    if (!item) return false;
+    const key = item.key;
+
+    if (role === "origin") {
+      if (state.customRoute.origin === key) {
+        state.customRoute.origin = null;
+      } else {
+        state.customRoute.origin = key;
+        state.customRoute.waypoints = state.customRoute.waypoints.filter(k => k !== key);
+        if (state.customRoute.destination === key) state.customRoute.destination = null;
+      }
+    } else if (role === "destination") {
+      if (state.customRoute.destination === key) {
+        state.customRoute.destination = null;
+      } else {
+        state.customRoute.destination = key;
+        state.customRoute.waypoints = state.customRoute.waypoints.filter(k => k !== key);
+        if (state.customRoute.origin === key) state.customRoute.origin = null;
+      }
+    } else if (role === "stop") {
+      const idx = state.customRoute.waypoints.indexOf(key);
+      if (idx !== -1) {
+        state.customRoute.waypoints.splice(idx, 1);
+      } else {
+        if (state.customRoute.origin === key) state.customRoute.origin = null;
+        if (state.customRoute.destination === key) state.customRoute.destination = null;
+        state.customRoute.waypoints.push(key);
+      }
+    }
+
+    refreshAllRouteViews();
+    if (focusRoutePanel) {
+      const modal = document.getElementById("scMapModal");
+      if (modal && modal.classList.contains("split-mode")) {
+        applyScMapDisplayMode(false);
+      }
+      setTimeout(() => {
+        const panel = document.getElementById("scMapRoutePanel");
+        if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+    }
+    return true;
+  }
+
+  function moveRouteWaypoint(index, delta) {
+    const idx = Number(index);
+    const nextIdx = idx + Number(delta);
+    const list = state.customRoute.waypoints;
+    if (idx < 0 || idx >= list.length || nextIdx < 0 || nextIdx >= list.length) return false;
+    const tmp = list[idx];
+    list[idx] = list[nextIdx];
+    list[nextIdx] = tmp;
+    refreshAllRouteViews();
+    return true;
+  }
+
+  function removeRouteWaypoint(index) {
+    const idx = Number(index);
+    if (idx < 0 || idx >= state.customRoute.waypoints.length) return false;
+    state.customRoute.waypoints.splice(idx, 1);
+    refreshAllRouteViews();
+    return true;
+  }
+
+  function clearCustomRoute() {
+    state.customRoute.origin = null;
+    state.customRoute.waypoints = [];
+    state.customRoute.destination = null;
+    refreshAllRouteViews();
+    return true;
+  }
+
+  function applyItemsAsCustomRoute(itemKeys) {
+    const validItems = (itemKeys || []).map(resolveRoutePoint).filter(Boolean);
+    if (validItems.length === 0) return false;
+    state.customRoute.origin = null;
+    if (validItems.length === 1) {
+      state.customRoute.waypoints = [];
+      state.customRoute.destination = validItems[0].key;
+    } else {
+      state.customRoute.waypoints = validItems.slice(0, -1).map(it => it.key);
+      state.customRoute.destination = validItems[validItems.length - 1].key;
+    }
+    refreshAllRouteViews();
+    const seq = getRouteSequenceItems();
+    if (state.leafletMap && typeof window.L !== "undefined" && seq.length >= 2) {
+      const bounds = window.L.latLngBounds(seq.map(s => [s.item.lat, s.item.lng]));
+      state.leafletMap.stop();
+      state.leafletMap.fitBounds(bounds, { animate: false, padding: [50, 50], maxZoom: 15 });
+    }
+    const modal = document.getElementById("scMapModal");
+    if (modal && modal.classList.contains("split-mode")) {
+      applyScMapDisplayMode(false);
+    }
+    return true;
+  }
+
+  function renderCustomRouteOnMap() {
+    if (!state.leafletMap || typeof window.L === "undefined") return;
+    if (!state.leafletCustomRouteLayer) {
+      state.leafletCustomRouteLayer = window.L.layerGroup().addTo(state.leafletMap);
+    }
+    state.leafletCustomRouteLayer.clearLayers();
+
+    const seq = getRouteSequenceItems();
+    if (seq.length === 0) return;
+
+    if (seq.length >= 2) {
+      const latlngs = seq.map(s => [s.item.lat, s.item.lng]);
+      window.L.polyline(latlngs, {
+        renderer: state.leafletCanvasRenderer || undefined,
+        color: "#052e16",
+        weight: 7,
+        opacity: 0.85,
+        lineCap: "round",
+        lineJoin: "round",
+        smoothFactor: 1.5,
+        interactive: false
+      }).addTo(state.leafletCustomRouteLayer);
+
+      window.L.polyline(latlngs, {
+        renderer: state.leafletCanvasRenderer || undefined,
+        color: "#22c55e",
+        weight: 4.4,
+        opacity: 0.96,
+        dashArray: "10, 6",
+        lineCap: "round",
+        lineJoin: "round",
+        smoothFactor: 1.5,
+        interactive: false
+      }).addTo(state.leafletCustomRouteLayer);
+    }
+
+    seq.forEach(step => {
+      const cls = step.role === "origin"
+        ? "is-origin"
+        : (step.role === "destination" ? "is-dest" : "is-stop");
+      const badgeIcon = window.L.divIcon({
+        className: "gsat-route-badge-wrap",
+        iconSize: [24, 24],
+        iconAnchor: [12, 12],
+        html: `<div class="gsat-route-badge ${cls}" title="${escapeHtml(step.item.name)}">${step.label}</div>`
+      });
+      window.L.marker([step.item.lat, step.item.lng], {
+        icon: badgeIcon,
+        zIndexOffset: 1500
+      }).addTo(state.leafletCustomRouteLayer);
+    });
+  }
+
+  function renderCustomRoutePanel() {
+    const panel = document.getElementById("scMapRoutePanel");
+    if (!panel) return;
+
+    const basePts = getRotaPointsForMap("all");
+    const extraAiItems = Object.values(state.aiPoiByKey || {});
+    const allOptions = [
+      ...basePts.map(pt => ({ key: `pt:${pt.num}`, label: `${pt.num}. ${pt.name} (${pt.region})` })),
+      ...extraAiItems.map(it => ({ key: it.key, label: `${it.name} (Mapa IA)` }))
+    ];
+
+    const originItem = state.customRoute.origin ? resolveRoutePoint(state.customRoute.origin) : null;
+    const stopItems = (state.customRoute.waypoints || []).map(resolveRoutePoint).filter(Boolean);
+    const destItem = state.customRoute.destination ? resolveRoutePoint(state.customRoute.destination) : null;
+    const mapsUrl = buildCustomGoogleMapsDirectionsUrl();
+    const totalSelected = (originItem ? 1 : 0) + stopItems.length + (destItem ? 1 : 0);
+
+    panel.innerHTML = `
+      <div class="sc-route-header">
+        <div class="sc-route-title-wrap">
+          <span class="sc-route-title">Minha Rota no Maps</span>
+          <span class="sc-route-count-badge">${totalSelected} ponto(s)</span>
+        </div>
+        ${totalSelected > 0 ? `<button type="button" id="btnClearCustomRoute" class="sc-route-clear-btn">Limpar</button>` : ""}
+      </div>
+      <p class="sc-route-subtitle">Escolha paradas na ordem desejada e o destino final para abrir o trajeto pronto no Google Maps.</p>
+
+      <div class="sc-route-field">
+        <label class="sc-route-label" for="scRouteOriginSelect">Origem (opcional)</label>
+        <select id="scRouteOriginSelect" class="sc-route-select">
+          <option value="">Minha localização atual (GPS no Google Maps)</option>
+          ${allOptions.map(opt => `<option value="${escapeHtml(opt.key)}" ${state.customRoute.origin === opt.key ? "selected" : ""}>${escapeHtml(opt.label)}</option>`).join("")}
+        </select>
+      </div>
+
+      <div class="sc-route-field">
+        <span class="sc-route-label">Paradas intermediárias (${stopItems.length})</span>
+        <div id="scRouteStopsList" class="sc-route-stops-list">
+          ${stopItems.length === 0
+            ? `<div class="sc-route-empty">Nenhuma parada adicionada. Use "+ Parada" nos pontos abaixo.</div>`
+            : stopItems.map((it, idx) => `
+                <div class="sc-route-stop-item">
+                  <span class="sc-route-badge-p">P${idx + 1}</span>
+                  <span class="sc-route-stop-name" title="${escapeHtml(it.name)}">${escapeHtml(it.num ? `${it.num}. ${it.name}` : it.name)}</span>
+                  <span class="sc-route-stop-ctrls">
+                    <button type="button" class="sc-route-stop-ctrl" data-move-wp="${idx}" data-move-delta="-1" ${idx === 0 ? "disabled" : ""} title="Subir parada">↑</button>
+                    <button type="button" class="sc-route-stop-ctrl" data-move-wp="${idx}" data-move-delta="1" ${idx === stopItems.length - 1 ? "disabled" : ""} title="Descer parada">↓</button>
+                    <button type="button" class="sc-route-stop-ctrl" data-remove-wp="${idx}" title="Remover parada">×</button>
+                  </span>
+                </div>
+              `).join("")
+          }
+        </div>
+      </div>
+
+      <div class="sc-route-field">
+        <label class="sc-route-label" for="scRouteDestSelect">Destino final</label>
+        <select id="scRouteDestSelect" class="sc-route-select">
+          <option value="">Selecione o destino final...</option>
+          ${allOptions.map(opt => `<option value="${escapeHtml(opt.key)}" ${state.customRoute.destination === opt.key ? "selected" : ""}>${escapeHtml(opt.label)}</option>`).join("")}
+        </select>
+      </div>
+
+      <div class="sc-route-footer">
+        <a id="btnOpenCustomRouteMaps"
+          href="${mapsUrl || "#"}"
+          ${mapsUrl ? `target="_blank" rel="noopener noreferrer"` : ""}
+          class="sc-route-gmaps-btn ${mapsUrl ? "" : "is-disabled"}">
+          Abrir Rota no Google Maps
+        </a>
+        ${!destItem && stopItems.length > 0 ? `<div class="sc-route-subtitle">Sem destino explícito: a última parada será usada como destino no Maps.</div>` : ""}
+      </div>
+    `;
+
+    const clearBtn = document.getElementById("btnClearCustomRoute");
+    if (clearBtn) {
+      clearBtn.addEventListener("click", () => clearCustomRoute());
+    }
+    const originSel = document.getElementById("scRouteOriginSelect");
+    if (originSel) {
+      originSel.addEventListener("change", () => {
+        const val = originSel.value || null;
+        state.customRoute.origin = val;
+        if (val) {
+          state.customRoute.waypoints = state.customRoute.waypoints.filter(k => k !== val);
+          if (state.customRoute.destination === val) state.customRoute.destination = null;
+        }
+        refreshAllRouteViews();
+      });
+    }
+    const destSel = document.getElementById("scRouteDestSelect");
+    if (destSel) {
+      destSel.addEventListener("change", () => {
+        const val = destSel.value || null;
+        state.customRoute.destination = val;
+        if (val) {
+          state.customRoute.waypoints = state.customRoute.waypoints.filter(k => k !== val);
+          if (state.customRoute.origin === val) state.customRoute.origin = null;
+        }
+        refreshAllRouteViews();
+      });
+    }
+    panel.querySelectorAll("[data-move-wp]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        moveRouteWaypoint(Number(btn.getAttribute("data-move-wp")), Number(btn.getAttribute("data-move-delta")));
+      });
+    });
+    panel.querySelectorAll("[data-remove-wp]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        removeRouteWaypoint(Number(btn.getAttribute("data-remove-wp")));
+      });
+    });
+  }
+
+  // ===========================================================================
+  // BUSCA IA NO MAPA (SEMÂNTICA PT-BR + TRILHAS + OVERPASS OSM AO VIVO)
+  // ===========================================================================
+  const AI_STOPWORDS = new Set([
+    "quero", "queria", "preciso", "gostaria", "busco", "buscar", "procurar", "procura",
+    "encontrar", "onde", "tem", "algum", "alguma", "uma", "uns", "umas", "para", "pra",
+    "com", "sem", "fazer", "ir", "ver", "aqui", "perto", "mapa", "regiao", "rota", "ponto",
+    "pontos", "lugar", "lugares", "local", "locais", "tal", "coisa", "algo", "bom", "boa",
+    "melhor", "no", "na", "nos", "nas", "em", "de", "do", "da", "dos", "das", "por", "um"
+  ]);
+
+  const AI_INTENT_CLUSTERS = {
+    lunch_food: {
+      label: "Almoço e gastronomia típica",
+      keywords: [
+        "almoco", "almocar", "almoçar", "jantar", "janta", "comer", "comida", "refeicao",
+        "restaurante", "prato", "tipica", "alema", "caseira", "buffet", "marreco",
+        "eisbein", "spatzle", "churrasco", "petisco", "porcao", "bier", "cervejaria",
+        "lanche", "fome", "culinaria", "gastronomia"
+      ],
+      pointCategories: ["gastronomia"],
+      textBoosts: ["restaurante", "gastronomia", "alema", "tipica", "refeicao", "almoco", "cervejaria", "bier", "truffa", "schroeder"]
+    },
+    cafe_bakery: {
+      label: "Café colonial, cucas e compras artesanais",
+      keywords: [
+        "cafe", "colonial", "cuca", "torta", "bolo", "doce", "sobremesa", "chocolate",
+        "nugali", "artesanal", "pao", "paes", "geleia", "queijo", "mel", "produto",
+        "embutido", "compras", "confeitaria", "padaria", "sorvete"
+      ],
+      pointCategories: ["gastronomia", "compras"],
+      textBoosts: ["cafe", "colonial", "cuca", "chocolate", "queijo", "mel", "artesanal", "geleia", "produto"]
+    },
+    trail_nature: {
+      label: "Trilhas, caminhadas e natureza ao ar livre",
+      keywords: [
+        "trilha", "trilhas", "caminhada", "caminhar", "trekking", "hiking", "bike",
+        "cicloturismo", "bicicleta", "pedal", "pedalar", "natureza", "mata", "floresta",
+        "morro", "montanha", "mirante", "cachoeira", "rio", "parque", "passeio", "verde",
+        "ar livre", "eco", "tifa", "jeep", "aventura"
+      ],
+      pointCategories: ["atrativos"],
+      textBoosts: ["trilha", "natureza", "mirante", "montanha", "parque", "tifa", "passeio", "cachoeira", "jeep", "berghaus", "ciclo"]
+    },
+    lodging: {
+      label: "Pousadas e hospedagem no vale",
+      keywords: [
+        "pousada", "pousadas", "hotel", "chale", "hospedagem", "dormir", "ficar",
+        "pernoite", "hospedar", "acomodacao", "cabana"
+      ],
+      pointCategories: ["hospedagem"],
+      textBoosts: ["pousada", "hospedagem", "chale", "suite", "dormir", "refugio"]
+    },
+    heritage_culture: {
+      label: "Patrimônio cultural, enxaimel e pontos históricos",
+      keywords: [
+        "museu", "igreja", "patrimonio", "tombado", "enxaimel", "casa rux", "historia",
+        "historico", "cultura", "clube", "sociedade", "tiro", "atrativo", "360", "drone"
+      ],
+      pointCategories: ["atrativos"],
+      textBoosts: ["enxaimel", "tombado", "igreja", "museu", "casa rux", "sociedade", "histor"]
+    }
+  };
+
+  function parseAiSearchQuery(rawQuery) {
+    const cleanRaw = String(rawQuery || "").trim();
+    const norm = normalizeGeoText(cleanRaw);
+    const rawTokens = norm.split(/[^a-z0-9]+/).filter(Boolean);
+    const meaningfulTokens = rawTokens.filter(t => t.length >= 2 && !AI_STOPWORDS.has(t));
+
+    const intents = {};
+    Object.entries(AI_INTENT_CLUSTERS).forEach(([intentKey, cfg]) => {
+      const hit = cfg.keywords.some(kw => norm.includes(normalizeGeoText(kw)));
+      if (hit) intents[intentKey] = true;
+    });
+
+    let regionHint = null;
+    if (norm.includes("rio da luz") || norm.includes("jaragua")) regionHint = "rio_da_luz";
+    if (norm.includes("testo alto") || norm.includes("pomerode")) {
+      regionHint = regionHint ? null : "testo_alto";
+    }
+
+    return {
+      raw: cleanRaw,
+      norm,
+      tokens: meaningfulTokens,
+      intents,
+      regionHint
+    };
+  }
+
+  function scoreLocalPointsForAi(parsed) {
+    const pts = getRotaPointsForMap("all");
+    const activeIntentKeys = Object.keys(parsed.intents);
+    const scored = [];
+
+    pts.forEach(pt => {
+      const haystack = normalizeGeoText([
+        pt.name,
+        pt.category,
+        pt.region,
+        pt.description,
+        pt.atendimento,
+        pt.endereco
+      ].join(" "));
+
+      let score = 0;
+      const reasons = [];
+
+      activeIntentKeys.forEach(intentKey => {
+        const cfg = AI_INTENT_CLUSTERS[intentKey];
+        if (cfg.pointCategories.includes(pt.category)) {
+          score += 5;
+          reasons.push(cfg.label);
+        }
+        cfg.textBoosts.forEach(kw => {
+          if (haystack.includes(kw)) score += 3.5;
+        });
+      });
+
+      if (parsed.intents.lunch_food && pt.category === "gastronomia") {
+        score += 4;
+      }
+      if (parsed.intents.trail_nature && normalizeGeoText(pt.name).includes("trilha")) {
+        score += 12;
+        reasons.push("Trilha dedicada no mapa");
+      }
+
+      parsed.tokens.forEach(tok => {
+        if (normalizeGeoText(pt.name).includes(tok)) {
+          score += 9;
+          reasons.push(`Nome coincide com "${tok}"`);
+        } else if (haystack.includes(tok)) {
+          score += 4;
+        }
+      });
+
+      if (parsed.regionHint && pt.regionKey === parsed.regionHint) {
+        score += 5;
+      }
+
+      if (score >= 4) {
+        scored.push({
+          key: `pt:${pt.num}`,
+          num: pt.num,
+          name: pt.name,
+          category: pt.category,
+          region: pt.region,
+          endereco: pt.endereco || pt.region,
+          description: pt.description || "",
+          atendimento: pt.atendimento || "",
+          lat: pt.lat,
+          lng: pt.lng,
+          source: "Rota Lumiar",
+          isOsm: false,
+          score,
+          reasons: Array.from(new Set(reasons))
+        });
+      }
+    });
+
+    scored.sort((a, b) => b.score - a.score || a.num - b.num);
+    return scored.slice(0, 10);
+  }
+
+  function scoreLocalTrailsForAi(parsed) {
+    const trails = [];
+    const wantTrail = Boolean(parsed.intents.trail_nature) || parsed.tokens.some(t => ["trilha", "tifa", "estrada", "morro", "serra", "mirante"].includes(t));
+    if (!wantTrail) return trails;
+
+    const pts = getRotaPointsForMap("all");
+    const trilhaPt = pts.find(p => normalizeGeoText(p.name).includes("trilha"));
+    const trilhaNum = trilhaPt ? Number(trilhaPt.num) : 16;
+    if (Array.isArray(window.ROTA_LUMIAR_ROAD_LEGS) && (!parsed.regionHint || parsed.regionHint === "testo_alto")) {
+      const trilhaLegs = window.ROTA_LUMIAR_ROAD_LEGS.filter(l => Number(l.from) === trilhaNum || Number(l.to) === trilhaNum);
+      trilhaLegs.forEach((leg, i) => {
+        if (!Array.isArray(leg.coords) || leg.coords.length < 2) return;
+        trails.push({
+          id: `local_leg_${leg.from}_${leg.to}_${i}`,
+          name: `Acesso ${trilhaPt ? trilhaPt.name : "Trilha da Natureza"} (Trecho ${leg.from} - ${leg.to})`,
+          region: "Testo Alto — Pomerode",
+          coords: leg.coords,
+          source: "Rota Lumiar"
+        });
+      });
+    }
+
+    if (!parsed.regionHint || parsed.regionHint === "rio_da_luz") {
+      const extras = getMergedExtraStreets();
+      const matched = [];
+      extras.forEach((st, idx) => {
+        const normName = normalizeGeoText(st.name);
+        const isUnpaved = isUnpavedTrailName(st.name);
+        const isTifa = normName.includes("tifa") || normName.includes("trilha") || normName.includes("serra");
+        const tokenHit = parsed.tokens.some(t => t.length >= 3 && normName.includes(t));
+        if (isUnpaved || isTifa || tokenHit) {
+          matched.push({
+            id: `local_trail_${idx}`,
+            name: st.name || "Trilha / Estrada Rural",
+            region: trilhaPt ? "Vale do Rio da Luz (Estrada Rural / Tifa)" : "Vale do Rio da Luz",
+            coords: st.coords,
+            source: "Mapa Rio da Luz",
+            priority: isUnpaved ? 2 : 1
+          });
+        }
+      });
+      matched.sort((a, b) => b.priority - a.priority);
+      matched.slice(0, 7).forEach(m => trails.push(m));
+    }
+
+    return trails;
+  }
+
+  function queryOverpassForAi(parsed, reqId) {
+    if (typeof window.fetch !== "function") return;
+    const bbox = "-26.750,-49.245,-26.515,-49.120";
+    const clauses = [];
+
+    if (parsed.intents.lunch_food) {
+      clauses.push(`nwr["amenity"~"restaurant|fast_food|food_court|biergarten"](${bbox});`);
+    }
+    if (parsed.intents.cafe_bakery) {
+      clauses.push(`nwr["amenity"~"cafe|bakery|ice_cream"](${bbox});`);
+      clauses.push(`nwr["shop"~"chocolate|confectionery|bakery|farm"](${bbox});`);
+    }
+    if (parsed.intents.lodging) {
+      clauses.push(`nwr["tourism"~"guest_house|hotel|chalet|hostel|camp_site"](${bbox});`);
+    }
+    if (parsed.intents.heritage_culture) {
+      clauses.push(`nwr["tourism"~"museum|attraction|artwork|viewpoint"](${bbox});`);
+      clauses.push(`nwr["amenity"="place_of_worship"](${bbox});`);
+    }
+
+    let queryTrails = false;
+    if (parsed.intents.trail_nature) {
+      queryTrails = true;
+      clauses.push(`nwr["tourism"~"viewpoint|picnic_site|park"](${bbox});`);
+      clauses.push(`way["highway"~"path|track|footway|cycleway|bridleway"]["name"](${bbox});`);
+      clauses.push(`way["highway"~"path|track"](${bbox});`);
+    }
+
+    if (clauses.length === 0 && parsed.tokens.length > 0) {
+      const safeToken = parsed.tokens[0].replace(/[^a-z0-9]/g, "");
+      if (safeToken.length >= 3) {
+        clauses.push(`nwr["name"~"${safeToken}",i](${bbox});`);
+      }
+    }
+    if (clauses.length === 0) return;
+
+    const ql = `[out:json][timeout:4];(${clauses.join("")});${queryTrails ? "out geom 24;" : "out center 18;"}`;
+    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
+    const timer = controller ? setTimeout(() => controller.abort(), 3800) : null;
+
+    window.fetch("https://overpass-api.de/api/interpreter", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+      body: `data=${encodeURIComponent(ql)}`,
+      signal: controller ? controller.signal : undefined
+    })
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (timer) clearTimeout(timer);
+        if (!state.aiSearch.active || state.aiSearch.reqId !== reqId) return;
+        state.aiSearch.loadingOsm = false;
+        if (!data || !Array.isArray(data.elements)) {
+          renderAiResultsBox();
+          return;
+        }
+
+        const existingPts = getRotaPointsForMap("all");
+        const osmResults = [];
+        const osmTrails = [];
+        const seenNames = new Set(state.aiSearch.results.map(r => normalizeGeoText(r.name)));
+
+        data.elements.forEach(el => {
+          const tags = el.tags || {};
+          const isTrailWay = el.type === "way" && Array.isArray(el.geometry) && el.geometry.length >= 2 && /^(path|track|footway|cycleway|bridleway)$/.test(tags.highway || "");
+          if (isTrailWay) {
+            const coords = el.geometry.map(g => [g.lat, g.lon]);
+            const tName = tags.name || `Trilha / Caminho Rural (OSM #${el.id})`;
+            osmTrails.push({
+              id: `osm_way_${el.id}`,
+              name: tName,
+              region: tags.surface ? `OpenStreetMap (${tags.surface})` : "OpenStreetMap (Trilha/Caminho)",
+              coords,
+              source: "OSM Ao Vivo"
+            });
+            return;
+          }
+
+          const lat = typeof el.lat === "number" ? el.lat : (el.center && el.center.lat);
+          const lng = typeof el.lon === "number" ? el.lon : (el.center && el.center.lon);
+          if (typeof lat !== "number" || typeof lng !== "number" || !tags.name) return;
+
+          const normName = normalizeGeoText(tags.name);
+          if (seenNames.has(normName)) return;
+          const dupExisting = existingPts.some(p => Math.hypot(p.lat - lat, p.lng - lng) < 0.0007);
+          if (dupExisting) return;
+
+          seenNames.add(normName);
+          const poiKey = `osm:${el.type}_${el.id}`;
+          const poiObj = {
+            key: poiKey,
+            num: null,
+            name: tags.name,
+            category: tags.amenity || tags.tourism || tags.shop || "local",
+            region: tags["addr:suburb"] || tags["addr:city"] || "Rio da Luz / Testo Alto",
+            endereco: [tags["addr:street"], tags["addr:housenumber"]].filter(Boolean).join(", ") || "Mapa OpenStreetMap",
+            description: tags.cuisine ? `Especialidade: ${tags.cuisine}` : (tags.description || "Local encontrado ao vivo no OpenStreetMap."),
+            lat,
+            lng,
+            source: "OSM Ao Vivo",
+            isOsm: true
+          };
+          state.aiPoiByKey[poiKey] = poiObj;
+          osmResults.push(poiObj);
+        });
+
+        if (osmResults.length > 0) {
+          state.aiSearch.results = [...state.aiSearch.results, ...osmResults.slice(0, 6)];
+        }
+        if (osmTrails.length > 0) {
+          state.aiSearch.trails = [...state.aiSearch.trails, ...osmTrails.slice(0, 8)];
+        }
+        state.aiSearch.answer = buildAiSummaryText(parsed, state.aiSearch.results, state.aiSearch.trails, osmResults.length + osmTrails.length > 0);
+        renderAiResultsBox();
+        renderAiResultsOnMap(state.aiSearch.results.length + state.aiSearch.trails.length === 0 ? false : false);
+        updateAiSplitBanner();
+      })
+      .catch(() => {
+        if (timer) clearTimeout(timer);
+        if (!state.aiSearch.active || state.aiSearch.reqId !== reqId) return;
+        state.aiSearch.loadingOsm = false;
+        renderAiResultsBox();
+      });
+  }
+
+  function buildAiSummaryText(parsed, results, trails, hasOsm) {
+    const intentLabels = Object.keys(parsed.intents).map(k => AI_INTENT_CLUSTERS[k].label);
+    const topic = intentLabels.length > 0 ? intentLabels.join(" + ") : `busca "${parsed.raw}"`;
+    const osmNote = hasOsm ? " (incluindo locais/trilhas ao vivo do OpenStreetMap)" : "";
+    if (results.length === 0 && trails.length === 0) {
+      return `Nenhum ponto exato foi encontrado para "${parsed.raw}". Experimente termos como "quero almoçar", "fazer trilha", "café colonial" ou "mirante".`;
+    }
+    return `IA no Mapa (${topic}): destaquei ${results.length} local(is)${trails.length > 0 ? ` e ${trails.length} trilha(s)` : ""} no Google Satélite${osmNote}.`;
+  }
+
+  function updateAiSplitBanner() {
+    const banner = document.getElementById("scMapAiSplitBanner");
+    const textEl = document.getElementById("scMapAiSplitBannerText");
+    if (!banner || !textEl) return;
+    if (!state.aiSearch.active) {
+      banner.hidden = true;
+      textEl.textContent = "";
+      return;
+    }
+    banner.hidden = false;
+    textEl.textContent = state.aiSearch.answer;
+  }
+
+  function focusAiResultOnMap(keyOrCoords) {
+    if (!state.leafletMap || typeof window.L === "undefined") return;
+    const item = resolveRoutePoint(keyOrCoords);
+    if (!item) return;
+    state.leafletMap.stop();
+    state.leafletMap.setView([item.lat, item.lng], 16, { animate: false });
+    if (item.num && state.leafletMarkers && state.leafletMarkers[item.num]) {
+      setTimeout(() => state.leafletMarkers[item.num].openPopup(), 90);
+    }
+  }
+
+  function renderAiResultsOnMap(fitToResults) {
+    if (!state.leafletMap || typeof window.L === "undefined") return;
+    if (!state.leafletAiLayer) {
+      state.leafletAiLayer = window.L.layerGroup().addTo(state.leafletMap);
+    }
+    state.leafletAiLayer.clearLayers();
+    if (!state.aiSearch.active) return;
+
+    const boundsPts = [];
+
+    (state.aiSearch.trails || []).forEach(tr => {
+      if (!Array.isArray(tr.coords) || tr.coords.length < 2) return;
+      tr.coords.forEach(c => boundsPts.push(c));
+
+      window.L.polyline(tr.coords, {
+        renderer: state.leafletCanvasRenderer || undefined,
+        color: "#064e3b",
+        weight: 7,
+        opacity: 0.88,
+        lineCap: "round",
+        lineJoin: "round",
+        smoothFactor: 1.5,
+        interactive: false
+      }).addTo(state.leafletAiLayer);
+
+      const trailLine = window.L.polyline(tr.coords, {
+        renderer: state.leafletCanvasRenderer || undefined,
+        color: "#22d3ee",
+        weight: 4.2,
+        opacity: 0.96,
+        lineCap: "round",
+        lineJoin: "round",
+        smoothFactor: 1.5,
+        interactive: true
+      }).addTo(state.leafletAiLayer);
+
+      trailLine.bindPopup(`
+        <div style="min-width:190px;font-family:Inter,sans-serif;color:#0f172a;">
+          <div style="font-size:10px;font-weight:800;color:#0369a1;text-transform:uppercase;">${escapeHtml(tr.source)}</div>
+          <strong style="font-size:13px;display:block;margin:2px 0;">${escapeHtml(tr.name)}</strong>
+          <div style="font-size:11px;color:#475569;">${escapeHtml(tr.region || "")}</div>
+        </div>
+      `);
+    });
+
+    (state.aiSearch.results || []).forEach((item, idx) => {
+      boundsPts.push([item.lat, item.lng]);
+      const aiIcon = window.L.divIcon({
+        className: "gsat-ai-pin-wrap",
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -14],
+        html: `<div class="gsat-ai-pin" title="${escapeHtml(item.name)}">IA${idx + 1}</div>`
+      });
+      const marker = window.L.marker([item.lat, item.lng], {
+        icon: aiIcon,
+        zIndexOffset: 1200
+      }).addTo(state.leafletAiLayer);
+
+      const safeKey = escapeHtml(item.key);
+      const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+      marker.bindPopup(`
+        <div style="min-width:215px;font-family:Inter,sans-serif;color:#0f172a;">
+          <div style="font-size:10px;font-weight:800;color:#0284c7;text-transform:uppercase;">Resultado IA #${idx + 1} • ${escapeHtml(item.source)}</div>
+          <strong style="font-size:13.5px;display:block;margin:2px 0 4px 0;">${escapeHtml(item.num ? `${item.num}. ${item.name}` : item.name)}</strong>
+          <div style="font-size:11px;color:#475569;margin-bottom:5px;">${escapeHtml(item.endereco || item.region)}</div>
+          ${item.description ? `<p style="font-size:11px;color:#334155;margin:0 0 7px 0;line-height:1.35;">${escapeHtml(item.description)}</p>` : ""}
+          <div style="display:flex;gap:5px;flex-wrap:wrap;">
+            <button type="button" onclick="window.GeoSC360.setRoutePointRole('${safeKey}', 'stop')"
+              style="padding:5px 8px;background:#ea580c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">+ Parada</button>
+            <button type="button" onclick="window.GeoSC360.setRoutePointRole('${safeKey}', 'destination')"
+              style="padding:5px 8px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">Destino</button>
+            <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer"
+              style="padding:5px 8px;background:#1d4ed8;color:#fff;border-radius:6px;text-decoration:none;font-size:11px;font-weight:700;">Maps ↗</a>
+          </div>
+        </div>
+      `);
+    });
+
+    if (fitToResults && boundsPts.length > 0) {
+      const bounds = window.L.latLngBounds(boundsPts);
+      state.leafletMap.stop();
+      state.leafletMap.invalidateSize({ animate: false, pan: false });
+      state.leafletMap.fitBounds(bounds, { animate: false, padding: [52, 52], maxZoom: 15 });
+    }
+  }
+
+  function renderAiResultsBox() {
+    const box = document.getElementById("scMapAiResultsBox");
+    if (!box) return;
+    if (!state.aiSearch.active) {
+      box.hidden = true;
+      box.innerHTML = "";
+      return;
+    }
+    box.hidden = false;
+    const { results, trails, answer, loadingOsm } = state.aiSearch;
+    const routeKeys = results.slice(0, 5).map(r => r.key);
+
+    box.innerHTML = `
+      <div class="sc-ai-answer-header">
+        <span class="sc-ai-answer-title">Busca IA no Mapa</span>
+        <span class="sc-ai-answer-badge">${loadingOsm ? "Buscando OSM..." : `${results.length} locais`}</span>
+      </div>
+      <p class="sc-ai-answer-text">${escapeHtml(answer)}</p>
+      ${trails.length > 0 ? `
+        <div class="sc-ai-trail-list">
+          ${trails.slice(0, 6).map(t => `<span class="sc-ai-trail-chip">${escapeHtml(t.name)}</span>`).join("")}
+        </div>
+      ` : ""}
+      ${routeKeys.length > 0 ? `
+        <div class="sc-ai-answer-actions">
+          <button type="button" id="btnAiApplyAllRoute" class="sc-ai-apply-route-btn">Montar Rota com Resultados</button>
+        </div>
+      ` : ""}
+      <div class="sc-ai-results-list">
+        ${results.slice(0, 7).map((item, idx) => {
+          const flags = getPointRouteRoleFlags(item.key);
+          return `
+            <div class="sc-ai-result-card">
+              <div class="sc-ai-result-top">
+                <span class="sc-ai-result-title">${idx + 1}. ${escapeHtml(item.num ? `${item.num}. ${item.name}` : item.name)}</span>
+                <span class="sc-ai-source-tag ${item.isOsm ? "is-osm" : ""}">${escapeHtml(item.source)}</span>
+              </div>
+              <div class="sc-ai-result-meta">${escapeHtml(item.endereco || item.region)}</div>
+              ${item.description ? `<p class="sc-ai-result-desc">${escapeHtml(item.description.slice(0, 120))}${item.description.length > 120 ? "..." : ""}</p>` : ""}
+              <div class="sc-ai-result-actions">
+                <button type="button" class="sc-pt-act-btn" data-ai-focus="${escapeHtml(item.key)}">Ver no Mapa</button>
+                <button type="button" class="sc-pt-act-btn ${flags.isStop ? "is-active" : ""}" data-route-role="stop" data-route-key="${escapeHtml(item.key)}">${flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada"}</button>
+                <button type="button" class="sc-pt-act-btn is-dest ${flags.isDest ? "is-active" : ""}" data-route-role="destination" data-route-key="${escapeHtml(item.key)}">${flags.isDest ? "Destino ✓" : "Destino"}</button>
+              </div>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    `;
+
+    const applyBtn = document.getElementById("btnAiApplyAllRoute");
+    if (applyBtn) {
+      applyBtn.addEventListener("click", () => {
+        applyItemsAsCustomRoute(routeKeys);
+      });
+    }
+    box.querySelectorAll("[data-ai-focus]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        focusAiResultOnMap(btn.getAttribute("data-ai-focus"));
+      });
+    });
+    box.querySelectorAll("[data-route-role]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        setRoutePointRole(btn.getAttribute("data-route-key"), btn.getAttribute("data-route-role"));
+      });
+    });
+  }
+
+  function runMapAiSearch(queryText) {
+    const clean = String(queryText || "").trim();
+    const input = document.getElementById("scMapAiSearchInput");
+    if (input) input.value = clean;
+    if (!clean) {
+      clearMapAiSearch();
+      return null;
+    }
+
+    const parsed = parseAiSearchQuery(clean);
+    const localPts = scoreLocalPointsForAi(parsed);
+    const localTrails = scoreLocalTrailsForAi(parsed);
+    const reqId = (state.aiSearch.reqId || 0) + 1;
+
+    state.aiSearch = {
+      active: true,
+      query: clean,
+      answer: buildAiSummaryText(parsed, localPts, localTrails, false),
+      results: localPts,
+      trails: localTrails,
+      loadingOsm: true,
+      reqId
+    };
+
+    const clearBtn = document.getElementById("btnScMapAiClear");
+    if (clearBtn) clearBtn.hidden = false;
+
+    document.querySelectorAll("#scMapAiQuickChips [data-ai-query]").forEach(btn => {
+      const q = normalizeGeoText(btn.getAttribute("data-ai-query"));
+      btn.classList.toggle("active", q === parsed.norm);
+    });
+
+    if (activeScMapFilter === "pano360" && (localPts.some(p => p.num > 2) || localTrails.length > 0)) {
+      state.skipNextMapFitBounds = true;
+      renderFilteredSatelliteMarkers("all");
+    }
+
+    renderAiResultsBox();
+    renderAiResultsOnMap(true);
+    updateAiSplitBanner();
+    queryOverpassForAi(parsed, reqId);
+    return state.aiSearch;
+  }
+
+  function clearMapAiSearch() {
+    state.aiSearch = {
+      active: false,
+      query: "",
+      answer: "",
+      results: [],
+      trails: [],
+      loadingOsm: false,
+      reqId: (state.aiSearch.reqId || 0) + 1
+    };
+    const input = document.getElementById("scMapAiSearchInput");
+    if (input) input.value = "";
+    const clearBtn = document.getElementById("btnScMapAiClear");
+    if (clearBtn) clearBtn.hidden = true;
+    document.querySelectorAll("#scMapAiQuickChips .sc-ai-chip").forEach(btn => btn.classList.remove("active"));
+    renderAiResultsBox();
+    renderAiResultsOnMap(false);
+    updateAiSplitBanner();
+    return true;
+  }
+
   function buildRotaPointGooglePopupHTML(pt) {
     const linkedScene = pt.sceneId && window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes
       ? window.TOUR_SC_DATA.scenes[pt.sceneId]
@@ -2396,34 +3170,53 @@
     const gdirUrl = (linkedScene && linkedScene.googleDirectionsUrl)
       || `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
     const photoUrl = linkedScene ? (linkedScene.staticPhoto || linkedScene.thumbPhoto) : "";
+    const svAllowed = isPointStreetViewAvailable(pt);
+    const key = `pt:${pt.num}`;
+    const flags = getPointRouteRoleFlags(key);
 
     return `
-      <div style="min-width:235px;max-width:270px;font-family:Inter,sans-serif;color:#0f172a;">
-        ${photoUrl ? `<img src="${photoUrl}" alt="${pt.name}" style="width:100%;height:88px;object-fit:cover;border-radius:6px;margin-bottom:7px;display:block;" />` : ""}
-        <div style="font-size:10.5px;font-weight:800;color:#15803d;text-transform:uppercase;margin-bottom:2px;">Ponto ${pt.num} • ${pt.region}</div>
-        <strong style="font-size:14px;color:#0f172a;display:block;line-height:1.25;">${pt.num}. ${pt.name}</strong>
-        ${pt.description ? `<p style="font-size:11.5px;color:#334155;margin:5px 0;line-height:1.35;">${pt.description}</p>` : ""}
-        ${pt.endereco ? `<div style="font-size:11px;color:#475569;margin:2px 0;">📍 ${pt.endereco}</div>` : ""}
-        ${pt.atendimento ? `<div style="font-size:11px;color:#475569;margin:2px 0;">🕒 ${pt.atendimento}</div>` : ""}
-        ${pt.telefone ? `<div style="font-size:11px;color:#475569;margin:2px 0;">📞 ${pt.telefone}</div>` : ""}
+      <div style="min-width:240px;max-width:278px;font-family:Inter,sans-serif;color:#0f172a;">
+        ${photoUrl ? `<img src="${photoUrl}" alt="${escapeHtml(pt.name)}" style="width:100%;height:88px;object-fit:cover;border-radius:6px;margin-bottom:7px;display:block;" />` : ""}
+        <div style="font-size:10.5px;font-weight:800;color:#15803d;text-transform:uppercase;margin-bottom:2px;">Ponto ${pt.num} • ${escapeHtml(pt.region)}</div>
+        <strong style="font-size:14px;color:#0f172a;display:block;line-height:1.25;">${pt.num}. ${escapeHtml(pt.name)}</strong>
+        ${pt.description ? `<p style="font-size:11.5px;color:#334155;margin:5px 0;line-height:1.35;">${escapeHtml(pt.description)}</p>` : ""}
+        ${pt.endereco ? `<div style="font-size:11px;color:#475569;margin:2px 0;"><strong>Endereço:</strong> ${escapeHtml(pt.endereco)}</div>` : ""}
+        ${pt.atendimento ? `<div style="font-size:11px;color:#475569;margin:2px 0;"><strong>Horário:</strong> ${escapeHtml(pt.atendimento)}</div>` : ""}
+        ${pt.telefone ? `<div style="font-size:11px;color:#475569;margin:2px 0;"><strong>Tel.:</strong> ${escapeHtml(pt.telefone)}</div>` : ""}
         <div style="font-size:10.5px;color:#64748b;font-family:monospace;margin-top:3px;">GPS: ${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
-        <div style="display:flex;flex-direction:column;gap:5px;margin-top:8px;">
-          <button type="button" onclick="window.GeoSC360.openPointInSatelliteStreetView(${pt.num})"
-            style="width:100%;padding:7px 10px;background:#d97706;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11.5px;font-weight:800;">
-            🚶 Abrir Boneco Street View Aqui
+        <div style="display:flex;gap:5px;margin-top:8px;">
+          <button type="button" onclick="window.GeoSC360.setRoutePointRole('${key}', 'origin')"
+            style="flex:1;padding:6px 6px;background:${flags.isOrigin ? "#2563eb" : "#334155"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">
+            ${flags.isOrigin ? "Origem ✓" : "Origem"}
           </button>
+          <button type="button" onclick="window.GeoSC360.setRoutePointRole('${key}', 'stop')"
+            style="flex:1;padding:6px 6px;background:${flags.isStop ? "#ea580c" : "#334155"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">
+            ${flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada"}
+          </button>
+          <button type="button" onclick="window.GeoSC360.setRoutePointRole('${key}', 'destination')"
+            style="flex:1;padding:6px 6px;background:${flags.isDest ? "#dc2626" : "#334155"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">
+            ${flags.isDest ? "Destino ✓" : "Destino"}
+          </button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:5px;margin-top:7px;">
+          ${svAllowed ? `
+            <button type="button" onclick="window.GeoSC360.openPointInSatelliteStreetView(${pt.num})"
+              style="width:100%;padding:7px 10px;background:#d97706;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11.5px;font-weight:800;">
+              Street View (Rio da Luz)
+            </button>
+          ` : `<div style="font-size:11px;color:#64748b;font-weight:600;padding:3px 2px;">Street View não disponível.</div>`}
           <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer"
             style="display:block;text-align:center;padding:7px 10px;background:#1d4ed8;color:#fff;border-radius:6px;text-decoration:none;font-size:11.5px;font-weight:800;">
-            🗺️ Ir para o Google Maps ↗
+            Ir para o Google Maps ↗
           </a>
           <a href="${gdirUrl}" target="_blank" rel="noopener noreferrer"
             style="display:block;text-align:center;padding:6px 10px;background:#0f766e;color:#fff;border-radius:6px;text-decoration:none;font-size:11px;font-weight:700;">
-            🚗 Traçar Rota até Aqui ↗
+            Traçar Rota Direta até Aqui ↗
           </a>
           ${pt.sceneId ? `
             <button type="button" onclick="window.GeoSC360.goToScene('${pt.sceneId}', true, true)"
               style="width:100%;padding:6px 10px;background:#15803d;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11.5px;font-weight:800;">
-              🌐 Ver Panorama 360° Aqui
+              Ver Panorama 360° Aqui
             </button>
           ` : ""}
         </div>
@@ -2436,35 +3229,73 @@
     if (!sidebar) return;
 
     sidebar.innerHTML = `
+      <div id="scMapAiResultsBox" class="sc-ai-results-box" hidden></div>
+      <div id="scMapRoutePanel" class="sc-route-panel"></div>
       <div class="sc-sidebar-header">Pontos no Satélite (${pts.length}) • Clique para focar</div>
       ${pts.map(pt => {
         const numClass = pt.sceneId ? "is-360" : `cat-${pt.category || "atrativos"}`;
         const activeClass = pt.num === selectedNum ? "active" : "";
+        const key = `pt:${pt.num}`;
+        const flags = getPointRouteRoleFlags(key);
+        const svAllowed = isPointStreetViewAvailable(pt);
         return `
-          <button type="button" class="sc-sidebar-item ${activeClass}" data-map-pt-num="${pt.num}">
-            <span class="sc-sidebar-num ${numClass}">${pt.num}</span>
-            <span class="sc-sidebar-info">
-              <strong class="sc-sidebar-name">${pt.name}${pt.sceneId ? " 📷 360°" : ""}</strong>
-              <span class="sc-sidebar-sub">${pt.endereco || pt.region}</span>
-            </span>
-          </button>
+          <div class="sc-sidebar-card ${activeClass}" data-map-pt-num="${pt.num}">
+            <button type="button" class="sc-sidebar-item ${activeClass}" data-focus-pt-num="${pt.num}">
+              <span class="sc-sidebar-num ${numClass}">${pt.num}</span>
+              <span class="sc-sidebar-info">
+                <strong class="sc-sidebar-name">${escapeHtml(pt.name)}${pt.sceneId ? `<span class="sc-tag-360">360°</span>` : ""}</strong>
+                <span class="sc-sidebar-sub">${escapeHtml(pt.endereco || pt.region)}</span>
+              </span>
+            </button>
+            <div class="sc-sidebar-actions">
+              <button type="button" class="sc-pt-act-btn is-origin ${flags.isOrigin ? "is-active" : ""}" data-route-role="origin" data-route-key="${key}">${flags.isOrigin ? "Origem ✓" : "Origem"}</button>
+              <button type="button" class="sc-pt-act-btn ${flags.isStop ? "is-active" : ""}" data-route-role="stop" data-route-key="${key}">${flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada"}</button>
+              <button type="button" class="sc-pt-act-btn is-dest ${flags.isDest ? "is-active" : ""}" data-route-role="destination" data-route-key="${key}">${flags.isDest ? "Destino ✓" : "Destino"}</button>
+              ${svAllowed
+                ? `<button type="button" class="sc-pt-act-btn is-sv" data-sv-pt-num="${pt.num}">Street View</button>`
+                : `<span class="sc-sv-unavailable-note">Street View não disponível.</span>`
+              }
+            </div>
+          </div>
         `;
       }).join("")}
     `;
 
-    sidebar.querySelectorAll("[data-map-pt-num]").forEach(btn => {
+    renderAiResultsBox();
+    renderCustomRoutePanel();
+
+    sidebar.querySelectorAll("[data-focus-pt-num]").forEach(btn => {
       btn.addEventListener("click", () => {
-        const num = Number(btn.getAttribute("data-map-pt-num"));
+        const num = Number(btn.getAttribute("data-focus-pt-num"));
         const pt = pts.find(p => p.num === num);
         if (!pt) return;
-        sidebar.querySelectorAll(".sc-sidebar-item").forEach(el => el.classList.remove("active"));
+        sidebar.querySelectorAll(".sc-sidebar-card, .sc-sidebar-item").forEach(el => el.classList.remove("active"));
         btn.classList.add("active");
+        const card = btn.closest(".sc-sidebar-card");
+        if (card) card.classList.add("active");
 
         const marker = state.leafletMarkers && state.leafletMarkers[num];
         if (state.leafletMap && marker) {
-          state.leafletMap.flyTo([pt.lat, pt.lng], pt.sceneId ? 16.5 : 15.5, { duration: 0.65 });
-          setTimeout(() => marker.openPopup(), 260);
+          state.leafletMap.stop();
+          state.leafletMap.setView([pt.lat, pt.lng], pt.sceneId ? 17 : 16, { animate: false });
+          setTimeout(() => marker.openPopup(), 80);
         }
+      });
+    });
+
+    sidebar.querySelectorAll("[data-route-role]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        const key = btn.getAttribute("data-route-key");
+        const role = btn.getAttribute("data-route-role");
+        setRoutePointRole(key, role);
+      });
+    });
+
+    sidebar.querySelectorAll("[data-sv-pt-num]").forEach(btn => {
+      btn.addEventListener("click", e => {
+        e.stopPropagation();
+        openPointInSatelliteStreetView(Number(btn.getAttribute("data-sv-pt-num")));
       });
     });
   }
@@ -2518,6 +3349,7 @@
 
     if (!state.leafletFovPolygon) {
       state.leafletFovPolygon = window.L.polygon(coneCoords, {
+        renderer: state.leafletCanvasRenderer || undefined,
         color: "#fde047",
         weight: 1.6,
         opacity: 0.82,
@@ -2552,7 +3384,7 @@
     if (!modal || !modal.classList.contains("open") || !state.leafletMap || !scene || !scene.coordinates) {
       return;
     }
-    state.leafletMap.panTo([scene.coordinates.lat, scene.coordinates.lng], { animate: true });
+    state.leafletMap.panTo([scene.coordinates.lat, scene.coordinates.lng], { animate: false });
     updateLiveSatelliteRadar(true);
   }
 
@@ -2584,12 +3416,19 @@
 
     const isSvBlueActive = Boolean(state.isSatSvCoverageVisible || state.isSatSvDropMode || state.isDraggingPegman);
     const outerRoadColor = isSvBlueActive ? "#0369a1" : "#0f172a";
-    const outerRoadWeight = isSvBlueActive ? 7.5 : 6;
+    const outerRoadWeight = isSvBlueActive ? 7.2 : 5.6;
     const innerRoadColor = isSvBlueActive ? "#38bdf8" : "#f59e0b";
-    const innerRoadWeight = isSvBlueActive ? 4.4 : 3.4;
+    const innerRoadWeight = isSvBlueActive ? 4.2 : 3.2;
 
     if (Array.isArray(window.ROTA_LUMIAR_ROAD_LEGS) && window.ROTA_LUMIAR_ROAD_LEGS.length > 0) {
       const visibleLegs = window.ROTA_LUMIAR_ROAD_LEGS.filter(leg => {
+        if (isSvBlueActive) {
+          if (leg.fromRegion !== "rio_da_luz" || leg.toRegion !== "rio_da_luz") return false;
+          if (UNCOVERED_ROTA_POINT_NUMS.has(Number(leg.from)) || UNCOVERED_ROTA_POINT_NUMS.has(Number(leg.to))) {
+            return false;
+          }
+          return true;
+        }
         if (activeScMapFilter === "rio_da_luz") {
           return leg.fromRegion === "rio_da_luz" && leg.toRegion === "rio_da_luz";
         }
@@ -2601,19 +3440,23 @@
       visibleLegs.forEach(leg => {
         if (!Array.isArray(leg.coords) || leg.coords.length < 2) return;
         window.L.polyline(leg.coords, {
+          renderer: state.leafletCanvasRenderer || undefined,
           color: outerRoadColor,
           weight: outerRoadWeight,
           opacity: isSvBlueActive ? 0.92 : 0.78,
           lineCap: "round",
           lineJoin: "round",
+          smoothFactor: 1.5,
           interactive: false
         }).addTo(state.leafletMarkersLayer);
         const innerLine = window.L.polyline(leg.coords, {
+          renderer: state.leafletCanvasRenderer || undefined,
           color: innerRoadColor,
           weight: innerRoadWeight,
           opacity: 0.98,
           lineCap: "round",
           lineJoin: "round",
+          smoothFactor: 1.5,
           interactive: isSvBlueActive
         }).addTo(state.leafletMarkersLayer);
         if (isSvBlueActive) {
@@ -2626,32 +3469,39 @@
       });
     } else if (mapPts.length >= 2) {
       window.L.polyline(mapPts.map(p => [p.lat, p.lng]), {
+        renderer: state.leafletCanvasRenderer || undefined,
         color: innerRoadColor,
         weight: 3,
-        opacity: 0.85
+        opacity: 0.85,
+        smoothFactor: 1.5
       }).addTo(state.leafletMarkersLayer);
     }
 
     if (isSvBlueActive) {
-      const extraStreets = Array.isArray(window.RIO_DA_LUZ_EXTRA_STREETS) && window.RIO_DA_LUZ_EXTRA_STREETS.length > 0
-        ? window.RIO_DA_LUZ_EXTRA_STREETS
-        : RIO_DA_LUZ_EXTRA_STREETS;
-      extraStreets.forEach(st => {
+      const coveredStreets = getMergedExtraStreets().filter(st => {
+        if (isUnpavedTrailName(st.name)) return false;
+        return st.coords.some(c => isWithinRioDaLuzSvBounds(c[0], c[1]));
+      });
+      coveredStreets.forEach(st => {
         if (!Array.isArray(st.coords) || st.coords.length < 2) return;
         window.L.polyline(st.coords, {
+          renderer: state.leafletCanvasRenderer || undefined,
           color: "#0369a1",
           weight: 7,
           opacity: 0.9,
           lineCap: "round",
           lineJoin: "round",
+          smoothFactor: 1.5,
           interactive: false
         }).addTo(state.leafletMarkersLayer);
         const extraLine = window.L.polyline(st.coords, {
+          renderer: state.leafletCanvasRenderer || undefined,
           color: "#38bdf8",
           weight: 4.2,
           opacity: 0.96,
           lineCap: "round",
           lineJoin: "round",
+          smoothFactor: 1.5,
           interactive: true
         }).addTo(state.leafletMarkersLayer);
         extraLine.on("click", ev => {
@@ -2666,7 +3516,7 @@
           className: "gsat-sv-photosphere-wrap",
           iconSize: [16, 16],
           iconAnchor: [8, 8],
-          html: `<div class="gsat-sv-photosphere-dot" title="Ponto 360° Street View: ${sp.label}"></div>`
+          html: `<div class="gsat-sv-photosphere-dot" title="Ponto 360° Street View: ${escapeHtml(sp.label)}"></div>`
         });
         const dotMarker = window.L.marker([sp.lat, sp.lng], {
           icon: dotIcon,
@@ -2681,13 +3531,13 @@
     mapPts.forEach(pt => {
       let icon;
       if (pt.sceneId) {
-        const shortBadge = pt.num === 1 ? "🏠 1. Casa Rux 360°" : "🏡 2. Schroeder Platz 360°";
+        const shortBadge = pt.num === 1 ? "1. Casa Rux 360°" : "2. Schroeder Platz 360°";
         icon = window.L.divIcon({
           className: "gsat-pin-wrapper",
           iconSize: [0, 0],
           iconAnchor: [0, 0],
           popupAnchor: [0, -38],
-          html: `<div class="gsat-pin-badge" title="${pt.num}. ${pt.name}">${shortBadge}</div>`
+          html: `<div class="gsat-pin-badge" title="${pt.num}. ${escapeHtml(pt.name)}">${shortBadge}</div>`
         });
       } else {
         const catClass = `cat-${pt.category || "atrativos"}`;
@@ -2696,7 +3546,7 @@
           iconSize: [0, 0],
           iconAnchor: [0, 0],
           popupAnchor: [0, -16],
-          html: `<div class="gsat-num-pin ${catClass}" title="${pt.num}. ${pt.name}">${pt.num}</div>`
+          html: `<div class="gsat-num-pin ${catClass}" title="${pt.num}. ${escapeHtml(pt.name)}">${pt.num}</div>`
         });
       }
 
@@ -2705,19 +3555,23 @@
         zIndexOffset: pt.sceneId ? 600 : 100 + (30 - pt.num)
       }).addTo(state.leafletMarkersLayer);
 
-      marker.bindPopup(buildRotaPointGooglePopupHTML(pt), { maxWidth: 290 });
+      marker.bindPopup(buildRotaPointGooglePopupHTML(pt), { maxWidth: 300 });
       marker.on("click", () => {
-        const sidebarBtn = document.querySelector(`#scMapPointsSidebar [data-map-pt-num="${pt.num}"]`);
-        if (sidebarBtn) {
-          document.querySelectorAll("#scMapPointsSidebar .sc-sidebar-item").forEach(el => el.classList.remove("active"));
-          sidebarBtn.classList.add("active");
-          sidebarBtn.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        const sidebarCard = document.querySelector(`#scMapPointsSidebar [data-map-pt-num="${pt.num}"]`);
+        const sidebarItem = sidebarCard ? sidebarCard.querySelector(".sc-sidebar-item") : null;
+        if (sidebarCard) {
+          document.querySelectorAll("#scMapPointsSidebar .sc-sidebar-card, #scMapPointsSidebar .sc-sidebar-item").forEach(el => el.classList.remove("active"));
+          sidebarCard.classList.add("active");
+          if (sidebarItem) sidebarItem.classList.add("active");
+          sidebarCard.scrollIntoView({ block: "nearest", behavior: "smooth" });
         }
       });
       state.leafletMarkers[pt.num] = marker;
     });
 
     if (!state.skipNextMapFitBounds) {
+      state.leafletMap.stop();
+      state.leafletMap.invalidateSize({ animate: false, pan: false });
       if (activeScMapFilter === "pano360") {
         const curScene = window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes
           ? window.TOUR_SC_DATA.scenes[state.currentSceneId]
@@ -2726,6 +3580,7 @@
           state.leafletMap.setView([curScene.coordinates.lat, curScene.coordinates.lng], 16, { animate: false });
         } else if (focusPts.length > 0) {
           state.leafletMap.fitBounds(window.L.latLngBounds(focusPts.map(p => [p.lat, p.lng])), {
+            animate: false,
             padding: [50, 50],
             maxZoom: 16
           });
@@ -2733,6 +3588,7 @@
       } else if (focusPts.length > 0) {
         const bounds = window.L.latLngBounds(focusPts.map(p => [p.lat, p.lng]));
         state.leafletMap.fitBounds(bounds, {
+          animate: false,
           padding: [42, 42],
           maxZoom: 15
         });
@@ -2740,6 +3596,12 @@
     }
     state.skipNextMapFitBounds = false;
 
+    renderCustomRouteOnMap();
+    if (state.aiSearch.active) {
+      renderAiResultsOnMap(false);
+    }
+    updateRouteQuickBadge();
+    updateAiSplitBanner();
     updateLiveSatelliteRadar(true);
   }
 
@@ -2758,62 +3620,83 @@
       state.leafletMap = window.L.map("leafletSCMap", {
         center: [-26.5385, -49.1465],
         zoom: 16,
-        maxZoom: 21
+        maxZoom: 20,
+        preferCanvas: true,
+        fadeAnimation: false,
+        markerZoomAnimation: false
       });
 
+      state.leafletCanvasRenderer = window.L.canvas({ padding: 0.5 });
+
       const emptyPng = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
-      const esriWorldImagery = window.L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-        {
-          maxZoom: 21,
-          maxNativeZoom: 19,
-          attribution: "Imagens © Satélite • Rota Lumiar (GeoSC 360°)"
-        }
-      );
-      const esriTransportation = window.L.tileLayer(
-        "https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Transportation/MapServer/tile/{z}/{y}/{x}",
-        {
-          maxZoom: 21,
-          maxNativeZoom: 19
-        }
-      );
-      const googleHybrid = window.L.tileLayer(
+      let googleSatLoaded = 0;
+      let googleSatFailed = 0;
+      state.usingFallbackSatellite = false;
+
+      state.leafletSatelliteLayer = window.L.tileLayer(
         "https://mt{s}.google.com/vt/lyrs=y&hl=pt-BR&x={x}&y={y}&z={z}",
         {
           subdomains: ["0", "1", "2", "3"],
-          maxZoom: 21,
-          errorTileUrl: emptyPng,
+          maxZoom: 20,
+          maxNativeZoom: 20,
+          keepBuffer: 4,
+          updateWhenIdle: false,
+          updateWhenZooming: false,
           attribution: "Imagens © Google Satélite • Rota Lumiar (GeoSC 360°)"
         }
-      );
-      const googleSatelliteOnly = window.L.tileLayer(
-        "https://mt{s}.google.com/vt/lyrs=s&hl=pt-BR&x={x}&y={y}&z={z}",
+      ).addTo(state.leafletMap);
+
+      state.leafletFallbackSatelliteLayer = window.L.tileLayer(
+        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
         {
-          subdomains: ["0", "1", "2", "3"],
-          maxZoom: 21,
-          errorTileUrl: emptyPng,
-          attribution: "Imagens © Google Satélite"
-        }
-      );
-      const googleStreets = window.L.tileLayer(
-        "https://mt{s}.google.com/vt/lyrs=m&hl=pt-BR&x={x}&y={y}&z={z}",
-        {
-          subdomains: ["0", "1", "2", "3"],
-          maxZoom: 21,
-          errorTileUrl: emptyPng,
-          attribution: "© Google Maps"
+          maxZoom: 20,
+          maxNativeZoom: 18,
+          keepBuffer: 4,
+          updateWhenIdle: false,
+          updateWhenZooming: false,
+          attribution: "Imagens © Esri Satélite • Rota Lumiar (GeoSC 360°)"
         }
       );
 
-      esriWorldImagery.addTo(state.leafletMap);
-      esriTransportation.addTo(state.leafletMap);
-      googleHybrid.addTo(state.leafletMap);
+      function maybeSwitchToFallbackSatellite() {
+        if (state.usingFallbackSatellite || googleSatLoaded > 0 || googleSatFailed < 2 || !state.leafletMap) return;
+        state.usingFallbackSatellite = true;
+        if (state.leafletMap.hasLayer(state.leafletSatelliteLayer)) {
+          state.leafletMap.removeLayer(state.leafletSatelliteLayer);
+        }
+        if (!state.leafletMap.hasLayer(state.leafletFallbackSatelliteLayer)) {
+          state.leafletFallbackSatelliteLayer.addTo(state.leafletMap);
+          state.leafletFallbackSatelliteLayer.bringToBack();
+        }
+      }
 
-      window.L.control.layers({
-        "🛰️ Google Satélite (Híbrido)": googleHybrid,
-        "🌍 Google Satélite Puro": googleSatelliteOnly,
-        "🗺️ Google Mapa de Ruas": googleStreets
-      }).addTo(state.leafletMap);
+      state.leafletSatelliteLayer.on("tileload", ev => {
+        if (ev && ev.tile && ev.tile.naturalWidth >= 128) {
+          googleSatLoaded++;
+        } else {
+          googleSatFailed++;
+          maybeSwitchToFallbackSatellite();
+        }
+      });
+      state.leafletSatelliteLayer.on("tileerror", () => {
+        googleSatFailed++;
+        maybeSwitchToFallbackSatellite();
+      });
+
+      state.leafletSvvLayer = window.L.tileLayer(
+        "https://mt{s}.google.com/vt/lyrs=svv&hl=pt-BR&x={x}&y={y}&z={z}",
+        {
+          subdomains: ["0", "1", "2", "3"],
+          maxZoom: 20,
+          maxNativeZoom: 20,
+          opacity: 0.75,
+          zIndex: 450,
+          errorTileUrl: emptyPng
+        }
+      );
+
+      state.leafletCustomRouteLayer = window.L.layerGroup().addTo(state.leafletMap);
+      state.leafletAiLayer = window.L.layerGroup().addTo(state.leafletMap);
 
       state.leafletMap.on("dragstart zoomstart", () => {
         state.isLeafletMapPanning = true;
@@ -2835,6 +3718,10 @@
           dropPegmanAtLatLng(e.latlng.lat, e.latlng.lng);
         } else if (state.isSatStreetViewOpen) {
           const snapped = snapToSatelliteStreetViewSpot(e.latlng.lat, e.latlng.lng);
+          if (!snapped.inCoverage) {
+            triggerRioDaLuzCoverageLimitReturn(snapped);
+            return;
+          }
           setSatelliteStreetViewLocation(snapped.lat, snapped.lng, snapped.heading, snapped.pitch, snapped.label, snapped.spotId);
         }
       });
@@ -2842,14 +3729,14 @@
     }
 
     bindScMapQuickButtons();
-    state.leafletMap.invalidateSize();
+    state.leafletMap.invalidateSize({ animate: false, pan: false });
     renderFilteredSatelliteMarkers(activeScMapFilter);
   }
 
   const SAT_SV_SPOTS = {
     estrada_vale: {
       id: "estrada_vale",
-      label: "🛣️ Estrada Rio da Luz (R. Eurico Duwe, 3672)",
+      label: "Estrada Rio da Luz (R. Eurico Duwe, 3672)",
       shortLabel: "R. Eurico Duwe — Bairro Rio da Luz",
       lat: -26.53915,
       lng: -49.14815,
@@ -2858,7 +3745,7 @@
     },
     casa_rux_patio: {
       id: "casa_rux_patio",
-      label: "🏛️ Casa Rux 1915 (Pátio 360° • Acervo GeoLab UDESC)",
+      label: "Casa Rux 1915 (Pátio 360° • Acervo GeoLab UDESC)",
       shortLabel: "Casa Rux 1915 (Pátio 360°)",
       lat: -26.53617,
       lng: -49.14234,
@@ -2867,7 +3754,7 @@
     },
     estrada_rux: {
       id: "estrada_rux",
-      label: "🚴 Estrada Casa Rux (R. Erwin Rux, 663 / JGS-489)",
+      label: "Estrada Casa Rux (R. Erwin Rux, 663 / JGS-489)",
       shortLabel: "R. Erwin Rux, 663 — Casa Rux",
       lat: -26.5363,
       lng: -49.1430,
@@ -2876,7 +3763,7 @@
     },
     schroeder_patio: {
       id: "schroeder_patio",
-      label: "🏡 Schroeder Platz (Pátio 360° • Acervo GeoLab UDESC)",
+      label: "Schroeder Platz (Pátio 360° • Acervo GeoLab UDESC)",
       shortLabel: "Schroeder Platz (Pátio 360°)",
       lat: -26.5384678,
       lng: -49.1486893,
@@ -2885,7 +3772,7 @@
     }
   };
 
-  // Ruas e conexões adicionais do Bairro Rio da Luz e entorno imediato (Barra do Rio Cerro / Rio Cerro I)
+  // Ruas e conexões adicionais do Bairro Rio da Luz e entorno imediato
   const RIO_DA_LUZ_EXTRA_STREETS = [
     {
       name: "R. Eurico Duwe (Acesso Norte • Bairro Rio da Luz)",
@@ -2915,7 +3802,7 @@
       ]
     },
     {
-      name: "R. Pastor Albert Schneider (Conexão Rio da Luz ↔ SC-110)",
+      name: "R. Pastor Albert Schneider (Conexão Rio da Luz - SC-110)",
       region: "rio_da_luz",
       coords: [
         [-26.531624, -49.139106],
@@ -2954,6 +3841,72 @@
     }
   ];
 
+  const RIO_DA_LUZ_SV_BOUNDS = {
+    minLat: -26.605,
+    maxLat: -26.518,
+    minLng: -49.215,
+    maxLng: -49.131
+  };
+  const UNCOVERED_ROTA_POINT_NUMS = new Set([8, 11, 12, 14]);
+  const UNPAVED_TRAIL_TOKENS = [
+    "estrada hugo kohn",
+    "estrada tifa blank",
+    "estrada ademar laube",
+    "estrada erico oto hornburg",
+    "jgs 467",
+    "osvaldo ehlert"
+  ];
+
+  function normalizeGeoText(str) {
+    return String(str || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function isWithinRioDaLuzSvBounds(lat, lng) {
+    if (typeof lat !== "number" || typeof lng !== "number") return false;
+    return (
+      lat >= RIO_DA_LUZ_SV_BOUNDS.minLat &&
+      lat <= RIO_DA_LUZ_SV_BOUNDS.maxLat &&
+      lng >= RIO_DA_LUZ_SV_BOUNDS.minLng &&
+      lng <= RIO_DA_LUZ_SV_BOUNDS.maxLng
+    );
+  }
+
+  function isUnpavedTrailName(name) {
+    const norm = normalizeGeoText(name);
+    if (!norm) return false;
+    return UNPAVED_TRAIL_TOKENS.some(tok => norm.includes(tok));
+  }
+
+  function isPointStreetViewAvailable(pt) {
+    if (!pt || pt.regionKey !== "rio_da_luz") return false;
+    if (UNCOVERED_ROTA_POINT_NUMS.has(Number(pt.num))) return false;
+    return isWithinRioDaLuzSvBounds(pt.lat, pt.lng);
+  }
+
+  function getMergedExtraStreets() {
+    const ext = Array.isArray(window.RIO_DA_LUZ_EXTRA_STREETS) ? window.RIO_DA_LUZ_EXTRA_STREETS : [];
+    const seen = new Set();
+    const out = [];
+    [...ext, ...RIO_DA_LUZ_EXTRA_STREETS].forEach(st => {
+      if (!st || !Array.isArray(st.coords) || st.coords.length < 2) return;
+      const first = st.coords[0];
+      const key = `${normalizeGeoText(st.name)}|${first[0].toFixed(4)},${first[1].toFixed(4)}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      out.push(st);
+    });
+    return out;
+  }
+
+  function getUnpavedTrailSegments() {
+    return getMergedExtraStreets().filter(st => isUnpavedTrailName(st.name));
+  }
+
   function getLegStreetName(leg) {
     if (!leg) return "Estrada do Bairro Rio da Luz";
     const f = Number(leg.from);
@@ -2961,59 +3914,40 @@
     if ((f === 1 && t === 2) || (f === 2 && t === 3)) return "R. Erwin Rux (JGS-489) / R. Eurico Duwe — Bairro Rio da Luz";
     if (f >= 3 && f <= 5) return "R. Eurico Duwe — Bairro Rio da Luz";
     if (f === 6 || f === 7) return "R. Ricardo Fritzke / R. Eurico Duwe — Bairro Rio da Luz";
-    if (f === 8 || f === 9) return "R. Eurico Duwe (Sociedade Guarany / Centenário) — Rio da Luz";
+    if (f === 8 || f === 9) return "R. Eurico Duwe — Bairro Rio da Luz";
     if (f === 10) return "Rod. Mun. JGS-503 — Bairro Rio da Luz";
     if (f >= 11 && f <= 13) return "R. Eurico Duwe (Rio da Luz Vitória) — Bairro Rio da Luz";
-    if (f === 14) return "Estrada Rio da Luz ↔ Testo Alto";
+    if (f === 14) return "Estrada Rio da Luz - Testo Alto";
     return "Rua Testo Alto — Rota Lumiar";
   }
 
   function getAllStreetViewRoadSegments() {
     const list = [];
-    const extraStreets = Array.isArray(window.RIO_DA_LUZ_EXTRA_STREETS) && window.RIO_DA_LUZ_EXTRA_STREETS.length > 0
-      ? window.RIO_DA_LUZ_EXTRA_STREETS
-      : RIO_DA_LUZ_EXTRA_STREETS;
-    extraStreets.forEach(st => {
-      if (st && Array.isArray(st.coords) && st.coords.length >= 2) {
+    getMergedExtraStreets().forEach(st => {
+      if (isUnpavedTrailName(st.name)) return;
+      const hasInBoundsCoord = st.coords.some(c => isWithinRioDaLuzSvBounds(c[0], c[1]));
+      if (hasInBoundsCoord) {
         list.push(st);
       }
     });
     if (Array.isArray(window.ROTA_LUMIAR_ROAD_LEGS)) {
       window.ROTA_LUMIAR_ROAD_LEGS.forEach(leg => {
-        if (leg && Array.isArray(leg.coords) && leg.coords.length >= 2) {
-          list.push({
-            name: getLegStreetName(leg),
-            region: leg.fromRegion || "rio_da_luz",
-            coords: leg.coords
-          });
-        }
+        if (!leg || !Array.isArray(leg.coords) || leg.coords.length < 2) return;
+        const fromN = Number(leg.from);
+        const toN = Number(leg.to);
+        if (leg.fromRegion !== "rio_da_luz" || leg.toRegion !== "rio_da_luz") return;
+        if (UNCOVERED_ROTA_POINT_NUMS.has(fromN) || UNCOVERED_ROTA_POINT_NUMS.has(toN)) return;
+        list.push({
+          name: getLegStreetName(leg),
+          region: "rio_da_luz",
+          coords: leg.coords
+        });
       });
     }
     return list;
   }
 
-  function snapToSatelliteStreetViewSpot(rawLat, rawLng) {
-    const patioSpots = [
-      SAT_SV_SPOTS.casa_rux_patio,
-      SAT_SV_SPOTS.schroeder_patio
-    ];
-    for (const sp of patioSpots) {
-      const d = Math.hypot(rawLat - sp.lat, rawLng - sp.lng);
-      if (d < 0.00024) {
-        return {
-          lat: sp.lat,
-          lng: sp.lng,
-          heading: sp.heading,
-          pitch: sp.pitch,
-          label: sp.label,
-          shortLabel: sp.shortLabel || sp.label,
-          spotId: sp.id,
-          isOverRoad: true,
-          dist: d
-        };
-      }
-    }
-
+  function findClosestRoadHit(rawLat, rawLng, roadList) {
     const cosLat = Math.max(0.2, Math.cos(rawLat * DEG2RAD));
     let bestLat = rawLat;
     let bestLng = rawLng;
@@ -3021,9 +3955,9 @@
     let bestDist = Infinity;
     let bestStreetName = "Rua do Bairro Rio da Luz";
 
-    const roadList = getAllStreetViewRoadSegments();
-    roadList.forEach(road => {
+    (roadList || []).forEach(road => {
       const coords = road.coords;
+      if (!Array.isArray(coords) || coords.length < 2) return;
       for (let i = 0; i < coords.length - 1; i++) {
         const aLat = coords[i][0];
         const aLng = coords[i][1];
@@ -3056,51 +3990,152 @@
       }
     });
 
-    // Verifica se está próximo a algum dos 26 pontos da Rota Lumiar para enriquecer o nome da rua
-    const pts = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
-      ? window.ROTA_LUMIAR_DATA.points
-      : [];
-    let nearestPt = null;
-    let nearestPtDist = Infinity;
-    pts.forEach(pt => {
-      const d = Math.hypot(bestLat - pt.lat, (bestLng - pt.lng) * cosLat);
-      if (d < nearestPtDist) {
-        nearestPtDist = d;
-        nearestPt = pt;
-      }
-    });
+    return {
+      lat: bestLat,
+      lng: bestLng,
+      heading: Math.round(bestHeading),
+      dist: bestDist,
+      streetName: bestStreetName
+    };
+  }
 
-    if (nearestPt && nearestPtDist < 0.00085) {
-      const addr = nearestPt.endereco || bestStreetName;
-      bestStreetName = `${addr} (Próx. ${nearestPt.num}. ${nearestPt.name})`;
-    }
-
-    // Se o usuário soltou em cima ou perto de uma rua conhecida do Rio da Luz (~160m), faz snap para o eixo da rua
-    if (bestDist < 0.0015) {
+  function snapToSatelliteStreetViewSpot(rawLat, rawLng) {
+    if (!isWithinRioDaLuzSvBounds(rawLat, rawLng)) {
       return {
-        lat: Number(bestLat.toFixed(6)),
-        lng: Number(bestLng.toFixed(6)),
-        heading: Math.round(bestHeading),
+        lat: Number(rawLat.toFixed(6)),
+        lng: Number(rawLng.toFixed(6)),
+        heading: 0,
         pitch: 2,
-        label: `🛣️ ${bestStreetName}`,
-        shortLabel: bestStreetName,
+        label: "Fora dos limites cobertos do Rio da Luz",
+        shortLabel: "Fora do Rio da Luz",
         spotId: "",
-        isOverRoad: bestDist < 0.00085,
-        dist: bestDist
+        isOverRoad: false,
+        inCoverage: false,
+        reason: "out_of_bounds",
+        dist: Infinity
       };
     }
 
-    // Caso tenha soltado em outra rua azul do mapa mais afastada do eixo principal
+    const patioSpots = [
+      SAT_SV_SPOTS.casa_rux_patio,
+      SAT_SV_SPOTS.schroeder_patio
+    ];
+    for (const sp of patioSpots) {
+      const d = Math.hypot(rawLat - sp.lat, rawLng - sp.lng);
+      if (d < 0.00024) {
+        return {
+          lat: sp.lat,
+          lng: sp.lng,
+          heading: sp.heading,
+          pitch: sp.pitch,
+          label: sp.label,
+          shortLabel: sp.shortLabel || sp.label,
+          spotId: sp.id,
+          isOverRoad: true,
+          inCoverage: true,
+          dist: d
+        };
+      }
+    }
+
+    const cosLat = Math.max(0.2, Math.cos(rawLat * DEG2RAD));
+    const pts = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
+      ? window.ROTA_LUMIAR_DATA.points
+      : [];
+
+    let nearestRawPt = null;
+    let nearestRawDist = Infinity;
+    pts.forEach(pt => {
+      if (typeof pt.lat !== "number" || typeof pt.lng !== "number") return;
+      const d = Math.hypot(rawLat - pt.lat, (rawLng - pt.lng) * cosLat);
+      if (d < nearestRawDist) {
+        nearestRawDist = d;
+        nearestRawPt = pt;
+      }
+    });
+
+    if (nearestRawPt && nearestRawDist < 0.0006 && !isPointStreetViewAvailable(nearestRawPt)) {
+      return {
+        lat: Number(rawLat.toFixed(6)),
+        lng: Number(rawLng.toFixed(6)),
+        heading: 0,
+        pitch: 2,
+        label: `Street View não disponível (${nearestRawPt.num}. ${nearestRawPt.name})`,
+        shortLabel: "Street View não disponível",
+        spotId: "",
+        isOverRoad: false,
+        inCoverage: false,
+        reason: "uncovered_point",
+        point: nearestRawPt,
+        dist: nearestRawDist
+      };
+    }
+
+    const coveredHit = findClosestRoadHit(rawLat, rawLng, getAllStreetViewRoadSegments());
+    const unpavedHit = findClosestRoadHit(rawLat, rawLng, getUnpavedTrailSegments());
+
+    if (unpavedHit.dist < 0.00045 && unpavedHit.dist <= coveredHit.dist) {
+      return {
+        lat: Number(rawLat.toFixed(6)),
+        lng: Number(rawLng.toFixed(6)),
+        heading: unpavedHit.heading,
+        pitch: 2,
+        label: `Estrada rural sem cobertura Street View (${unpavedHit.streetName})`,
+        shortLabel: "Estrada sem Street View",
+        spotId: "",
+        isOverRoad: false,
+        inCoverage: false,
+        reason: "unpaved_trail",
+        streetName: unpavedHit.streetName,
+        dist: unpavedHit.dist
+      };
+    }
+
+    let bestStreetName = coveredHit.streetName;
+    let nearestSnapPt = null;
+    let nearestSnapPtDist = Infinity;
+    pts.forEach(pt => {
+      if (!isPointStreetViewAvailable(pt)) return;
+      const d = Math.hypot(coveredHit.lat - pt.lat, (coveredHit.lng - pt.lng) * cosLat);
+      if (d < nearestSnapPtDist) {
+        nearestSnapPtDist = d;
+        nearestSnapPt = pt;
+      }
+    });
+
+    if (nearestSnapPt && nearestSnapPtDist < 0.00085) {
+      const addr = nearestSnapPt.endereco || bestStreetName;
+      bestStreetName = `${addr} (Próx. ${nearestSnapPt.num}. ${nearestSnapPt.name})`;
+    }
+
+    // Snap apenas dentro de vias pavimentadas cobertas do Bairro Rio da Luz (~130m)
+    if (coveredHit.dist < 0.0012 && isWithinRioDaLuzSvBounds(coveredHit.lat, coveredHit.lng)) {
+      return {
+        lat: Number(coveredHit.lat.toFixed(6)),
+        lng: Number(coveredHit.lng.toFixed(6)),
+        heading: coveredHit.heading,
+        pitch: 2,
+        label: bestStreetName,
+        shortLabel: bestStreetName,
+        spotId: "",
+        isOverRoad: coveredHit.dist < 0.00085,
+        inCoverage: true,
+        dist: coveredHit.dist
+      };
+    }
+
     return {
       lat: Number(rawLat.toFixed(6)),
       lng: Number(rawLng.toFixed(6)),
-      heading: Math.round(bestHeading),
+      heading: 0,
       pitch: 2,
-      label: `🛣️ Rua selecionada no Street View (GPS ${rawLat.toFixed(4)}, ${rawLng.toFixed(4)})`,
-      shortLabel: `Rua no Satélite (${rawLat.toFixed(4)}, ${rawLng.toFixed(4)})`,
+      label: "Sem dados do Street View neste ponto",
+      shortLabel: "Sem dados do Street View",
       spotId: "",
-      isOverRoad: true,
-      dist: bestDist
+      isOverRoad: false,
+      inCoverage: false,
+      reason: "off_road",
+      dist: coveredHit.dist
     };
   }
 
@@ -3110,6 +4145,14 @@
     state.isSatSvCoverageVisible = nextVis;
 
     if (state.leafletMap && typeof window.L !== "undefined") {
+      if (state.leafletSvvLayer) {
+        const hasSvv = state.leafletMap.hasLayer(state.leafletSvvLayer);
+        if (nextVis && !hasSvv) {
+          state.leafletSvvLayer.addTo(state.leafletMap);
+        } else if (!nextVis && hasSvv) {
+          state.leafletMap.removeLayer(state.leafletSvvLayer);
+        }
+      }
       if (!nextVis) {
         removeLeafletSvSnapRing();
       }
@@ -3173,6 +4216,76 @@
     }
   }
 
+  function executeRioDaLuzReturnNow() {
+    if (state.rioDaLuzLimitTimer) {
+      clearTimeout(state.rioDaLuzLimitTimer);
+      state.rioDaLuzLimitTimer = null;
+    }
+    const alertEl = document.getElementById("rioDaLuzLimitAlert");
+    if (alertEl) alertEl.hidden = true;
+    const iframe = document.getElementById("satStreetViewIframe");
+    if (iframe) iframe.setAttribute("src", "about:blank");
+    closeAuxiliaryDrawers();
+    closeSplitModal();
+    if (typeof loadScene === "function") {
+      loadScene("vale_tombado_04", false);
+    }
+    syncModalUiState();
+  }
+
+  function triggerRioDaLuzCoverageLimitReturn(context) {
+    if (state.rioDaLuzLimitTimer) {
+      clearTimeout(state.rioDaLuzLimitTimer);
+      state.rioDaLuzLimitTimer = null;
+    }
+    state.isDraggingPegman = false;
+    setSatelliteStreetViewDropMode(false);
+    setSatelliteStreetViewCoverageVisible(false);
+    hidePegmanDragOverlay();
+
+    // Garante que o iframe preto do Street View nunca permaneca aberto fora de cobertura
+    const modal = document.getElementById("scMapModal");
+    const pane = document.getElementById("scMapStreetViewPane");
+    const iframe = document.getElementById("satStreetViewIframe");
+    if (iframe) iframe.setAttribute("src", "about:blank");
+    if (state.isSatStreetViewOpen) {
+      state.isSatStreetViewOpen = false;
+      if (modal) modal.classList.remove("sv-open", "sv-maximized");
+      if (pane) pane.hidden = true;
+    }
+
+    const alertEl = document.getElementById("rioDaLuzLimitAlert");
+    const titleEl = document.getElementById("rdlLimitAlertTitle");
+    const msgEl = document.getElementById("rdlLimitAlertMessage");
+
+    const pt = context && context.point ? context.point : null;
+    const reason = (context && context.reason) || "out_of_bounds";
+    if (titleEl) {
+      titleEl.textContent = "Não há dados do Street View disponíveis neste ponto";
+    }
+    if (msgEl) {
+      if (pt) {
+        msgEl.textContent = `O ponto ${pt.num}. ${pt.name} (${pt.region}) está fora da cobertura do Google Street View do Bairro Rio da Luz. Retornando para a primeira página...`;
+      } else if (reason === "unpaved_trail") {
+        const nm = (context && context.streetName) ? ` (${context.streetName})` : "";
+        msgEl.textContent = `Esta estrada rural ou trilha sem pavimentação${nm} não possui dados no Google Street View. Retornando para a primeira página...`;
+      } else if (reason === "off_road") {
+        msgEl.textContent = "Este ponto fora da via pública não possui dados do Google Street View dentro da área coberta do Rio da Luz. Retornando para a primeira página...";
+      } else {
+        msgEl.textContent = "Não há dados do Street View disponíveis fora dos limites cobertos do Bairro Rio da Luz. Retornando para a primeira página...";
+      }
+    }
+
+    if (alertEl) {
+      alertEl.hidden = false;
+    }
+    syncModalUiState();
+
+    state.rioDaLuzLimitTimer = setTimeout(() => {
+      executeRioDaLuzReturnNow();
+    }, 2800);
+  }
+
   function updatePegmanDragOverlayAtClient(clientX, clientY, tiltDeg) {
     const overlay = document.getElementById("satPegmanDragOverlay");
     const bodyEl = document.getElementById("satPegmanDanglingBody");
@@ -3205,10 +4318,13 @@
     if (!isInsideMap) {
       overlay.style.transform = `translate3d(${Math.round(clientX)}px, ${Math.round(clientY)}px, 0)`;
       if (greenCircle) {
-        greenCircle.classList.remove("is-over-road");
+        greenCircle.classList.remove("is-over-road", "is-out-of-coverage");
         greenCircle.style.transform = "translate3d(0px, 0px, 0) scale(0.95)";
       }
-      if (pill) pill.textContent = "Arraste o boneco amarelo até uma rua azul do Rio da Luz";
+      if (pill) {
+        pill.classList.remove("is-out-of-coverage");
+        pill.textContent = "Arraste o boneco amarelo até uma rua azul do Rio da Luz";
+      }
       removeLeafletSvSnapRing();
       return null;
     }
@@ -3227,27 +4343,36 @@
     // Atração magnética suave do conjunto (Boneco + Círculo Verde alinhado sob os pés) para o eixo da rua azul
     let magX = 0;
     let magY = 0;
-    if (snapped.isOverRoad && pixelDist <= 36) {
+    if (snapped.inCoverage && snapped.isOverRoad && pixelDist <= 36) {
       magX = Math.max(-12, Math.min(12, dxSnap * 0.65));
       magY = Math.max(-12, Math.min(12, dySnap * 0.65));
     }
     overlay.style.transform = `translate3d(${Math.round(clientX + magX)}px, ${Math.round(clientY + magY)}px, 0)`;
 
+    const outOfCoverage = !snapped.inCoverage;
     if (greenCircle) {
-      const sc = snapped.isOverRoad ? 1.12 : 0.96;
-      greenCircle.classList.toggle("is-over-road", Boolean(snapped.isOverRoad));
+      const sc = (snapped.inCoverage && snapped.isOverRoad) ? 1.12 : 0.96;
+      greenCircle.classList.toggle("is-over-road", Boolean(snapped.inCoverage && snapped.isOverRoad));
+      greenCircle.classList.toggle("is-out-of-coverage", outOfCoverage);
       greenCircle.style.transform = `translate3d(0px, 0px, 0) scale(${sc})`;
     }
     if (pill) {
-      pill.textContent = `🟢 Solte na rua: ${snapped.shortLabel || snapped.label}`;
+      pill.classList.toggle("is-out-of-coverage", outOfCoverage);
+      pill.textContent = outOfCoverage
+        ? "Sem dados do Street View fora da área coberta do Rio da Luz"
+        : `Solte na rua: ${snapped.shortLabel || snapped.label}`;
     }
-    updateLeafletSvSnapRing(snapped.lat, snapped.lng, Boolean(snapped.isOverRoad));
+    updateLeafletSvSnapRing(snapped.lat, snapped.lng, Boolean(snapped.inCoverage && snapped.isOverRoad));
     return snapped;
   }
 
   function hidePegmanDragOverlay() {
     const overlay = document.getElementById("satPegmanDragOverlay");
     if (overlay) overlay.hidden = true;
+    const greenCircle = document.getElementById("satPegmanGreenCircle");
+    if (greenCircle) greenCircle.classList.remove("is-over-road", "is-out-of-coverage");
+    const pill = document.getElementById("satPegmanDragPill");
+    if (pill) pill.classList.remove("is-out-of-coverage");
     removeLeafletSvSnapRing();
   }
 
@@ -3256,6 +4381,10 @@
     state.isDraggingPegman = false;
     setSatelliteStreetViewDropMode(false);
     hidePegmanDragOverlay();
+    if (!snapped.inCoverage) {
+      triggerRioDaLuzCoverageLimitReturn(snapped);
+      return snapped;
+    }
     toggleSatelliteStreetView(true, {
       id: snapped.spotId || "",
       label: snapped.label,
@@ -3275,7 +4404,7 @@
         iconSize: [44, 52],
         iconAnchor: [22, 46],
         html: `
-          <div class="gsat-pegman-pin" title="Boneco Street View — Arraste para qualquer rua do Rio da Luz!">
+          <div class="gsat-pegman-pin" title="Boneco Street View — Arraste para qualquer rua do Rio da Luz">
             <div class="gsat-pegman-pulse"></div>
             <div class="gsat-pegman-figure">
               <svg viewBox="0 0 24 24" width="28" height="28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -3326,7 +4455,7 @@
       appBtn.setAttribute("href", appUrl);
     }
     if (statusText) {
-      statusText.textContent = label || "🛣️ Street View 360° • Clique em Street View novamente para voltar ao mapa e jogar em outra rua";
+      statusText.textContent = label || "Street View 360° • Clique em Street View novamente para voltar ao mapa e jogar em outra rua";
     }
     if (coordsText) {
       coordsText.textContent = `GPS: ${Number(lat).toFixed(5)}, ${Number(lng).toFixed(5)}`;
@@ -3338,7 +4467,7 @@
 
     ensureLeafletPegmanMarker(lat, lng);
     if (state.leafletMap) {
-      state.leafletMap.panTo([lat, lng], { animate: true });
+      state.leafletMap.panTo([lat, lng], { animate: false });
     }
   }
 
@@ -3355,6 +4484,8 @@
     if (!nextOpen) {
       modal.classList.remove("sv-maximized");
       hidePegmanDragOverlay();
+      const iframe = document.getElementById("satStreetViewIframe");
+      if (iframe) iframe.setAttribute("src", "about:blank");
       if (state.leafletPegmanMarker && state.leafletMap && state.leafletMap.hasLayer(state.leafletPegmanMarker)) {
         state.leafletMap.removeLayer(state.leafletPegmanMarker);
       }
@@ -3378,9 +4509,10 @@
 
     if (state.leafletMap) {
       setTimeout(() => {
-        state.leafletMap.invalidateSize();
+        if (state.leafletMap) state.leafletMap.invalidateSize({ animate: false, pan: false });
       }, 150);
     }
+    syncModalUiState();
   }
 
   function openPointInSatelliteStreetView(pointNum) {
@@ -3388,25 +4520,38 @@
       ? window.ROTA_LUMIAR_DATA.points
       : [];
     const pt = pts.find(p => p.num === Number(pointNum));
+    if (!pt) {
+      const modal = document.getElementById("scMapModal");
+      if (!modal || !modal.classList.contains("open")) openScMapModal(true);
+      setTimeout(() => toggleSatelliteStreetView(true), 180);
+      return;
+    }
+
+    if (!isPointStreetViewAvailable(pt)) {
+      triggerRioDaLuzCoverageLimitReturn({ reason: "uncovered_point", point: pt });
+      return;
+    }
+
+    const snapped = snapToSatelliteStreetViewSpot(pt.lat, pt.lng);
+    if (!snapped.inCoverage) {
+      triggerRioDaLuzCoverageLimitReturn({ reason: snapped.reason || "uncovered_point", point: pt });
+      return;
+    }
+
     const modal = document.getElementById("scMapModal");
     if (!modal || !modal.classList.contains("open")) {
       openScMapModal(true);
     }
 
     setTimeout(() => {
-      if (!pt) {
-        toggleSatelliteStreetView(true);
-        return;
-      }
       if (pt.num === 1) {
         toggleSatelliteStreetView(true, SAT_SV_SPOTS.casa_rux_patio);
       } else if (pt.num === 2) {
         toggleSatelliteStreetView(true, SAT_SV_SPOTS.schroeder_patio);
       } else {
-        const snapped = snapToSatelliteStreetViewSpot(pt.lat, pt.lng);
         toggleSatelliteStreetView(true, {
           id: "",
-          label: `📍 ${pt.num}. ${pt.name} (${pt.endereco || pt.region})`,
+          label: `${pt.num}. ${pt.name} (${pt.endereco || pt.region})`,
           lat: snapped.lat,
           lng: snapped.lng,
           heading: snapped.heading,
@@ -3617,6 +4762,76 @@
       });
     });
 
+    const quickRouteBtn = document.getElementById("btnScMapQuickRoute");
+    if (quickRouteBtn && !quickRouteBtn.dataset.bound) {
+      quickRouteBtn.dataset.bound = "true";
+      quickRouteBtn.addEventListener("click", () => {
+        const modal = document.getElementById("scMapModal");
+        if (modal && modal.classList.contains("split-mode")) {
+          applyScMapDisplayMode(false);
+        }
+        setTimeout(() => {
+          const panel = document.getElementById("scMapRoutePanel");
+          if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 120);
+      });
+    }
+
+    const aiForm = document.getElementById("formScMapAiSearch");
+    if (aiForm && !aiForm.dataset.bound) {
+      aiForm.dataset.bound = "true";
+      aiForm.addEventListener("submit", e => {
+        e.preventDefault();
+        const input = document.getElementById("scMapAiSearchInput");
+        const val = input ? input.value.trim() : "";
+        if (val) {
+          runMapAiSearch(val);
+        } else {
+          clearMapAiSearch();
+        }
+      });
+    }
+
+    const aiClearBtn = document.getElementById("btnScMapAiClear");
+    if (aiClearBtn && !aiClearBtn.dataset.bound) {
+      aiClearBtn.dataset.bound = "true";
+      aiClearBtn.addEventListener("click", () => {
+        clearMapAiSearch();
+      });
+    }
+
+    document.querySelectorAll("#scMapAiQuickChips [data-ai-query]").forEach(btn => {
+      if (btn.dataset.bound) return;
+      btn.dataset.bound = "true";
+      btn.addEventListener("click", () => {
+        const q = btn.getAttribute("data-ai-query") || btn.textContent || "";
+        runMapAiSearch(q);
+      });
+    });
+
+    const aiOpenSidebarBtn = document.getElementById("btnScMapAiOpenSidebar");
+    if (aiOpenSidebarBtn && !aiOpenSidebarBtn.dataset.bound) {
+      aiOpenSidebarBtn.dataset.bound = "true";
+      aiOpenSidebarBtn.addEventListener("click", () => {
+        const modal = document.getElementById("scMapModal");
+        if (modal && modal.classList.contains("split-mode")) {
+          applyScMapDisplayMode(false);
+        }
+        setTimeout(() => {
+          const box = document.getElementById("scMapAiResultsBox");
+          if (box) box.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 120);
+      });
+    }
+
+    const limitReturnNowBtn = document.getElementById("btnRdlLimitReturnNow");
+    if (limitReturnNowBtn && !limitReturnNowBtn.dataset.bound) {
+      limitReturnNowBtn.dataset.bound = "true";
+      limitReturnNowBtn.addEventListener("click", () => {
+        executeRioDaLuzReturnNow();
+      });
+    }
+
     bindGlobalPegmanDragListeners();
 
     ["btnSatFloatingPegman", "btnToggleSatStreetView"].forEach(id => {
@@ -3660,7 +4875,7 @@
     const list = pts || getRotaPointsForMap(activeScMapFilter);
     container.innerHTML = `
       <div style="padding:18px;color:#fff;background:#10231c;height:100%;overflow:auto;">
-        <h4 style="margin-bottom:10px;">🛰️ Pontos Georreferenciados no Google — Rota Lumiar (${list.length} pontos):</h4>
+        <h4 style="margin-bottom:10px;">Pontos Georreferenciados no Google — Rota Lumiar (${list.length} pontos):</h4>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:10px;">
           ${list.map(pt => {
             const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${pt.lat},${pt.lng}`;
@@ -3798,8 +5013,8 @@
         const box = document.getElementById("edExportJsonTextarea");
         box.select();
         navigator.clipboard.writeText(box.value).catch(() => {});
-        btnCopyJson.textContent = "✅ JSON Copiado para a Área de Transferência!";
-        setTimeout(() => { btnCopyJson.textContent = "📋 Gerar & Copiar Código JSON da Cena"; }, 2500);
+        btnCopyJson.textContent = "JSON Copiado para a Área de Transferência!";
+        setTimeout(() => { btnCopyJson.textContent = "Gerar & Copiar Código JSON da Cena"; }, 2500);
       });
     }
   }
@@ -3864,11 +5079,40 @@
       buildRioDaLuzIllustratedMap();
       openDrawer("rdlIllustratedModal");
     },
-    openStreetView: function () {
-      openCurrentSceneStreetView();
+    openScMap: function (splitMode = false) {
+      openScMapModal(Boolean(splitMode));
     },
-    openRotaPointStreetView: function (num) {
-      openRotaPointStreetView(num);
+    syncModalUiState: function () {
+      syncModalUiState();
+    },
+    setRoutePointRole: function (pointKey, role, focusRoutePanel = false) {
+      return setRoutePointRole(pointKey, role, focusRoutePanel);
+    },
+    moveRouteWaypoint: function (index, delta) {
+      return moveRouteWaypoint(index, delta);
+    },
+    removeRouteWaypoint: function (index) {
+      return removeRouteWaypoint(index);
+    },
+    clearCustomRoute: function () {
+      return clearCustomRoute();
+    },
+    applyItemsAsCustomRoute: function (itemKeys) {
+      return applyItemsAsCustomRoute(itemKeys);
+    },
+    getCustomRouteState: function () {
+      return {
+        origin: state.customRoute.origin,
+        waypoints: [...state.customRoute.waypoints],
+        destination: state.customRoute.destination,
+        mapsUrl: buildCustomGoogleMapsDirectionsUrl()
+      };
+    },
+    runMapAiSearch: function (queryText) {
+      return runMapAiSearch(queryText);
+    },
+    clearMapAiSearch: function () {
+      return clearMapAiSearch();
     },
     openPointInSatelliteStreetView: function (num) {
       openPointInSatelliteStreetView(num);
@@ -3881,6 +5125,9 @@
     },
     dropPegmanOnStreet: function (lat, lng) {
       return dropPegmanAtLatLng(lat, lng);
+    },
+    executeRioDaLuzReturnNow: function () {
+      return executeRioDaLuzReturnNow();
     },
     previewPegmanDragAtLatLng: function (lat, lng, tiltDeg = -8) {
       if (!state.leafletMap || typeof window.L === "undefined") return null;

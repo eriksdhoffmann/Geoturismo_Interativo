@@ -252,7 +252,7 @@ window.GLBViewer = (function () {
             ↻ Girar
           </button>
           <button type="button" class="glb-hud-btn" id="glbBtnResetView" title="Centralizar Enquadramento Inicial">
-            🎯 Centralizar
+            Centralizar
           </button>
           <button type="button" class="glb-hud-btn" id="glbBtnZoomIn" title="Aproximar Zoom">+</button>
           <button type="button" class="glb-hud-btn" id="glbBtnZoomOut" title="Afastar Zoom">−</button>

@@ -619,7 +619,7 @@
     if (isHover || hs.type !== "scene") {
       const titleText = hs.type === "3d"
         ? "Maquete 3D Vale Rio da Luz"
-        : (hs.tooltip || hs.title || "Explorar Ponto").replace(/[🌐🏛️🧊⛰️]/g, "").trim();
+        : (hs.tooltip || hs.title || "Explorar Ponto").replace(/[\u{1F300}-\u{1FAFF}\u2600-\u27BF]/gu, "").trim();
       ctx.font = "800 24px Inter, sans-serif";
       const tw = Math.min(468, ctx.measureText(titleText).width + 38);
       roundRect(ctx, cx - tw / 2, 16, tw, 44, 22);
@@ -779,12 +779,12 @@
       ctx.fillText(bannerText.slice(0, 68), W * 0.5, 24);
 
       const btns = [
-        { id: "dock_scenes", icon: "🌐", label: "Cenas 360°", active: vr.openPanel === "scenes", act: { type: "togglePanel", panel: "scenes" } },
-        { id: "dock_rota", icon: "🗺️", label: "Rota Lumiar (26)", active: vr.openPanel === "rota", act: { type: "togglePanel", panel: "rota" } },
-        { id: "dock_sat", icon: "🛰️", label: "Mapa Satélite", active: vr.openPanel === "satellite", act: { type: "togglePanel", panel: "satellite" } },
-        { id: "dock_glb", icon: "🧊", label: "Maquete 3D GLB", active: vr.openPanel === "glb", act: { type: "openGLB" } },
+        { id: "dock_scenes", icon: "360°", label: "Cenas 360°", active: vr.openPanel === "scenes", act: { type: "togglePanel", panel: "scenes" } },
+        { id: "dock_rota", icon: "ROTA", label: "Rota Lumiar (26)", active: vr.openPanel === "rota", act: { type: "togglePanel", panel: "rota" } },
+        { id: "dock_sat", icon: "MAPA", label: "Google Satélite", active: vr.openPanel === "satellite", act: { type: "togglePanel", panel: "satellite" } },
+        { id: "dock_glb", icon: "3D", label: "Maquete 3D GLB", active: vr.openPanel === "glb", act: { type: "openGLB" } },
         { id: "dock_recenter", icon: "↺", label: "Centralizar", active: false, act: { type: "recenter" } },
-        { id: "dock_exit", icon: "✕", label: "Sair do RV", danger: true, active: false, act: { type: "exitVR" } }
+        { id: "dock_exit", icon: "×", label: "Sair do RV", danger: true, active: false, act: { type: "exitVR" } }
       ];
 
       const padX = 36;
@@ -810,7 +810,7 @@
         ctx.stroke();
 
         ctx.fillStyle = "#ffffff";
-        ctx.font = "800 32px Inter, sans-serif";
+        ctx.font = "900 24px Inter, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText(b.icon, bx + bw * 0.5, by + 44);
         ctx.font = "700 17px Inter, sans-serif";
@@ -838,7 +838,7 @@
       ctx.font = "900 30px Inter, sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText("🌐 Escolher Ponto Aéreo 360° — Rio da Luz", 40, 56);
+      ctx.fillText("Escolher Ponto Aéreo 360° — Rio da Luz", 40, 56);
 
       // Botão Fechar
       const closeHover = vr.hoverId === "sc_close";
@@ -848,7 +848,7 @@
       ctx.fillStyle = "#fff";
       ctx.font = "800 20px Inter, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("✕ Fechar", W - 87, 56);
+      ctx.fillText("× Fechar", W - 87, 56);
       addHitButton(regions, "sc_close", W - 135, 32, 95, 48, { type: "closePanel" });
 
       const cols = 2;
@@ -891,7 +891,7 @@
         ctx.fillText((sc.placeMenuTitle || sc.shortTitle || "").slice(0, 32), cx + 18, cy + 206);
         ctx.fillStyle = isCurrent ? "#fde047" : "#bbf7d0";
         ctx.font = "600 16px Inter, sans-serif";
-        ctx.fillText(isCurrent ? "● Cena atual dentro do óculos RV" : (sc.placeMenuDesc || "").slice(0, 48), cx + 18, cy + 236);
+        ctx.fillText(isCurrent ? "Cena atual dentro do óculos RV" : (sc.placeMenuDesc || "").slice(0, 48), cx + 18, cy + 236);
 
         addHitButton(regions, bid, cx, cy, cardW, cardH, { type: "goScene", sceneId: sc.id });
       });
@@ -942,7 +942,7 @@
         ctx.font = "800 22px Inter, sans-serif";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
-        ctx.fillText("🗺️ Abrir Rota Lumiar (26 Pontos)", 267, 653);
+        ctx.fillText("Abrir Rota Lumiar (26 Pontos)", 267, 653);
         addHitButton(regions, "info_rota_btn", 32, 616, 470, 74, { type: "openPanel", panel: "rota" });
       } else {
         ctx.fillStyle = "#475569";
@@ -960,7 +960,7 @@
       ctx.font = "800 22px Inter, sans-serif";
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText("✕ Fechar", W - 95, 58);
+      ctx.fillText("× Fechar", W - 95, 58);
       addHitButton(regions, "info_close", W - 150, 32, 110, 52, { type: "closePanel" });
 
       // Coluna direita: Texto editorial
@@ -1060,7 +1060,7 @@
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.font = "900 28px Inter, sans-serif";
-      ctx.fillText("🧊 Maquete 3D do Vale do Rio da Luz (.GLB em Estéreo)", 38, 56);
+      ctx.fillText("Maquete 3D do Vale do Rio da Luz (.GLB em Estéreo)", 38, 56);
 
       ctx.fillStyle = "#cbd5e1";
       ctx.font = "600 18px Inter, sans-serif";
@@ -1078,9 +1078,9 @@
         { id: "glb_right", lbl: "▶ Girar Dir", act: { type: "glbCmd", cmd: "yawR" } },
         { id: "glb_up", lbl: "▲ Inclinar+", act: { type: "glbCmd", cmd: "pitchU" } },
         { id: "glb_dn", lbl: "▼ Inclinar-", act: { type: "glbCmd", cmd: "pitchD" } },
-        { id: "glb_zin", lbl: "🔍 Zoom +", act: { type: "glbCmd", cmd: "zin" } },
-        { id: "glb_zout", lbl: "🔍 Zoom -", act: { type: "glbCmd", cmd: "zout" } },
-        { id: "glb_close", lbl: "✕ Fechar 3D", act: { type: "closePanel" }, danger: true }
+        { id: "glb_zin", lbl: "Zoom +", act: { type: "glbCmd", cmd: "zin" } },
+        { id: "glb_zout", lbl: "Zoom -", act: { type: "glbCmd", cmd: "zout" } },
+        { id: "glb_close", lbl: "× Fechar 3D", act: { type: "closePanel" }, danger: true }
       ];
 
       const bw = 128, bh = 86, gap = 12, startX = 36, by = 142;
@@ -1128,7 +1128,7 @@
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.font = "900 30px Georgia, serif";
-      ctx.fillText("🗺️ Rota Lumiar — Rio da Luz & Testo Alto (26 Pontos)", 38, 56);
+      ctx.fillText("Rota Lumiar — Rio da Luz & Testo Alto (26 Pontos)", 38, 56);
 
       // Fechar
       const closeHov = vr.hoverId === "rota_close";
@@ -1138,7 +1138,7 @@
       ctx.fillStyle = "#ffffff";
       ctx.font = "800 20px Inter, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("✕ Fechar", W - 88, 54);
+      ctx.fillText("× Fechar", W - 88, 54);
       addHitButton(regions, "rota_close", W - 140, 30, 104, 48, { type: "closePanel" });
 
       // Abas de categoria
@@ -1269,14 +1269,14 @@
         dy += 164;
         ctx.fillStyle = "#0f172a";
         ctx.font = "700 16px Inter, sans-serif";
-        wrapLines(ctx, `📍 ${selPt.endereco || ""}`, 356).slice(0, 2).forEach((l, i) => {
+        wrapLines(ctx, `End.: ${selPt.endereco || ""}`, 356).slice(0, 2).forEach((l, i) => {
           ctx.fillText(l, 812, dy + i * 22);
         });
-        wrapLines(ctx, `🕒 ${selPt.atendimento || ""}`, 356).slice(0, 2).forEach((l, i) => {
+        wrapLines(ctx, `Horário: ${selPt.atendimento || ""}`, 356).slice(0, 2).forEach((l, i) => {
           ctx.fillText(l, 812, dy + 52 + i * 22);
         });
         if (selPt.telefone) {
-          ctx.fillText(`📞 ${selPt.telefone}`, 812, dy + 104);
+          ctx.fillText(`Tel.: ${selPt.telefone}`, 812, dy + 104);
         }
 
         if (selPt.sceneId) {
@@ -1288,7 +1288,7 @@
           ctx.font = "800 20px Inter, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText("🌐 Voar para Cena Drone 360°", 990, 669);
+          ctx.fillText("Voar para Cena Drone 360°", 990, 669);
           addHitButton(regions, "rota_go_360", 812, 634, 356, 70, { type: "goScene", sceneId: selPt.sceneId });
         }
       }
@@ -1313,7 +1313,7 @@
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.font = "900 28px Inter, sans-serif";
-      ctx.fillText("🛰️ Mapa do Vale Tombado & Pontos Clicáveis (RV Quest 3)", 36, 52);
+      ctx.fillText("Mapa do Vale Tombado & Pontos Clicáveis (RV Quest 3)", 36, 52);
 
       const closeHov = vr.hoverId === "sat_close";
       roundRect(ctx, W - 138, 28, 102, 46, 12);
@@ -1322,7 +1322,7 @@
       ctx.fillStyle = "#fff";
       ctx.font = "800 20px Inter, sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("✕ Fechar", W - 87, 51);
+      ctx.fillText("× Fechar", W - 87, 51);
       addHitButton(regions, "sat_close", W - 138, 28, 102, 46, { type: "closePanel" });
 
       // Área cartográfica com enquadramento dinâmico de todos os 26 pontos + rotas
@@ -1461,7 +1461,7 @@
       ctx.textAlign = "left";
       ctx.fillStyle = "#86efac";
       ctx.font = "800 18px Inter, sans-serif";
-      ctx.fillText("🌐 Voar para Fotos Drone 360°", 806, 128);
+      ctx.fillText("Voar para Fotos Drone 360°", 806, 128);
 
       scenes.slice(0, 4).forEach((sc, i) => {
         const bx = 806, by = 158 + i * 68;
@@ -1479,7 +1479,7 @@
       const info = vr.selectedSatPoint;
       ctx.fillStyle = "#facc15";
       ctx.font = "800 18px Inter, sans-serif";
-      ctx.fillText(info ? info.label.slice(0, 28) : "📍 Toque em um pino no mapa", 806, 462);
+      ctx.fillText(info ? info.label.slice(0, 28) : "Toque em um pino no mapa", 806, 462);
 
       if (info) {
         ctx.textBaseline = "top";
@@ -1497,7 +1497,7 @@
           ctx.font = "800 18px Inter, sans-serif";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
-          ctx.fillText("🌐 Abrir em 360° RV", 966, 651);
+          ctx.fillText("Abrir em 360° RV", 966, 651);
           addHitButton(regions, "sat_jump_sel", 806, 622, 320, 58, { type: "goScene", sceneId: info.sceneId });
         }
       }
@@ -2198,6 +2198,11 @@
     vr.canvas = canvas;
     overlay.style.display = "block";
     document.body.classList.add("vr-active");
+    if (window.GeoSC360 && typeof window.GeoSC360.syncModalUiState === "function") {
+      window.GeoSC360.syncModalUiState();
+    } else {
+      try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: "GEOSC_MODAL_OPEN", active: true }, "*"); } catch (_) {}
+    }
 
     if (!vr.gl && !initVRWebGL()) {
       alert("WebGL não disponível neste dispositivo para o modo Realidade Virtual.");
@@ -2284,6 +2289,11 @@
     vr.isWebXR = false;
     document.body.classList.remove("vr-active");
     if (vr.overlayEl) vr.overlayEl.style.display = "none";
+    if (window.GeoSC360 && typeof window.GeoSC360.syncModalUiState === "function") {
+      window.GeoSC360.syncModalUiState();
+    } else {
+      try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: "GEOSC_MODAL_OPEN", active: false }, "*"); } catch (_) {}
+    }
   }
 
   function bindVROverlayEvents() {
@@ -2305,7 +2315,7 @@
     if (btnMode) {
       btnMode.addEventListener("click", () => {
         vr.stereoPreview = !vr.stereoPreview;
-        btnMode.textContent = vr.stereoPreview ? "👁️ Lentes Estéreo (ON)" : "🖥️ Tela Única (Mono)";
+        btnMode.textContent = vr.stereoPreview ? "Lentes Estéreo (ON)" : "Tela Única (Mono)";
       });
     }
 

@@ -742,9 +742,9 @@
       '<div class="chips">' + r.highlights.map((h) => '<span class="chip">' + h + "</span>").join("") + "</div>" +
       "<details><summary>" + r.municipios.length + " municípios</summary><p>" + r.municipios.join(", ") + "</p></details>" +
       (is360
-        ? '<button type="button" class="geo-cta-360" data-go360>🌐 Ir ao Rio da Luz · Foto 360°</button>' +
+        ? '<button type="button" class="geo-cta-360" data-go360>Ir ao Rio da Luz · Foto 360°</button>' +
           '<div class="geo-progress"><i></i></div>'
-        : '<span class="geo-soon">📷 Fotos 360° desta região em breve</span>') +
+        : '<span class="geo-soon">Fotos 360° desta região em breve</span>') +
       "</div>";
     card.hidden = false;
     card.style.animation = "none";
@@ -841,12 +841,12 @@
     const flight = 1450;
     const pause = 450;
     setProgress(wait + flight + pause);
-    toast("✈️ Voando até o Vale do Rio da Luz…", wait + flight);
+    toast("Voando até o Vale do Rio da Luz…", wait + flight);
     later(() => {
       const v = viewFor(state.rioWorld, 0.14, 43, 0.14);
       flyTo(v.pos, v.target, flight, () => {
         if (!state.seqActive) return;
-        toast("🌐 Entrando na foto 360°…", pause + 400);
+        toast("Entrando na foto 360°…", pause + 400);
         later(() => {
           state.seqActive = false;
           setProgress(0);
@@ -904,7 +904,7 @@
   function close360() {
     const returnId = state.selectedId || "vale_dos_encantos";
     resumeLoop();
-    overlay.classList.remove("is-open");
+    overlay.classList.remove("is-open", "is-child-fullscreen", "is-child-modal-open");
     overlay.setAttribute("aria-hidden", "true");
     try {
       history.replaceState(null, "", location.pathname + location.search);
@@ -1000,8 +1000,12 @@
   });
 
   window.addEventListener("message", (ev) => {
-    if (ev && ev.data && ev.data.type === "GEOSC_PSEUDO_FULLSCREEN") {
+    if (!ev || !ev.data) return;
+    if (ev.data.type === "GEOSC_PSEUDO_FULLSCREEN") {
       overlay.classList.toggle("is-child-fullscreen", Boolean(ev.data.active));
+    } else if (ev.data.type === "GEOSC_MODAL_OPEN") {
+      const isModalOpen = ev.data.open !== undefined ? Boolean(ev.data.open) : Boolean(ev.data.active);
+      overlay.classList.toggle("is-child-modal-open", isModalOpen);
     }
   });
 

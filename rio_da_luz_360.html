@@ -68,7 +68,7 @@
   <script>if (window.self === window.top) { document.getElementById("btnStandaloneBackToSCMap").style.display = "inline-flex"; }</script>
 
   <!-- ========================================================================
-       5. BARRA INFERIOR DE CONTROLES (MINIMALISTA: ▦ + ⛶ + ▶)
+       5. BARRA INFERIOR DE CONTROLES (MINIMALISTA)
        ======================================================================== -->
   <footer class="bottom-center-dock ui-layer" role="toolbar" aria-label="Controles do Passeio Virtual">
     <button type="button" id="btnOpenScenesGrid" class="dock-btn dock-btn-grid" title="Escolher Lugar 360° (Vale, Schroeder Platz, Casa Rux)">
@@ -84,8 +84,13 @@
         <rect x="16.2" y="16.2" width="4.8" height="4.8" rx="0.8" />
       </svg>
     </button>
-    <button type="button" id="btnFullscreen" class="dock-btn" title="Alternar Tela Cheia">
-      ⛶
+    <button type="button" id="btnFullscreen" class="dock-btn" title="Alternar Tela Cheia" aria-label="Alternar Tela Cheia">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <polyline points="15 3 21 3 21 9"></polyline>
+        <polyline points="9 21 3 21 3 15"></polyline>
+        <line x1="21" y1="3" x2="14" y2="10"></line>
+        <line x1="3" y1="21" x2="10" y2="14"></line>
+      </svg>
     </button>
     <button type="button" id="btnAutoRotate" class="dock-btn" title="Iniciar/Pausar Giro Automático 360°">
       ▶
@@ -114,14 +119,14 @@
        7. PAINEL DO MODO CRIADOR / EDITOR INTERATIVO 360° (REPLICAÇÃO)
        ======================================================================== -->
   <aside id="editorSidePanel" class="editor-side-panel ui-layer">
-    <div class="editor-panel-title">🛠️ Estúdio Criador 360° (Pitch & Yaw)</div>
+    <div class="editor-panel-title">Estúdio Criador 360° (Pitch & Yaw)</div>
     <p class="editor-panel-help">
       <strong>Como usar:</strong> Clique em qualquer ponto da foto 360° para capturar automaticamente suas coordenadas esféricas (<em>Pitch</em> e <em>Yaw</em>) e criar um novo ponto clicável!
     </p>
 
     <!-- Upload de foto 360° própria -->
     <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.25);">
-      <label class="ed-label" for="edUploadPanoInput">📷 Testar sua própria Foto 360° (.jpg/.png):</label>
+      <label class="ed-label" for="edUploadPanoInput">Testar sua própria Foto 360° (.jpg/.png):</label>
       <input type="file" id="edUploadPanoInput" accept="image/*" class="ed-input" style="margin-bottom:0;" />
     </div>
 
@@ -139,10 +144,9 @@
 
       <label class="ed-label" for="edHotspotType">Tipo de Ação ao Clicar</label>
       <select id="edHotspotType" class="ed-select">
-        <option value="info">📖 Abrir Pop-up com Foto & Informações</option>
-        <option value="3d">🧊 Abrir Modelo 3D Externo (Sketchfab / Iframe)</option>
-        <option value="streetview">🚶 Abrir Google Street View 360° (Nível da Rua)</option>
-        <option value="scene">🌐 Viajar para outra Foto 360°</option>
+        <option value="info">Abrir Pop-up com Foto & Informações</option>
+        <option value="3d">Abrir Modelo 3D Externo (Sketchfab / Iframe)</option>
+        <option value="scene">Viajar para outra Foto 360°</option>
       </select>
 
       <label class="ed-label" for="edTitle">Título do Ponto Turístico / Geossítio</label>
@@ -181,12 +185,12 @@
         <select id="edTargetScene" class="ed-select"></select>
       </div>
 
-      <button type="submit" class="ed-btn-primary">➕ Adicionar Ponto Clicável na Esfera 360°</button>
+      <button type="submit" class="ed-btn-primary">Adicionar Ponto Clicável na Esfera 360°</button>
     </form>
 
     <label class="ed-label" for="edExportJsonTextarea">Código JSON dos Hotspots desta Cena (para salvar em dados-sc.js):</label>
     <textarea id="edExportJsonTextarea" rows="4" class="ed-textarea" readonly style="font-family: monospace; font-size: 11px;"></textarea>
-    <button type="button" id="btnCopyExportJson" class="ed-btn-secondary">📋 Gerar & Copiar Código JSON da Cena</button>
+    <button type="button" id="btnCopyExportJson" class="ed-btn-secondary">Gerar & Copiar Código JSON da Cena</button>
   </aside>
 
   <!-- ========================================================================
@@ -195,8 +199,8 @@
   <div id="scenesGridModal" class="aux-drawer-modal ui-layer">
     <div class="aux-modal-card">
       <div class="aux-modal-header">
-        <h3>▦ Escolher Lugar 360° — Vale Tombado do Rio da Luz</h3>
-        <button type="button" class="aux-close-btn" data-close-drawer="scenesGridModal">✕</button>
+        <h3>Escolher Lugar 360° — Vale Tombado do Rio da Luz</h3>
+        <button type="button" class="aux-close-btn" data-close-drawer="scenesGridModal">×</button>
       </div>
       <div class="aux-modal-body">
         <div id="scenesGridContainer" class="scenes-grid-container"></div>
@@ -233,11 +237,11 @@
 
         <div class="rdl-enxaimel-head-actions">
           <div class="rdl-map-mode-bar">
-            <button type="button" id="btnRdlViewDiorama" class="rdl-mode-btn active">🗺️ Mapa da Rota</button>
-            <button type="button" id="btnRdlViewFront" class="rdl-mode-btn">📄 Folheto Frente</button>
-            <button type="button" id="btnRdlViewBack" class="rdl-mode-btn">📄 Verso</button>
+            <button type="button" id="btnRdlViewDiorama" class="rdl-mode-btn active">Mapa da Rota</button>
+            <button type="button" id="btnRdlViewFront" class="rdl-mode-btn">Folheto Frente</button>
+            <button type="button" id="btnRdlViewBack" class="rdl-mode-btn">Verso</button>
           </div>
-          <button type="button" class="rdl-close-cream-btn" data-close-drawer="rdlIllustratedModal" title="Fechar">✕</button>
+          <button type="button" class="rdl-close-cream-btn" data-close-drawer="rdlIllustratedModal" title="Fechar">×</button>
         </div>
       </header>
 
@@ -249,13 +253,13 @@
             <button type="button" class="rdl-filter-chip" data-region="testo_alto">Testo Alto (15–26)</button>
           </div>
           <div class="rdl-zoom-toolbar" id="rdlZoomToolbar">
-            <span class="rdl-zoom-hint">🔍 Scroll ou arraste para dar zoom:</span>
+            <span class="rdl-zoom-hint">Scroll ou arraste para dar zoom:</span>
             <div class="rdl-zoom-controls">
               <button type="button" id="btnRdlZoomOut" class="rdl-zoom-btn" title="Diminuir zoom">−</button>
               <span id="rdlZoomLevelLabel" class="rdl-zoom-badge">100%</span>
               <button type="button" id="btnRdlZoomIn" class="rdl-zoom-btn" title="Aumentar zoom">+</button>
               <button type="button" id="btnRdlZoomReset" class="rdl-zoom-btn rdl-zoom-reset" title="Voltar para 100%">100%</button>
-              <button type="button" id="btnRdlExpandMap" class="rdl-zoom-btn rdl-zoom-expand" title="Expandir área do mapa">⛶ Expandir</button>
+              <button type="button" id="btnRdlExpandMap" class="rdl-zoom-btn rdl-zoom-expand" title="Expandir área do mapa">Expandir</button>
             </div>
           </div>
         </div>
@@ -278,10 +282,10 @@
   </div>
 
   <!-- ========================================================================
-       9. MODAL: GOOGLE MAPS SATÉLITE (CONE DE VISÃO + 26 PONTOS GPS + BONECO STREET VIEW)
+       9. MODAL: GOOGLE SATÉLITE (CONE DE VISÃO + BONECO STREET VIEW NO RIO DA LUZ)
        ======================================================================== -->
   <div id="scMapModal" class="aux-drawer-modal ui-layer">
-    <div class="aux-modal-card" style="width: min(1220px, 96vw);">
+    <div class="aux-modal-card" style="width: min(1300px, 97vw);">
       <div class="aux-modal-header">
         <h3 style="display:flex;align-items:center;gap:8px;">
           <svg viewBox="0 0 64 64" width="20" height="20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -291,36 +295,64 @@
             <path d="M32 35.2V58l14-15.4c1.6-1.5 3.1-3.3 4.3-5.4L32 15.2v20z" fill="#34A853"/>
             <circle cx="32" cy="26" r="8.2" fill="#FFFFFF"/>
           </svg>
-          <span>Google Satélite Ao Vivo — Cone de Visão &amp; Pontos do Vale (26 Pontos)</span>
+          <span id="scMapHeaderTitleText">Google Satélite</span>
         </h3>
         <div style="display:flex;align-items:center;gap:8px;">
-          <button type="button" id="btnToggleSatStreetView" class="sc-quick-btn sc-pegman-header-btn" title="Segure e arraste o boneco até uma rua do Rio da Luz (ou clique para ativar as ruas azuis do Street View)">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <button type="button" id="btnToggleSatStreetView" class="sc-quick-btn sc-pegman-header-btn" title="Segure e arraste o boneco até uma rua do Rio da Luz (ou clique para voltar ao satélite)">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
               <circle cx="12" cy="4.2" r="2.7" fill="#FACC15" stroke="#78350F" stroke-width="0.9"/>
               <path d="M15.6 8.2H8.4c-1.1 0-2 .9-2 2v4.3c0 .7.6 1.3 1.3 1.3h.8v5.2c0 .7.6 1.3 1.3 1.3h4.4c.7 0 1.3-.6 1.3-1.3v-5.2h.8c.7 0 1.3-.6 1.3-1.3v-4.3c0-1.1-.9-2-2-2z" fill="#FACC15" stroke="#78350F" stroke-width="0.9"/>
             </svg>
-            <span>Street View 360°</span>
+            <span id="btnToggleSatSvLabel">Street View</span>
           </button>
-          <button type="button" id="btnToggleScMapExpand" class="sc-quick-btn" title="Alternar entre tela dividida ao vivo e tela cheia">
-            ⤢ Expandir Lista (26)
+          <button type="button" id="btnToggleScMapExpand" class="sc-quick-btn" title="Alternar entre tela dividida e tela ampliada">
+            Expandir Lista (26)
           </button>
-          <button type="button" class="aux-close-btn" data-close-drawer="scMapModal">✕</button>
+          <button type="button" class="aux-close-btn" data-close-drawer="scMapModal" aria-label="Fechar mapa">×</button>
         </div>
       </div>
       <div class="aux-modal-body sc-map-modal-body">
         <div id="scMapQuickBar" class="sc-map-quick-bar">
-          <button type="button" class="sc-quick-btn sc-filter-btn active" data-map-filter="pano360">🧭 Radar 360° Ao Vivo</button>
-          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="all">🎯 Todos (26 Pontos)</button>
-          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="rio_da_luz">🌿 Rio da Luz (1–14)</button>
-          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="testo_alto">🏡 Testo Alto (15–26)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn active" data-map-filter="pano360">Radar 360° Ao Vivo</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="all">Todos (26 Pontos)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="rio_da_luz">Rio da Luz (1–14)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="testo_alto">Testo Alto (15–26)</button>
+          <button type="button" id="btnScMapQuickRoute" class="sc-quick-btn sc-quick-route-btn" title="Abrir planejador de rota com paradas e destino para o Google Maps">Minha Rota (0)</button>
+        </div>
+        <div id="scMapAiSearchBar" class="sc-ai-search-bar">
+          <form id="formScMapAiSearch" class="sc-ai-search-form">
+            <span class="sc-ai-search-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="7"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </span>
+            <input type="search" id="scMapAiSearchInput" class="sc-ai-input"
+              placeholder="Busca IA no mapa: ex. quero almoçar comida típica, fazer trilha, café colonial..."
+              autocomplete="off" aria-label="Buscar lugares e trilhas com IA no mapa" />
+            <button type="submit" id="btnScMapAiSearch" class="sc-ai-submit-btn">Buscar com IA</button>
+            <button type="button" id="btnScMapAiClear" class="sc-ai-clear-btn" hidden>Limpar</button>
+          </form>
+          <div id="scMapAiQuickChips" class="sc-ai-chips-row">
+            <button type="button" class="sc-ai-chip" data-ai-query="quero almoçar">Quero almoçar</button>
+            <button type="button" class="sc-ai-chip" data-ai-query="quero fazer trilha">Fazer trilha</button>
+            <button type="button" class="sc-ai-chip" data-ai-query="café colonial">Café colonial</button>
+            <button type="button" class="sc-ai-chip" data-ai-query="mirante e passeio">Mirante e passeio</button>
+            <button type="button" class="sc-ai-chip" data-ai-query="chocolates e compras">Chocolates e compras</button>
+            <button type="button" class="sc-ai-chip" data-ai-query="pousadas">Pousadas</button>
+          </div>
+          <div id="scMapAiSplitBanner" class="sc-ai-split-banner" hidden>
+            <span id="scMapAiSplitBannerText"></span>
+            <button type="button" id="btnScMapAiOpenSidebar" class="sc-ai-split-action">Ver Lista e Rota</button>
+          </div>
         </div>
         <div class="sc-map-split" id="scMapSplitGrid">
           <div class="sc-map-canvas-wrap">
             <div id="leafletSCMap" class="sc-map-canvas"></div>
             <div id="satSvCoverageBanner" class="sat-sv-coverage-banner" hidden>
               <span class="sat-sv-cov-dot"></span>
-              <span id="satSvCoverageBannerText">Ruas do Street View ativas — Segure e jogue o boneco amarelo em cima de qualquer rua azul do Rio da Luz</span>
-              <button type="button" id="btnSatSvCoverageCancel" class="sat-sv-cov-close" title="Desativar camada azul do Street View">✕</button>
+              <span id="satSvCoverageBannerText">Ruas do Street View ativas — Segure e jogue o boneco em cima de uma rua azul do Rio da Luz</span>
+              <button type="button" id="btnSatSvCoverageCancel" class="sat-sv-cov-close" title="Desativar camada azul do Street View">×</button>
             </div>
             <div class="sat-pegman-dock-wrap">
               <div id="satPegmanHintBubble" class="sat-pegman-hint-bubble">
@@ -341,26 +373,26 @@
           <div id="scMapStreetViewPane" class="sc-map-sv-pane" hidden>
             <div class="sc-sv-toolbar">
               <button type="button" id="btnSatSvToggleBack" class="sc-quick-btn sc-pegman-header-btn active" title="Clique no Google Street View novamente para sair e voltar ao mapa">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                   <circle cx="12" cy="4.2" r="2.7" fill="#FACC15" stroke="#78350F" stroke-width="0.9"/>
                   <path d="M15.6 8.2H8.4c-1.1 0-2 .9-2 2v4.3c0 .7.6 1.3 1.3 1.3h.8v5.2c0 .7.6 1.3 1.3 1.3h4.4c.7 0 1.3-.6 1.3-1.3v-5.2h.8c.7 0 1.3-.6 1.3-1.3v-4.3c0-1.1-.9-2-2-2z" fill="#FACC15" stroke="#78350F" stroke-width="0.9"/>
                 </svg>
-                <span>Google Street View 360° (Clique para Voltar)</span>
+                <span>Voltar ao Google Satélite</span>
               </button>
               <div class="sc-sv-spots" id="satSvSpotsBar">
-                <button type="button" class="sc-sv-spot-btn active" data-sat-sv-spot="estrada_vale">🛣️ Estrada Rio da Luz</button>
-                <button type="button" class="sc-sv-spot-btn" data-sat-sv-spot="casa_rux_patio">🏛️ Casa Rux 360°</button>
-                <button type="button" class="sc-sv-spot-btn" data-sat-sv-spot="estrada_rux">🚴 Estrada Casa Rux</button>
-                <button type="button" class="sc-sv-spot-btn" data-sat-sv-spot="schroeder_patio">🏡 Schroeder Platz 360°</button>
+                <button type="button" class="sc-sv-spot-btn active" data-sat-sv-spot="estrada_vale">Estrada Rio da Luz</button>
+                <button type="button" class="sc-sv-spot-btn" data-sat-sv-spot="casa_rux_patio">Casa Rux 360°</button>
+                <button type="button" class="sc-sv-spot-btn" data-sat-sv-spot="estrada_rux">Estrada Casa Rux</button>
+                <button type="button" class="sc-sv-spot-btn" data-sat-sv-spot="schroeder_patio">Schroeder Platz 360°</button>
               </div>
               <div class="sc-sv-actions">
-                <a id="btnSatSvOpenApp" href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" class="sc-sv-act-btn sc-sv-act-app" title="Abrir este ponto no aplicativo Google Maps">↗️ Abrir no App Maps</a>
+                <a id="btnSatSvOpenApp" href="https://www.google.com/maps" target="_blank" rel="noopener noreferrer" class="sc-sv-act-btn sc-sv-act-app" title="Abrir este ponto no aplicativo Google Maps">Abrir no Maps</a>
               </div>
             </div>
             <div class="sc-sv-iframe-wrap">
               <iframe id="satStreetViewIframe" title="Google Street View 360° em Tela Inteira" src="about:blank" frameborder="0" allow="accelerometer; gyroscope; fullscreen" allowfullscreen></iframe>
               <button type="button" id="btnSatFloatingPegmanExit" class="sat-pegman-floating-btn active"
-                title="Clique no Google Street View novamente para sair e voltar">
+                title="Clique no Street View novamente para sair e voltar ao mapa satélite">
                 <span class="sat-pegman-icon-box">
                   <svg viewBox="0 0 24 24" width="24" height="24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                     <circle cx="12" cy="4.2" r="2.9" fill="#FACC15" stroke="#78350F" stroke-width="1.2"/>
@@ -371,13 +403,25 @@
               </button>
             </div>
             <div class="sc-sv-footer">
-              <span class="sc-sv-pegman-pill">🚶 GOOGLE STREET VIEW 360°</span>
-              <span id="satSvStatusText">Navegue pelas setas da rua ou troque de ponto na barra superior • Clique em Street View novamente para voltar</span>
+              <span class="sc-sv-pegman-pill">STREET VIEW 360°</span>
+              <span id="satSvStatusText">Navegue pelas setas da rua ou clique em Street View novamente para voltar</span>
               <span id="satSvCoordsText" class="sc-sv-coords">GPS: -26.53915, -49.14815</span>
             </div>
           </div>
           <aside id="scMapPointsSidebar" class="sc-map-sidebar" aria-label="Lista dos 26 pontos da Rota Lumiar"></aside>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Aviso de Limite fora do Rio da Luz / Sem Dados Disponíveis -->
+  <div id="rioDaLuzLimitAlert" class="rdl-limit-alert-backdrop" hidden role="alertdialog" aria-modal="true" aria-labelledby="rdlLimitAlertTitle">
+    <div class="rdl-limit-alert-card">
+      <div class="rdl-limit-alert-tag">Limite da área de cobertura</div>
+      <h4 id="rdlLimitAlertTitle">Não há dados disponíveis fora do Rio da Luz</h4>
+      <p id="rdlLimitAlertMessage">Este ponto está fora do limite coberto do Bairro Rio da Luz ou não possui imagens no Google Street View. Voltando para a primeira página...</p>
+      <div class="rdl-limit-alert-actions">
+        <button type="button" id="btnRdlLimitReturnNow" class="rdl-limit-return-btn">Voltar para a primeira página</button>
       </div>
     </div>
   </div>
@@ -410,8 +454,8 @@
   <div id="logicGuideModal" class="aux-drawer-modal ui-layer">
     <div class="aux-modal-card">
       <div class="aux-modal-header">
-        <h3>🧠 Arquitetura & Lógica de Programação do Passeio Virtual 360° (Geohereditas -> GeoSC)</h3>
-        <button type="button" class="aux-close-btn" data-close-drawer="logicGuideModal">✕</button>
+        <h3>Arquitetura & Lógica de Programação do Passeio Virtual 360° (Geohereditas -> GeoSC)</h3>
+        <button type="button" class="aux-close-btn" data-close-drawer="logicGuideModal">×</button>
       </div>
       <div class="aux-modal-body">
         <h4 style="color:#86efac; margin-bottom:8px;">1. Como funciona a Foto 360° Interativa (Projeção Equiretangular Esférica)</h4>
@@ -435,7 +479,7 @@
 
         <h4 style="color:#86efac; margin-bottom:8px;">4. Como Replicar em Qualquer Outro Computador</h4>
         <p style="font-size:14px; color:#e2e8f0;">
-          Toda a aplicação é <strong>100% independente de instalações pesadas</strong> (não exige Node.js nem Python). Basta copiar esta pasta ou usar o arquivo <code>GUIA_LOGICA_E_REPLICACAO.md</code> na raiz do projeto. Você também pode clicar em <strong>"🛠️ Criar Ponto / Trocar Foto"</strong> na barra inferior para carregar qualquer foto 360° do seu computador e clicar direto na imagem para gerar novos pontos!
+          Toda a aplicação é <strong>100% independente de instalações pesadas</strong> (não exige Node.js nem Python). Basta copiar esta pasta ou usar o arquivo <code>GUIA_LOGICA_E_REPLICACAO.md</code> na raiz do projeto. Você também pode carregar qualquer foto 360° do seu computador para gerar novos pontos.
         </p>
       </div>
     </div>
@@ -455,13 +499,13 @@
     <canvas id="vrWebGLCanvas" class="vr-webgl-canvas"></canvas>
     <div id="vrSimBanner" class="vr-sim-banner">
       <div class="vr-sim-badge">
-        <strong>🥽 Modo RV (Meta Quest 3 / WebXR)</strong>
+        <strong>Modo RV (Meta Quest 3 / WebXR)</strong>
         <span>Arraste para olhar • Clique com o mouse/laser nos pontos, Maquete 3D e Rota Lumiar</span>
       </div>
       <div class="vr-sim-actions">
-        <button type="button" id="btnVrSimToggleStereo" class="vr-sim-btn">👁️ Lentes Estéreo (ON)</button>
-        <button type="button" id="btnVrSimRecenter" class="vr-sim-btn">↺ Centralizar</button>
-        <button type="button" id="btnVrSimExit" class="vr-sim-btn vr-sim-exit">✕ Sair do RV</button>
+        <button type="button" id="btnVrSimToggleStereo" class="vr-sim-btn">Lentes Estéreo (ON)</button>
+        <button type="button" id="btnVrSimRecenter" class="vr-sim-btn">Centralizar</button>
+        <button type="button" id="btnVrSimExit" class="vr-sim-btn vr-sim-exit">× Sair do RV</button>
       </div>
     </div>
   </div>
@@ -556,13 +600,22 @@
             const btn = document.getElementById("btnOpenSCMap");
             if (btn) btn.click();
             const mapFilter = params.get("filter");
-            if (mapFilter) {
+            const wantExpand = params.get("expand") === "1";
+            const aiQuery = params.get("ai");
+            if (mapFilter || wantExpand || aiQuery) {
               setTimeout(() => {
-                const fbtn = document.querySelector(`#scMapQuickBar [data-map-filter="${mapFilter}"]`);
-                if (fbtn) fbtn.click();
-                if (params.get("expand") === "1") {
+                if (mapFilter) {
+                  const fbtn = document.querySelector(`#scMapQuickBar [data-map-filter="${mapFilter}"]`);
+                  if (fbtn) fbtn.click();
+                }
+                if (wantExpand) {
                   const expBtn = document.getElementById("btnToggleScMapExpand");
-                  if (expBtn) expBtn.click();
+                  if (expBtn && !document.getElementById("scMapSplitGrid")?.classList.contains("is-expanded")) {
+                    expBtn.click();
+                  }
+                }
+                if (aiQuery && window.GeoSC360 && typeof window.GeoSC360.runMapAiSearch === "function") {
+                  window.GeoSC360.runMapAiSearch(aiQuery);
                 }
               }, 350);
             }

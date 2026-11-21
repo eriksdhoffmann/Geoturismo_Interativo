@@ -18,38 +18,31 @@ window.TOUR_SC_DATA = {
   categories: {
     portal360: {
       id: "portal360",
-      label: "🌐 Navegar entre Fotos Drone 360°",
+      label: "Navegar entre Fotos Drone 360°",
       color: "#0284c7",
       badgeBg: "#e0f2fe",
       description: "Portais para saltar entre as fotos aéreas do Vale Tombado, Casa Rux e Schroeder Platz"
     },
     patrimonio: {
       id: "patrimonio",
-      label: "🏛️ Patrimônio Histórico Enxaimel",
+      label: "Patrimônio Histórico Enxaimel",
       color: "#8b1e1e",
       badgeBg: "#fef2f2",
       description: "Casas históricas, técnicas construtivas dos imigrantes e tombamento do IPHAN"
     },
     geodiversidade: {
       id: "geodiversidade",
-      label: "⛰️ Relevo, Vale & Mata Atlântica",
+      label: "Relevo, Vale & Mata Atlântica",
       color: "#15803d",
       badgeBg: "#dcfce7",
       description: "Geomorfologia do Vale do Rio da Luz, hidrografia e conservação ambiental"
     },
     modelo3d: {
       id: "modelo3d",
-      label: "🧊 Modelos 3D Interativos",
+      label: "Modelos 3D Interativos",
       color: "#d97706",
       badgeBg: "#ffedd5",
       description: "Maquetes 3D do relevo e da estrutura de madeira Enxaimel (Sketchfab)"
-    },
-    streetview: {
-      id: "streetview",
-      label: "🚶 Google Street View 360° (Nível da Rua)",
-      color: "#ea580c",
-      badgeBg: "#ffedd5",
-      description: "Visão terrestre em 360° ao nível da rua e dos pátios históricos (Google Street View & Acervo GeoLab UDESC)"
     }
   },
 
@@ -89,7 +82,7 @@ window.TOUR_SC_DATA = {
         { text: "Casa do Schroeder Platz", pitch: -44, yaw: -121, scale: 1.15, tilt: 18 },
         { text: "Casa Rux (Enxaimel 1915)", pitch: -1.5, yaw: -34, scale: 1.15, tilt: 10 },
         { text: "Rio da Luz (Corredor Ecológico)", pitch: -22, yaw: 8, scale: 1.1, tilt: 20 },
-        { text: "Pico Malwee (550m) ⛰️", pitch: 8, yaw: -145, scale: 1.1, tilt: -6 }
+        { text: "Pico Malwee (550m)", pitch: 8, yaw: -145, scale: 1.1, tilt: -6 }
       ],
 
       hotspots: [
@@ -102,7 +95,7 @@ window.TOUR_SC_DATA = {
           pitch: -51,
           yaw: -121,
           targetSceneId: "schroeder_platz_03",
-          tooltip: "🌐 Casa do Schroeder Platz",
+          tooltip: "Casa do Schroeder Platz",
           transitionLabel: "Descendo em direção à Casa do Schroeder Platz..."
         },
 
@@ -115,7 +108,7 @@ window.TOUR_SC_DATA = {
           pitch: -8,
           yaw: -34,
           targetSceneId: "casa_rux_05",
-          tooltip: "🌐 Casa Rux (Enxaimel 1915)",
+          tooltip: "Casa Rux (Enxaimel 1915)",
           transitionLabel: "Sobrevoando o vale até a Casa Rux (1915)..."
         },
 
@@ -150,7 +143,7 @@ window.TOUR_SC_DATA = {
           iconStyle: "red-circle",
           pitch: -24,
           yaw: 5,
-          tooltip: "🏛️ Paisagem Cultural: O que torna o Rio da Luz tombado pelo IPHAN?",
+          tooltip: "Paisagem Cultural: O que torna o Rio da Luz tombado pelo IPHAN?",
           title: "O Conjunto Rural do Rio da Luz (IPHAN)",
           subtitleLead: "Uma harmonia secular entre a natureza da Mata Atlântica e a arquitetura dos imigrantes pomeranos.",
           paragraphs: [
@@ -161,12 +154,6 @@ window.TOUR_SC_DATA = {
           image: "assets/fotos/mapa_rota_lumiar.jpg",
           fitContain: true,
           ctaOpenRotaLumiar: true,
-          streetViewViews: [
-            { id: "sv_estrada_principal", label: "🛣️ Estrada R. Eurico Duwe (Andar na Rua)", lat: -26.53915, lng: -49.14815, heading: 20, pitch: 2, author: "Google Street View Oficial • Estrada do Vale" },
-            { id: "sv_cruzamento", label: "🚗 Encontro das Estradas (3162 R. Eurico Duwe)", lat: -26.5358, lng: -49.1444, heading: 110, pitch: 0, author: "Google Street View Oficial" },
-            { id: "sv_patio_rux", label: "🏛️ Pátio Casa Rux (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 190, pitch: 2, author: "Acervo GeoLab UDESC no Google Maps" },
-            { id: "sv_patio_schroeder", label: "🏡 Pátio Schroeder Platz (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 135, pitch: 2, author: "Acervo GeoLab UDESC no Google Maps" }
-          ],
           imageAnnotations: []
         }
       ]
@@ -216,7 +203,7 @@ window.TOUR_SC_DATA = {
           pitch: 27,
           yaw: 32,
           targetSceneId: "vale_tombado_04",
-          tooltip: "🌐 Vale Tombado",
+          tooltip: "Vale Tombado",
           transitionLabel: "Subindo para a visão geral do Vale Tombado..."
         },
 
@@ -229,7 +216,7 @@ window.TOUR_SC_DATA = {
           pitch: -6,
           yaw: 95,
           targetSceneId: "casa_rux_05",
-          tooltip: "🌐 Ir para Foto Drone 360°: Casa Rux (JDS_360_05)",
+          tooltip: "Ir para Foto Drone 360°: Casa Rux (JDS_360_05)",
           transitionLabel: "Viajando até a Casa Rux..."
         },
 
@@ -241,7 +228,7 @@ window.TOUR_SC_DATA = {
           iconStyle: "red-circle",
           pitch: -22,
           yaw: 12,
-          tooltip: "🏛️ Convivência Germânica: Schroeder Platz no Rio da Luz",
+          tooltip: "Convivência Germânica: Schroeder Platz no Rio da Luz",
           title: "2. Schroeder Platz & Hospitalidade Rural",
           subtitleLead: "Ponto de encontro da cultura germânica, gastronomia típica e passeios ao ar livre.",
           paragraphs: [
@@ -258,11 +245,6 @@ window.TOUR_SC_DATA = {
             realLabel: "Casa Schroeder",
             coverMain: true
           },
-          streetViewViews: [
-            { id: "sv_patio_schroeder", label: "🏡 Fachada Schroeder Platz (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 135, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
-            { id: "sv_jardim_schroeder", label: "🌳 Jardim & Biergarten (GeoLab 360°)", lat: -26.5384678, lng: -49.1486893, heading: 315, pitch: 0, author: "Acervo GeoLab UDESC no Google Street View" },
-            { id: "sv_estrada_schroeder", label: "🛣️ Andar na Estrada (R. Eurico Duwe)", lat: -26.53915, lng: -49.14815, heading: 20, pitch: 2, author: "Google Street View Oficial • Estrada do Vale" }
-          ],
           imageAnnotations: []
         }
       ]
@@ -297,7 +279,7 @@ window.TOUR_SC_DATA = {
       ecosystemSummary: "Fotografia 360° em plano médio da centenária Casa Rux, construída em 1915 pela família de Erwin Rux com a legítima técnica Enxaimel alemã.",
 
       labels3D: [
-        { text: "Casa Rux (Enxaimel de 1915) 🏛️", pitch: -18, yaw: 0, scale: 1.2, tilt: 16 },
+        { text: "Casa Rux (Enxaimel de 1915)", pitch: -18, yaw: 0, scale: 1.2, tilt: 16 },
         { text: "Subir: Ver Casa Rux de Cima (JDS 07) ⬆", pitch: 39, yaw: 52, scale: 1.15, tilt: -10 },
         { text: "Vale Tombado ⬆", pitch: 28, yaw: -115, scale: 1.15, tilt: -8 },
         { text: "Casa do Schroeder Platz", pitch: 0, yaw: -128, scale: 1.08, tilt: 6 }
@@ -313,7 +295,7 @@ window.TOUR_SC_DATA = {
           pitch: 32,
           yaw: 52,
           targetSceneId: "casa_rux_cima_07",
-          tooltip: "🌐 Subir Drone 360°: Ver Casa Rux de Cima (JDS_360_07)",
+          tooltip: "Subir Drone 360°: Ver Casa Rux de Cima (JDS_360_07)",
           transitionLabel: "Subindo o drone para a visão de topo da Casa Rux..."
         },
 
@@ -326,7 +308,7 @@ window.TOUR_SC_DATA = {
           pitch: 22,
           yaw: -115,
           targetSceneId: "vale_tombado_04",
-          tooltip: "🌐 Vale Tombado",
+          tooltip: "Vale Tombado",
           transitionLabel: "Retornando à vista aérea do Vale Tombado..."
         },
 
@@ -339,7 +321,7 @@ window.TOUR_SC_DATA = {
           pitch: -6,
           yaw: -128,
           targetSceneId: "schroeder_platz_03",
-          tooltip: "🌐 Ir para Foto Drone 360°: Schroeder Platz (JDS_360_03)",
+          tooltip: "Ir para Foto Drone 360°: Schroeder Platz (JDS_360_03)",
           transitionLabel: "Indo até a Casa do Schroeder Platz..."
         },
 
@@ -351,7 +333,7 @@ window.TOUR_SC_DATA = {
           iconStyle: "red-circle",
           pitch: -20,
           yaw: -15,
-          tooltip: "🏛️ História: 1. Casa Rux (Construída em 1915)",
+          tooltip: "História: 1. Casa Rux (Construída em 1915)",
           title: "1. Casa de Erwin Rux — Joia da Imigração Pomerana",
           subtitleLead: "Tombada pelo IPHAN e pela FCC, a Casa Rux é uma das edificações rurais mais emblemáticas do Brasil.",
           paragraphs: [
@@ -366,11 +348,6 @@ window.TOUR_SC_DATA = {
             caption: "Aquarela oficial da Rota Lumiar — Ponto [1] Casa Rux",
             realPhoto: "assets/fotos/riodaluz/static_casa_rux.jpg"
           },
-          streetViewViews: [
-            { id: "sv_patio_rux", label: "🏛️ Fachada Enxaimel 1915 (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 190, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" },
-            { id: "sv_estrada_rux", label: "🛣️ Andar na Estrada (R. Erwin Rux, 663)", lat: -26.5363, lng: -49.1430, heading: 95, pitch: 2, author: "Google Street View Oficial • JGS-489" },
-            { id: "sv_jardim_rux", label: "🌴 Jardim & Vista da Rua (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 10, pitch: 0, author: "Acervo GeoLab UDESC no Google Street View" }
-          ],
           imageAnnotations: []
         }
       ]
@@ -415,7 +392,7 @@ window.TOUR_SC_DATA = {
           pitch: -43,
           yaw: -126,
           targetSceneId: "casa_rux_05",
-          tooltip: "🌐 Descer para Casa Rux",
+          tooltip: "Descer para Casa Rux",
           transitionLabel: "Descendo para a Casa Rux..."
         },
 
@@ -428,7 +405,7 @@ window.TOUR_SC_DATA = {
           pitch: 14,
           yaw: 161,
           targetSceneId: "vale_tombado_04",
-          tooltip: "🌐 Vale Tombado",
+          tooltip: "Vale Tombado",
           transitionLabel: "Voltando à vista aérea panorâmica do Vale Tombado..."
         },
 
@@ -441,7 +418,7 @@ window.TOUR_SC_DATA = {
           pitch: -8,
           yaw: -174,
           targetSceneId: "schroeder_platz_03",
-          tooltip: "🌐 Casa do Schroeder Platz (JDS_360_02)",
+          tooltip: "Casa do Schroeder Platz (JDS_360_02)",
           transitionLabel: "Viajando até a Casa do Schroeder Platz..."
         },
 
@@ -453,7 +430,7 @@ window.TOUR_SC_DATA = {
           iconStyle: "red-circle",
           pitch: -28,
           yaw: 45,
-          tooltip: "⛰️ Geografia: A Geometria do Lote Colonial e da Mata Atlântica",
+          tooltip: "Geografia: A Geometria do Lote Colonial e da Mata Atlântica",
           title: "A Estrutura do Lote Rural 'Waldhufendorf' Visto do Alto",
           subtitleLead: "Observe de cima como a ocupação do solo respeitou perfeitamente a curva do terreno e a preservação das águas.",
           paragraphs: [
@@ -462,10 +439,6 @@ window.TOUR_SC_DATA = {
           ],
           didYouKnow: "A vista aérea do Rio da Luz é considerada uma das mais belas representações da imigração no Sul do Brasil, combinando o telhado vermelho das casas enxaimel com o verde intenso da serra!",
           image: "assets/fotos/riodaluz/p1_casa_rux.jpg",
-          streetViewViews: [
-            { id: "sv_estrada_rux", label: "🛣️ Estrada em Frente ao Lote (JGS-489)", lat: -26.5363, lng: -49.1430, heading: 95, pitch: 2, author: "Google Street View Oficial • R. Erwin Rux, 663" },
-            { id: "sv_patio_rux", label: "🏛️ Pátio Casa Rux (GeoLab 360°)", lat: -26.53617, lng: -49.14234, heading: 190, pitch: 2, author: "Acervo GeoLab UDESC no Google Street View" }
-          ],
           imageAnnotations: [
             { label: "Casa Principal e Pátio Rural", x: 30, y: 38, arrowDir: "down" },
             { label: "Encosta com Mata Atlântica Preservada", x: 74, y: 32, arrowDir: "down" }
