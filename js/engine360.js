@@ -74,6 +74,7 @@
       reqId: 0
     },
     aiPoiByKey: {},
+    aiTrailPoiByKey: {},
     aiMarkersByKey: {},
     aiTrailLayersById: {},
     rioDaLuzLimitTimer: null
@@ -2198,11 +2199,16 @@
       .replace(/'/g, "&#39;");
   }
 
+  function isSplitMapMode() {
+    const modal = document.getElementById("scMapModal");
+    return Boolean(modal && modal.classList.contains("split-mode"));
+  }
+
   function normalizeRouteKey(keyOrNum) {
     if (keyOrNum === null || keyOrNum === undefined) return "";
     const s = String(keyOrNum).trim();
     if (!s) return "";
-    if (s.startsWith("pt:") || s.startsWith("osm:")) return s;
+    if (s.startsWith("pt:") || s.startsWith("osm:") || s.startsWith("trail:")) return s;
     if (/^\d+$/.test(s)) return `pt:${Number(s)}`;
     return s;
   }
@@ -2212,6 +2218,9 @@
     if (!key) return null;
     if (key.startsWith("osm:") && state.aiPoiByKey && state.aiPoiByKey[key]) {
       return state.aiPoiByKey[key];
+    }
+    if (key.startsWith("trail:") && state.aiTrailPoiByKey && state.aiTrailPoiByKey[key]) {
+      return state.aiTrailPoiByKey[key];
     }
     const pts = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
       ? window.ROTA_LUMIAR_DATA.points
@@ -2300,13 +2309,13 @@
         const flags = getPointRouteRoleFlags(key);
         if (role === "origin") {
           btn.classList.toggle("is-active", flags.isOrigin);
-          btn.textContent = flags.isOrigin ? "Origem ✓" : "Origem";
+          btn.textContent = flags.isOrigin ? "Origem Ativa" : "Origem";
         } else if (role === "stop") {
           btn.classList.toggle("is-active", flags.isStop);
           btn.textContent = flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada";
         } else if (role === "destination") {
           btn.classList.toggle("is-active", flags.isDest);
-          btn.textContent = flags.isDest ? "Destino ✓" : "Destino";
+          btn.textContent = flags.isDest ? "Destino Ativo" : "Destino";
         }
       });
     }
@@ -2326,6 +2335,15 @@
         const marker = state.aiMarkersByKey[item.key];
         if (marker && marker.getPopup && marker.getPopup()) {
           marker.setPopupContent(buildAiMarkerPopupHTML(item, idx));
+        }
+      });
+    }
+
+    if (state.aiTrailLayersById && state.aiSearch && Array.isArray(state.aiSearch.trails)) {
+      state.aiSearch.trails.forEach(tr => {
+        const layer = state.aiTrailLayersById[tr.id];
+        if (layer && layer.getPopup && layer.getPopup()) {
+          layer.setPopupContent(buildAiTrailPopupHTML(tr));
         }
       });
     }
@@ -2426,10 +2444,16 @@
     const fitRouteBounds = () => {
       const seq = getRouteSequenceItems();
       if (!state.leafletMap || typeof window.L === "undefined" || seq.length === 0) return;
+      const isSplit = isSplitMapMode();
       state.leafletMap.stop();
+      state.leafletMap.invalidateSize({ animate: false, pan: false });
       if (seq.length >= 2) {
         const bounds = window.L.latLngBounds(seq.map(s => [s.item.lat, s.item.lng]));
-        state.leafletMap.fitBounds(bounds, { animate: false, padding: [50, 50], maxZoom: 15 });
+        state.leafletMap.fitBounds(bounds, {
+          animate: false,
+          padding: isSplit ? [14, 24] : [46, 46],
+          maxZoom: 15
+        });
       } else {
         state.leafletMap.setView([seq[0].item.lat, seq[0].item.lng], 16, { animate: false });
       }
@@ -2504,9 +2528,16 @@
 
     const basePts = getRotaPointsForMap("all");
     const extraAiItems = Object.values(state.aiPoiByKey || {});
+    const activeRouteKeys = new Set([
+      state.customRoute.origin,
+      ...(state.customRoute.waypoints || []),
+      state.customRoute.destination
+    ].filter(Boolean));
+    const activeTrailItems = Object.values(state.aiTrailPoiByKey || {}).filter(it => activeRouteKeys.has(it.key));
     const allOptions = [
       ...basePts.map(pt => ({ key: `pt:${pt.num}`, label: `${pt.num}. ${pt.name} (${pt.region})` })),
-      ...extraAiItems.map(it => ({ key: it.key, label: `${it.name} (Mapa IA)` }))
+      ...extraAiItems.map(it => ({ key: it.key, label: `${it.name} (Mapa IA)` })),
+      ...activeTrailItems.map(it => ({ key: it.key, label: `${it.name} (Trilha)` }))
     ];
 
     const originItem = state.customRoute.origin ? resolveRoutePoint(state.customRoute.origin) : null;
@@ -2727,12 +2758,63 @@
     };
   }
 
+  const AI_REGION_TOKENS = new Set([
+    "rio", "luz", "jaragua", "sul", "testo", "alto", "pomerode", "bairro", "vale"
+  ]);
+
+  function getAiRegionOsmBounds(regionHint) {
+    if (regionHint === "rio_da_luz") {
+      return {
+        minLat: -26.612,
+        maxLat: -26.520,
+        minLng: -49.225,
+        maxLng: -49.125,
+        viewbox: "-49.225,-26.520,-49.125,-26.612",
+        overpass: "-26.612,-49.225,-26.520,-49.125"
+      };
+    }
+    if (regionHint === "testo_alto") {
+      return {
+        minLat: -26.760,
+        maxLat: -26.620,
+        minLng: -49.215,
+        maxLng: -49.155,
+        viewbox: "-49.215,-26.620,-49.155,-26.760",
+        overpass: "-26.760,-49.215,-26.620,-49.155"
+      };
+    }
+    return {
+      minLat: -26.750,
+      maxLat: -26.515,
+      minLng: -49.245,
+      maxLng: -49.120,
+      viewbox: "-49.245,-26.515,-49.120,-26.745",
+      overpass: "-26.750,-49.245,-26.515,-49.120"
+    };
+  }
+
+  function isPointInBounds(lat, lng, bounds) {
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || !bounds) return false;
+    return lat >= bounds.minLat && lat <= bounds.maxLat && lng >= bounds.minLng && lng <= bounds.maxLng;
+  }
+
+  function getTopicTokensForAi(parsed) {
+    if (!parsed.regionHint) return parsed.tokens;
+    return parsed.tokens.filter(t => !AI_REGION_TOKENS.has(t));
+  }
+
   function scoreLocalPointsForAi(parsed) {
     const pts = getRotaPointsForMap("all");
     const activeIntentKeys = Object.keys(parsed.intents);
+    const topicTokens = getTopicTokensForAi(parsed);
+    const pureRegionQuery = Boolean(parsed.regionHint) && activeIntentKeys.length === 0 && topicTokens.length === 0;
     const scored = [];
 
     pts.forEach(pt => {
+      if (parsed.regionHint && pt.regionKey !== parsed.regionHint) {
+        return;
+      }
+
       const haystack = normalizeGeoText([
         pt.name,
         pt.category,
@@ -2764,7 +2846,7 @@
         reasons.push("Trilha dedicada no mapa");
       }
 
-      parsed.tokens.forEach(tok => {
+      topicTokens.forEach(tok => {
         if (normalizeGeoText(pt.name).includes(tok)) {
           score += 9;
           reasons.push(`Nome coincide com "${tok}"`);
@@ -2773,7 +2855,7 @@
         }
       });
 
-      if (parsed.regionHint && pt.regionKey === parsed.regionHint) {
+      if (parsed.regionHint && pt.regionKey === parsed.regionHint && (score > 0 || pureRegionQuery)) {
         score += 10;
       }
 
@@ -2905,7 +2987,9 @@
     if (parsed.intents.lodging) terms.push("pousada");
     if (parsed.intents.heritage_culture) terms.push("museu");
     if (terms.length === 0) {
-      const validTokens = parsed.tokens.filter(t => t.length >= 3 && !/^\d+$/.test(t));
+      const topicTokens = getTopicTokensForAi(parsed);
+      const sourceTokens = topicTokens.length > 0 ? topicTokens : parsed.tokens;
+      const validTokens = sourceTokens.filter(t => t.length >= 3 && !/^\d+$/.test(t));
       if (validTokens.length > 0) terms.push(validTokens.slice(0, 3).join(" "));
     }
     return Array.from(new Set(terms)).slice(0, 2);
@@ -2918,8 +3002,12 @@
       return;
     }
 
+    const regionBounds = getAiRegionOsmBounds(parsed.regionHint);
+    const fallbackRegionLabel = parsed.regionHint === "rio_da_luz"
+      ? "Rio da Luz (OpenStreetMap)"
+      : (parsed.regionHint === "testo_alto" ? "Testo Alto (OpenStreetMap)" : "Rio da Luz / Testo Alto");
     const nomQueries = buildNominatimQueries(parsed);
-    const bboxOverpass = "-26.750,-49.245,-26.515,-49.120";
+    const bboxOverpass = regionBounds.overpass;
     const clauses = [];
 
     if (parsed.intents.lunch_food) {
@@ -2942,8 +3030,10 @@
       clauses.push(`nwr["tourism"~"viewpoint|picnic_site|park"](${bboxOverpass});`);
       clauses.push(`way["highway"~"path|track|footway|cycleway|bridleway"]["name"](${bboxOverpass});`);
     }
-    if (clauses.length === 0 && parsed.tokens.length > 0) {
-      const safeToken = parsed.tokens[0].replace(/[^a-z0-9]/g, "");
+    const topicTokens = getTopicTokensForAi(parsed);
+    const customTokenList = topicTokens.length > 0 ? topicTokens : parsed.tokens;
+    if (clauses.length === 0 && customTokenList.length > 0) {
+      const safeToken = customTokenList[0].replace(/[^a-z0-9]/g, "");
       if (safeToken.length >= 3) {
         clauses.push(`nwr["name"~"${safeToken}",i](${bboxOverpass});`);
       }
@@ -2959,7 +3049,7 @@
     const nomPromises = nomQueries.map(nq => {
       const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
       const tmr = ctrl ? setTimeout(() => ctrl.abort(), 3500) : null;
-      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&polygon_geojson=1&bounded=1&viewbox=-49.245,-26.515,-49.120,-26.745&limit=8&q=${encodeURIComponent(nq)}`;
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&polygon_geojson=1&bounded=1&viewbox=${regionBounds.viewbox}&limit=8&q=${encodeURIComponent(nq)}`;
       return window.fetch(url, { signal: ctrl ? ctrl.signal : undefined })
         .then(res => (res.ok ? res.json() : []))
         .then(items => {
@@ -2975,7 +3065,7 @@
               rawLines.forEach((line, li) => {
                 if (!Array.isArray(line) || line.length < 2) return;
                 const coords = line.map(c => [Number(c[1]), Number(c[0])]).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]));
-                if (coords.length >= 2) {
+                if (coords.length >= 2 && coords.some(c => isPointInBounds(c[0], c[1], regionBounds))) {
                   trails.push({
                     id: `nom_trail_${it.osm_type || "w"}_${it.osm_id || it.place_id}_${li}`,
                     name: it.name || (it.display_name || "Trilha OpenStreetMap").split(",")[0],
@@ -2989,11 +3079,11 @@
             const lat = parseFloat(it.lat);
             const lng = parseFloat(it.lon);
             const name = it.name || (it.display_name ? it.display_name.split(",")[0].trim() : "");
-            if (!Number.isFinite(lat) || !Number.isFinite(lng) || !name) return;
+            if (!isPointInBounds(lat, lng, regionBounds) || !name) return;
             const addr = it.address || {};
             const extra = it.extratags || {};
             const street = [addr.road, addr.house_number].filter(Boolean).join(", ");
-            const suburb = addr.suburb || addr.neighbourhood || addr.city || addr.town || "Rio da Luz / Testo Alto";
+            const suburb = addr.suburb || addr.neighbourhood || addr.city || addr.town || fallbackRegionLabel;
             results.push({
               key: `osm:${it.osm_type || "n"}_${it.osm_id || it.place_id}`,
               num: null,
@@ -3052,24 +3142,26 @@
             const tags = el.tags || {};
             const isTrailWay = el.type === "way" && Array.isArray(el.geometry) && el.geometry.length >= 2 && /^(path|track|footway|cycleway|bridleway)$/.test(tags.highway || "");
             if (isTrailWay) {
+              const coords = el.geometry.map(g => [g.lat, g.lon]);
+              if (!coords.some(c => isPointInBounds(c[0], c[1], regionBounds))) return;
               osmTrails.push({
                 id: `osm_way_${el.id}`,
-                name: tags.name || `Trilha / Caminho Rural (OSM #${el.id})`,
+                name: tags.name || `Trilha / Caminho Rural (OSM ${el.id})`,
                 region: tags.surface ? `OpenStreetMap (${tags.surface})` : "OpenStreetMap (Trilha/Caminho)",
-                coords: el.geometry.map(g => [g.lat, g.lon]),
+                coords,
                 source: "OSM Ao Vivo"
               });
               return;
             }
             const lat = typeof el.lat === "number" ? el.lat : (el.center && el.center.lat);
             const lng = typeof el.lon === "number" ? el.lon : (el.center && el.center.lon);
-            if (typeof lat !== "number" || typeof lng !== "number" || !tags.name) return;
+            if (!isPointInBounds(lat, lng, regionBounds) || !tags.name) return;
             osmResults.push({
               key: `osm:${el.type}_${el.id}`,
               num: null,
               name: tags.name,
               category: tags.amenity || tags.tourism || tags.shop || "local",
-              region: tags["addr:suburb"] || tags["addr:city"] || "Rio da Luz / Testo Alto",
+              region: tags["addr:suburb"] || tags["addr:city"] || fallbackRegionLabel,
               endereco: [tags["addr:street"], tags["addr:housenumber"]].filter(Boolean).join(", ") || "Mapa OpenStreetMap",
               description: tags.cuisine ? `Especialidade: ${tags.cuisine}` : (tags.description || "Local encontrado ao vivo no OpenStreetMap."),
               lat,
@@ -3130,8 +3222,13 @@
     const tr = (state.aiSearch.trails || []).find(t => t.id === trailId);
     if (!tr || !Array.isArray(tr.coords) || tr.coords.length < 2) return;
     const bounds = window.L.latLngBounds(tr.coords);
+    const isSplit = isSplitMapMode();
     state.leafletMap.stop();
-    state.leafletMap.fitBounds(bounds, { animate: false, padding: [48, 48], maxZoom: 16 });
+    state.leafletMap.fitBounds(bounds, {
+      animate: false,
+      padding: isSplit ? [14, 24] : [46, 46],
+      maxZoom: 16
+    });
     const layer = state.aiTrailLayersById && state.aiTrailLayersById[trailId];
     if (layer && typeof layer.openPopup === "function") {
       layer.openPopup();
@@ -3142,20 +3239,60 @@
     const safeKey = escapeHtml(item.key);
     const flags = getPointRouteRoleFlags(item.key);
     const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+    const displayTitle = item.num ? `Ponto ${item.num} — ${item.name}` : item.name;
     return `
       <div style="min-width:215px;font-family:Inter,sans-serif;color:#0f172a;">
-        <div style="font-size:10px;font-weight:800;color:#0284c7;text-transform:uppercase;">Resultado IA #${idx + 1} • ${escapeHtml(item.source)}</div>
-        <strong style="font-size:13.5px;display:block;margin:2px 0 4px 0;">${escapeHtml(item.num ? `${item.num}. ${item.name}` : item.name)}</strong>
+        <div style="font-size:10px;font-weight:800;color:#0284c7;text-transform:uppercase;">Resultado IA ${idx + 1} • ${escapeHtml(item.source)}</div>
+        <strong style="font-size:13.5px;display:block;margin:2px 0 4px 0;">${escapeHtml(displayTitle)}</strong>
         <div style="font-size:11px;color:#475569;margin-bottom:5px;">${escapeHtml(item.endereco || item.region)}</div>
         ${item.description ? `<p style="font-size:11px;color:#334155;margin:0 0 7px 0;line-height:1.35;">${escapeHtml(item.description)}</p>` : ""}
         <div style="display:flex;gap:5px;flex-wrap:wrap;">
-          <button type="button" onclick="window.GeoSC360.setRoutePointRole('${safeKey}', 'stop')"
-            style="padding:5px 8px;background:${flags.isStop ? "#c2410c" : "#ea580c"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">${flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada"}</button>
-          <button type="button" onclick="window.GeoSC360.setRoutePointRole('${safeKey}', 'destination')"
-            style="padding:5px 8px;background:${flags.isDest ? "#991b1b" : "#dc2626"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">${flags.isDest ? "Destino ✓" : "Destino"}</button>
+          <button type="button" class="sc-pt-act-btn ${flags.isStop ? "is-active" : ""}" onclick="window.GeoSC360.setRoutePointRole('${safeKey}', 'stop')"
+            style="padding:5px 8px;background:${flags.isStop ? "#ea580c" : "#334155"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">${flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada"}</button>
+          <button type="button" class="sc-pt-act-btn is-dest ${flags.isDest ? "is-active" : ""}" onclick="window.GeoSC360.setRoutePointRole('${safeKey}', 'destination')"
+            style="padding:5px 8px;background:${flags.isDest ? "#dc2626" : "#334155"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">${flags.isDest ? "Destino Ativo" : "Destino"}</button>
           <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer"
             style="padding:5px 8px;background:#1d4ed8;color:#fff;border-radius:6px;text-decoration:none;font-size:11px;font-weight:700;">Maps ↗</a>
         </div>
+      </div>
+    `;
+  }
+
+  function buildAiTrailPopupHTML(tr) {
+    const startPt = Array.isArray(tr.coords) && tr.coords.length > 0 ? tr.coords[0] : null;
+    const trailKey = `trail:${tr.id}`;
+    if (startPt && Number.isFinite(Number(startPt[0])) && Number.isFinite(Number(startPt[1]))) {
+      state.aiTrailPoiByKey[trailKey] = {
+        key: trailKey,
+        num: null,
+        name: tr.name,
+        region: tr.region || "Trilha / Caminho Rural",
+        endereco: tr.region || tr.name,
+        lat: Number(startPt[0]),
+        lng: Number(startPt[1]),
+        source: tr.source || "Trilha"
+      };
+    }
+    const safeTrailKey = escapeHtml(trailKey);
+    const flags = getPointRouteRoleFlags(trailKey);
+    const gdirUrl = startPt
+      ? `https://www.google.com/maps/dir/?api=1&destination=${startPt[0]},${startPt[1]}`
+      : "";
+    return `
+      <div style="min-width:195px;font-family:Inter,sans-serif;color:#0f172a;">
+        <div style="font-size:10px;font-weight:800;color:#0369a1;text-transform:uppercase;">${escapeHtml(tr.source)}</div>
+        <strong style="font-size:13px;display:block;margin:2px 0;">${escapeHtml(tr.name)}</strong>
+        <div style="font-size:11px;color:#475569;margin-bottom:6px;">${escapeHtml(tr.region || "")}</div>
+        ${startPt ? `
+          <div style="display:flex;gap:5px;flex-wrap:wrap;">
+            <button type="button" class="sc-pt-act-btn ${flags.isStop ? "is-active" : ""}" onclick="window.GeoSC360.setRoutePointRole('${safeTrailKey}', 'stop')"
+              style="padding:5px 8px;background:${flags.isStop ? "#ea580c" : "#334155"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">${flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada"}</button>
+            <button type="button" class="sc-pt-act-btn is-dest ${flags.isDest ? "is-active" : ""}" onclick="window.GeoSC360.setRoutePointRole('${safeTrailKey}', 'destination')"
+              style="padding:5px 8px;background:${flags.isDest ? "#dc2626" : "#334155"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">${flags.isDest ? "Destino Ativo" : "Destino"}</button>
+            <a href="${gdirUrl}" target="_blank" rel="noopener noreferrer"
+              style="padding:5px 8px;background:#0f766e;color:#fff;border-radius:6px;text-decoration:none;font-size:11px;font-weight:700;">Rota Maps ↗</a>
+          </div>
+        ` : ""}
       </div>
     `;
   }
@@ -3165,6 +3302,18 @@
     if (!state.leafletAiLayer) {
       state.leafletAiLayer = window.L.layerGroup().addTo(state.leafletMap);
     }
+
+    let openAiKey = null;
+    let openTrailId = null;
+    if (!fitToResults) {
+      Object.entries(state.aiMarkersByKey || {}).forEach(([k, m]) => {
+        if (m && typeof m.isPopupOpen === "function" && m.isPopupOpen()) openAiKey = k;
+      });
+      Object.entries(state.aiTrailLayersById || {}).forEach(([id, l]) => {
+        if (l && typeof l.isPopupOpen === "function" && l.isPopupOpen()) openTrailId = id;
+      });
+    }
+
     state.leafletAiLayer.clearLayers();
     state.aiMarkersByKey = {};
     state.aiTrailLayersById = {};
@@ -3198,13 +3347,7 @@
         interactive: true
       }).addTo(state.leafletAiLayer);
 
-      trailLine.bindPopup(`
-        <div style="min-width:190px;font-family:Inter,sans-serif;color:#0f172a;">
-          <div style="font-size:10px;font-weight:800;color:#0369a1;text-transform:uppercase;">${escapeHtml(tr.source)}</div>
-          <strong style="font-size:13px;display:block;margin:2px 0;">${escapeHtml(tr.name)}</strong>
-          <div style="font-size:11px;color:#475569;">${escapeHtml(tr.region || "")}</div>
-        </div>
-      `);
+      trailLine.bindPopup(buildAiTrailPopupHTML(tr), { maxWidth: 280, autoPanPadding: [10, 8] });
       state.aiTrailLayersById[tr.id] = trailLine;
     });
 
@@ -3222,15 +3365,26 @@
         zIndexOffset: 1200
       }).addTo(state.leafletAiLayer);
 
-      marker.bindPopup(buildAiMarkerPopupHTML(item, idx));
+      marker.bindPopup(buildAiMarkerPopupHTML(item, idx), { maxWidth: 280, autoPanPadding: [10, 8] });
       state.aiMarkersByKey[item.key] = marker;
     });
 
+    if (openAiKey && state.aiMarkersByKey[openAiKey]) {
+      state.aiMarkersByKey[openAiKey].openPopup();
+    } else if (openTrailId && state.aiTrailLayersById[openTrailId]) {
+      state.aiTrailLayersById[openTrailId].openPopup();
+    }
+
     if (fitToResults && boundsPts.length > 0) {
       const bounds = window.L.latLngBounds(boundsPts);
+      const isSplit = isSplitMapMode();
       state.leafletMap.stop();
       state.leafletMap.invalidateSize({ animate: false, pan: false });
-      state.leafletMap.fitBounds(bounds, { animate: false, padding: [52, 52], maxZoom: 15 });
+      state.leafletMap.fitBounds(bounds, {
+        animate: false,
+        padding: isSplit ? [14, 24] : [46, 46],
+        maxZoom: 15
+      });
     }
   }
 
@@ -3270,10 +3424,13 @@
       <div class="sc-ai-results-list">
         ${displayResults.map((item, idx) => {
           const flags = getPointRouteRoleFlags(item.key);
+          const cardTitle = item.num
+            ? `#${idx + 1} · Ponto ${item.num} — ${item.name}`
+            : `#${idx + 1} · ${item.name}`;
           return `
             <div class="sc-ai-result-card">
               <div class="sc-ai-result-top">
-                <span class="sc-ai-result-title">${idx + 1}. ${escapeHtml(item.num ? `${item.num}. ${item.name}` : item.name)}</span>
+                <span class="sc-ai-result-title">${escapeHtml(cardTitle)}</span>
                 <span class="sc-ai-source-tag ${item.isOsm ? "is-osm" : ""}">${escapeHtml(item.source)}</span>
               </div>
               <div class="sc-ai-result-meta">${escapeHtml(item.endereco || item.region)}</div>
@@ -3281,7 +3438,7 @@
               <div class="sc-ai-result-actions">
                 <button type="button" class="sc-pt-act-btn" data-ai-focus="${escapeHtml(item.key)}">Ver no Mapa</button>
                 <button type="button" class="sc-pt-act-btn ${flags.isStop ? "is-active" : ""}" data-route-role="stop" data-route-key="${escapeHtml(item.key)}">${flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada"}</button>
-                <button type="button" class="sc-pt-act-btn is-dest ${flags.isDest ? "is-active" : ""}" data-route-role="destination" data-route-key="${escapeHtml(item.key)}">${flags.isDest ? "Destino ✓" : "Destino"}</button>
+                <button type="button" class="sc-pt-act-btn is-dest ${flags.isDest ? "is-active" : ""}" data-route-role="destination" data-route-key="${escapeHtml(item.key)}">${flags.isDest ? "Destino Ativo" : "Destino"}</button>
               </div>
             </div>
           `;
@@ -3353,12 +3510,12 @@
     if (hasOutOfFilterMatch) {
       state.skipNextMapFitBounds = true;
       renderFilteredSatelliteMarkers("all");
-      renderAiResultsOnMap(true);
       updateAiSplitBanner();
+      renderAiResultsOnMap(true);
     } else {
       renderAiResultsBox();
-      renderAiResultsOnMap(true);
       updateAiSplitBanner();
+      renderAiResultsOnMap(true);
     }
 
     queryOsmForAi(parsed, reqId);
@@ -3414,7 +3571,7 @@
         <div style="display:flex;gap:5px;margin-top:8px;">
           <button type="button" onclick="window.GeoSC360.setRoutePointRole('${key}', 'origin')"
             style="flex:1;padding:6px 6px;background:${flags.isOrigin ? "#2563eb" : "#334155"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">
-            ${flags.isOrigin ? "Origem ✓" : "Origem"}
+            ${flags.isOrigin ? "Origem Ativa" : "Origem"}
           </button>
           <button type="button" onclick="window.GeoSC360.setRoutePointRole('${key}', 'stop')"
             style="flex:1;padding:6px 6px;background:${flags.isStop ? "#ea580c" : "#334155"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">
@@ -3422,7 +3579,7 @@
           </button>
           <button type="button" onclick="window.GeoSC360.setRoutePointRole('${key}', 'destination')"
             style="flex:1;padding:6px 6px;background:${flags.isDest ? "#dc2626" : "#334155"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">
-            ${flags.isDest ? "Destino ✓" : "Destino"}
+            ${flags.isDest ? "Destino Ativo" : "Destino"}
           </button>
         </div>
         <div style="display:flex;flex-direction:column;gap:5px;margin-top:7px;">
@@ -3475,9 +3632,9 @@
               </span>
             </button>
             <div class="sc-sidebar-actions">
-              <button type="button" class="sc-pt-act-btn is-origin ${flags.isOrigin ? "is-active" : ""}" data-route-role="origin" data-route-key="${key}">${flags.isOrigin ? "Origem ✓" : "Origem"}</button>
+              <button type="button" class="sc-pt-act-btn is-origin ${flags.isOrigin ? "is-active" : ""}" data-route-role="origin" data-route-key="${key}">${flags.isOrigin ? "Origem Ativa" : "Origem"}</button>
               <button type="button" class="sc-pt-act-btn ${flags.isStop ? "is-active" : ""}" data-route-role="stop" data-route-key="${key}">${flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada"}</button>
-              <button type="button" class="sc-pt-act-btn is-dest ${flags.isDest ? "is-active" : ""}" data-route-role="destination" data-route-key="${key}">${flags.isDest ? "Destino ✓" : "Destino"}</button>
+              <button type="button" class="sc-pt-act-btn is-dest ${flags.isDest ? "is-active" : ""}" data-route-role="destination" data-route-key="${key}">${flags.isDest ? "Destino Ativo" : "Destino"}</button>
               ${svAllowed
                 ? `<button type="button" class="sc-pt-act-btn is-sv" data-sv-pt-num="${pt.num}">Street View</button>`
                 : `<span class="sc-sv-unavailable-note">Street View não disponível.</span>`
@@ -3782,7 +3939,7 @@
         zIndexOffset: pt.sceneId ? 600 : 100 + (30 - pt.num)
       }).addTo(state.leafletMarkersLayer);
 
-      marker.bindPopup(buildRotaPointGooglePopupHTML(pt), { maxWidth: 300 });
+      marker.bindPopup(buildRotaPointGooglePopupHTML(pt), { maxWidth: 300, autoPanPadding: [10, 8] });
       marker.on("click", () => {
         const sidebarCard = document.querySelector(`#scMapPointsSidebar [data-map-pt-num="${pt.num}"]`);
         const sidebarItem = sidebarCard ? sidebarCard.querySelector(".sc-sidebar-item") : null;
@@ -3797,6 +3954,7 @@
     });
 
     if (!state.skipNextMapFitBounds) {
+      const fitPadding = isSplitMapMode() ? [14, 24] : [46, 46];
       state.leafletMap.stop();
       state.leafletMap.invalidateSize({ animate: false, pan: false });
       if (activeScMapFilter === "pano360") {
@@ -3808,7 +3966,7 @@
         } else if (focusPts.length > 0) {
           state.leafletMap.fitBounds(window.L.latLngBounds(focusPts.map(p => [p.lat, p.lng])), {
             animate: false,
-            padding: [50, 50],
+            padding: fitPadding,
             maxZoom: 16
           });
         }
@@ -3816,7 +3974,7 @@
         const bounds = window.L.latLngBounds(focusPts.map(p => [p.lat, p.lng]));
         state.leafletMap.fitBounds(bounds, {
           animate: false,
-          padding: [42, 42],
+          padding: fitPadding,
           maxZoom: 15
         });
       }
@@ -3950,6 +4108,23 @@
             return;
           }
           setSatelliteStreetViewLocation(snapped.lat, snapped.lng, snapped.heading, snapped.pitch, snapped.label, snapped.spotId);
+        }
+      });
+      state.leafletMap.on("popupopen", ev => {
+        const popupEl = ev && ev.popup && typeof ev.popup.getElement === "function"
+          ? ev.popup.getElement()
+          : null;
+        if (popupEl && window.L && window.L.DomEvent) {
+          window.L.DomEvent.disableClickPropagation(popupEl);
+          const wrapperEl = popupEl.querySelector(".leaflet-popup-content-wrapper");
+          if (wrapperEl && !wrapperEl.dataset.clickStopBound) {
+            wrapperEl.dataset.clickStopBound = "true";
+            window.L.DomEvent.on(wrapperEl, "click", window.L.DomEvent.stopPropagation);
+          }
+          const contentEl = popupEl.querySelector(".leaflet-popup-content");
+          if (contentEl) {
+            window.L.DomEvent.disableScrollPropagation(contentEl);
+          }
         }
       });
       bindScMapQuickButtons();
