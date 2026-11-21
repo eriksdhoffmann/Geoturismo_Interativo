@@ -547,7 +547,7 @@
   function buildStreetViewEmbedUrl(lat, lng, heading, pitch) {
     const h = Math.round(((Number(heading) || 0) % 360 + 360) % 360);
     const p = Math.round(Number(pitch) || 0);
-    return `https://maps.google.com/maps?layer=c&cbll=${lat},${lng}&cbp=12,${h},0,0,${p}&output=svembed`;
+    return `https://maps.google.com/maps?hl=pt-BR&layer=c&cbll=${lat},${lng}&cbp=12,${h},0,0,${p}&output=svembed`;
   }
 
   function buildStreetViewAppUrl(lat, lng, heading, pitch) {
@@ -1413,6 +1413,18 @@
     // Fechar modais com tecla ESC
     window.addEventListener("keydown", e => {
       if (e.key === "Escape") {
+        if (state.isDraggingPegman || pegmanDragSession) {
+          cancelActivePegmanDragSession();
+          return;
+        }
+        if (state.isSatSvDropMode && !state.isSatStreetViewOpen) {
+          setSatelliteStreetViewDropMode(false);
+          return;
+        }
+        if (state.isSatStreetViewOpen) {
+          toggleSatelliteStreetView(false);
+          return;
+        }
         closeSplitModal();
         closeAuxiliaryDrawers();
         setPlaceSelectorOpen(false);
@@ -1747,15 +1759,19 @@
     document.querySelectorAll("[data-close-drawer]").forEach(btn => {
       btn.addEventListener("click", () => {
         const targetId = btn.getAttribute("data-close-drawer");
-        const el = document.getElementById(targetId);
-        if (el) {
-          el.classList.remove("open", "split-mode");
-        }
         if (targetId === "scMapModal") {
+          if (state.isSatStreetViewOpen) {
+            toggleSatelliteStreetView(false);
+          }
           document.body.classList.remove("satellite-split-open");
           state.isScMapSplitOpen = false;
           setSatelliteStreetViewDropMode(false);
+          setSatelliteStreetViewCoverageVisible(false);
           hidePegmanDragOverlay();
+        }
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.classList.remove("open", "split-mode", "sv-open");
         }
       });
     });
@@ -1807,13 +1823,17 @@
   }
 
   function closeAuxiliaryDrawers() {
+    if (state.isSatStreetViewOpen) {
+      toggleSatelliteStreetView(false);
+    }
     ["logicGuideModal", "scenesGridModal", "scMapModal", "rdlIllustratedModal"].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.classList.remove("open", "split-mode");
+      if (el) el.classList.remove("open", "split-mode", "sv-open");
     });
     document.body.classList.remove("satellite-split-open");
     state.isScMapSplitOpen = false;
     setSatelliteStreetViewDropMode(false);
+    setSatelliteStreetViewCoverageVisible(false);
     hidePegmanDragOverlay();
     setPlaceSelectorOpen(false);
   }
@@ -2795,9 +2815,22 @@
         "🗺️ Google Mapa de Ruas": googleStreets
       }).addTo(state.leafletMap);
 
-      state.leafletMap.on("zoomend", () => updateLiveSatelliteRadar(true));
+      state.leafletMap.on("dragstart zoomstart", () => {
+        state.isLeafletMapPanning = true;
+        if (state.isSatSvDropMode && !state.isDraggingPegman) {
+          hidePegmanDragOverlay();
+        }
+      });
+      state.leafletMap.on("dragend zoomend", () => {
+        state.isLeafletMapPanning = false;
+        state.lastLeafletDragEndTime = Date.now();
+        updateLiveSatelliteRadar(true);
+      });
       state.leafletMap.on("click", e => {
         if (!e || !e.latlng) return;
+        if (state.lastLeafletDragEndTime && (Date.now() - state.lastLeafletDragEndTime) < 180) {
+          return;
+        }
         if (state.isSatSvDropMode && !state.isSatStreetViewOpen) {
           dropPegmanAtLatLng(e.latlng.lat, e.latlng.lng);
         } else if (state.isSatStreetViewOpen) {
@@ -2937,6 +2970,14 @@
 
   function getAllStreetViewRoadSegments() {
     const list = [];
+    const extraStreets = Array.isArray(window.RIO_DA_LUZ_EXTRA_STREETS) && window.RIO_DA_LUZ_EXTRA_STREETS.length > 0
+      ? window.RIO_DA_LUZ_EXTRA_STREETS
+      : RIO_DA_LUZ_EXTRA_STREETS;
+    extraStreets.forEach(st => {
+      if (st && Array.isArray(st.coords) && st.coords.length >= 2) {
+        list.push(st);
+      }
+    });
     if (Array.isArray(window.ROTA_LUMIAR_ROAD_LEGS)) {
       window.ROTA_LUMIAR_ROAD_LEGS.forEach(leg => {
         if (leg && Array.isArray(leg.coords) && leg.coords.length >= 2) {
@@ -2948,14 +2989,6 @@
         }
       });
     }
-    const extraStreets = Array.isArray(window.RIO_DA_LUZ_EXTRA_STREETS) && window.RIO_DA_LUZ_EXTRA_STREETS.length > 0
-      ? window.RIO_DA_LUZ_EXTRA_STREETS
-      : RIO_DA_LUZ_EXTRA_STREETS;
-    extraStreets.forEach(st => {
-      if (st && Array.isArray(st.coords) && st.coords.length >= 2) {
-        list.push(st);
-      }
-    });
     return list;
   }
 
@@ -3148,7 +3181,6 @@
     if (!overlay) return;
 
     overlay.hidden = false;
-    overlay.style.transform = `translate3d(${Math.round(clientX)}px, ${Math.round(clientY)}px, 0)`;
     if (bodyEl && typeof tiltDeg === "number") {
       bodyEl.style.transform = `rotate(${tiltDeg.toFixed(1)}deg)`;
     }
@@ -3157,7 +3189,10 @@
     const targetX = clientX;
     const targetY = clientY + 8;
     const mapEl = document.getElementById("leafletSCMap");
-    if (!mapEl || !state.leafletMap || typeof window.L === "undefined") return null;
+    if (!mapEl || !state.leafletMap || typeof window.L === "undefined") {
+      overlay.style.transform = `translate3d(${Math.round(clientX)}px, ${Math.round(clientY)}px, 0)`;
+      return null;
+    }
 
     const rect = mapEl.getBoundingClientRect();
     const isInsideMap = (
@@ -3168,6 +3203,7 @@
     );
 
     if (!isInsideMap) {
+      overlay.style.transform = `translate3d(${Math.round(clientX)}px, ${Math.round(clientY)}px, 0)`;
       if (greenCircle) {
         greenCircle.classList.remove("is-over-road");
         greenCircle.style.transform = "translate3d(0px, 0px, 0) scale(0.95)";
@@ -3181,20 +3217,31 @@
     const latlng = state.leafletMap.containerPointToLatLng(containerPt);
     const snapped = snapToSatelliteStreetViewSpot(latlng.lat, latlng.lng);
 
+    const snappedPt = state.leafletMap.latLngToContainerPoint([snapped.lat, snapped.lng]);
+    const snappedClientX = rect.left + snappedPt.x;
+    const snappedClientY = rect.top + snappedPt.y;
+    const dxSnap = snappedClientX - targetX;
+    const dySnap = snappedClientY - targetY;
+    const pixelDist = Math.hypot(dxSnap, dySnap);
+
+    // Atração magnética suave do conjunto (Boneco + Círculo Verde alinhado sob os pés) para o eixo da rua azul
+    let magX = 0;
+    let magY = 0;
+    if (snapped.isOverRoad && pixelDist <= 36) {
+      magX = Math.max(-12, Math.min(12, dxSnap * 0.65));
+      magY = Math.max(-12, Math.min(12, dySnap * 0.65));
+    }
+    overlay.style.transform = `translate3d(${Math.round(clientX + magX)}px, ${Math.round(clientY + magY)}px, 0)`;
+
     if (greenCircle) {
-      const snappedPt = state.leafletMap.latLngToContainerPoint([snapped.lat, snapped.lng]);
-      const snappedClientX = rect.left + snappedPt.x;
-      const snappedClientY = rect.top + snappedPt.y;
-      const offsetX = Math.max(-16, Math.min(16, snappedClientX - targetX));
-      const offsetY = Math.max(-16, Math.min(16, snappedClientY - targetY));
       const sc = snapped.isOverRoad ? 1.12 : 0.96;
       greenCircle.classList.toggle("is-over-road", Boolean(snapped.isOverRoad));
-      greenCircle.style.transform = `translate3d(${offsetX.toFixed(1)}px, ${offsetY.toFixed(1)}px, 0) scale(${sc})`;
+      greenCircle.style.transform = `translate3d(0px, 0px, 0) scale(${sc})`;
     }
     if (pill) {
       pill.textContent = `🟢 Solte na rua: ${snapped.shortLabel || snapped.label}`;
     }
-    removeLeafletSvSnapRing();
+    updateLeafletSvSnapRing(snapped.lat, snapped.lng, Boolean(snapped.isOverRoad));
     return snapped;
   }
 
@@ -3372,6 +3419,35 @@
   let pegmanDragSession = null;
   let pegmanTiltResetTimer = null;
 
+  function cancelActivePegmanDragSession() {
+    pegmanDragSession = null;
+    state.isDraggingPegman = false;
+    if (pegmanTiltResetTimer) {
+      clearTimeout(pegmanTiltResetTimer);
+      pegmanTiltResetTimer = null;
+    }
+    const dockBtn = document.getElementById("btnSatFloatingPegman");
+    if (dockBtn) dockBtn.classList.remove("pegman-picked-up");
+    hidePegmanDragOverlay();
+    if (!state.isSatSvDropMode) {
+      setSatelliteStreetViewCoverageVisible(false);
+    }
+  }
+
+  function isClientPointOverMapUiControl(clientX, clientY, targetEl) {
+    const checkSelector = ".sat-sv-coverage-banner, .sat-pegman-dock-wrap, .leaflet-control, .leaflet-popup";
+    if (targetEl && typeof targetEl.closest === "function" && targetEl.closest(checkSelector)) {
+      return true;
+    }
+    if (typeof document.elementFromPoint === "function") {
+      const elAtPt = document.elementFromPoint(clientX, clientY);
+      if (elAtPt && typeof elAtPt.closest === "function" && elAtPt.closest(checkSelector)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   function bindPegmanDragSource(btn) {
     if (!btn || btn.dataset.pegmanDragBound) return;
     btn.dataset.pegmanDragBound = "true";
@@ -3450,6 +3526,10 @@
       }
 
       if (state.isSatSvDropMode && !state.isSatStreetViewOpen) {
+        if (state.isLeafletMapPanning) {
+          hidePegmanDragOverlay();
+          return;
+        }
         const mapEl = document.getElementById("leafletSCMap");
         if (!mapEl) return;
         const rect = mapEl.getBoundingClientRect();
@@ -3459,11 +3539,23 @@
           e.clientY >= rect.top &&
           e.clientY <= rect.bottom
         );
-        if (inside) {
+        if (inside && !isClientPointOverMapUiControl(e.clientX, e.clientY, e.target)) {
           updatePegmanDragOverlayAtClient(e.clientX, e.clientY, 0);
         } else {
           hidePegmanDragOverlay();
         }
+      }
+    });
+
+    window.addEventListener("pointercancel", () => {
+      if (pegmanDragSession || state.isDraggingPegman) {
+        cancelActivePegmanDragSession();
+      }
+    });
+
+    window.addEventListener("blur", () => {
+      if (pegmanDragSession || state.isDraggingPegman) {
+        cancelActivePegmanDragSession();
       }
     });
 
@@ -3492,8 +3584,9 @@
           e.clientY >= dockRect.top - 6 &&
           e.clientY <= dockRect.bottom + 6
         );
+        const droppedOnUiControl = isClientPointOverMapUiControl(e.clientX, e.clientY, e.target);
 
-        if (mapEl && !droppedOnDock && state.leafletMap && typeof window.L !== "undefined") {
+        if (mapEl && !droppedOnDock && !droppedOnUiControl && state.leafletMap && typeof window.L !== "undefined") {
           const rect = mapEl.getBoundingClientRect();
           if (targetX >= rect.left && targetX <= rect.right && targetY >= rect.top && targetY <= rect.bottom) {
             const containerPt = window.L.point(targetX - rect.left, targetY - rect.top);
@@ -3797,7 +3890,11 @@
       const dockBtn = document.getElementById("btnSatFloatingPegman");
       if (dockBtn) dockBtn.classList.add("pegman-picked-up");
       const rect = mapEl.getBoundingClientRect();
-      const pt = state.leafletMap.latLngToContainerPoint([lat, lng]);
+      let pt = state.leafletMap.latLngToContainerPoint([lat, lng]);
+      if (pt.x < 24 || pt.x > rect.width - 24 || pt.y < 24 || pt.y > rect.height - 24) {
+        state.leafletMap.panTo([lat, lng], { animate: false });
+        pt = state.leafletMap.latLngToContainerPoint([lat, lng]);
+      }
       const clientX = rect.left + pt.x;
       const clientY = rect.top + pt.y - 8;
       return updatePegmanDragOverlayAtClient(clientX, clientY, tiltDeg);

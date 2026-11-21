@@ -3577,18 +3577,9 @@ body.vr-active #btnStandaloneBackToSCMap {
 }
 
 @media (max-width: 900px) {
-  #scMapModal.sv-open:not(.split-mode) .sc-map-split {
-    grid-template-columns: 1fr;
-    grid-template-rows: 42% 58%;
-  }
-  #scMapModal.sv-open:not(.split-mode) .sc-map-sidebar {
-    display: none;
-  }
-  #scMapModal.open.split-mode.sv-open .sc-map-split {
-    grid-template-columns: 40% 60%;
-  }
   .sc-sv-coords,
   .sat-pegman-hint-bubble {
     display: none;
   }
 }
+
