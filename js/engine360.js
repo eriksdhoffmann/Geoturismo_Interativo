@@ -74,17 +74,25 @@
       reqId: 0
     },
     aiPoiByKey: {},
+    aiMarkersByKey: {},
+    aiTrailLayersById: {},
     rioDaLuzLimitTimer: null
   };
 
   function isAnyModalOrDrawerOpen() {
     const splitOpen = Boolean(document.getElementById("splitModalBackdrop")?.classList.contains("open"));
     const drawerOpen = Boolean(document.querySelector(".aux-drawer-modal.open"));
+    const scMapOpen = Boolean(document.getElementById("scMapModal")?.classList.contains("open"));
+    const rdlOpen = Boolean(document.getElementById("rdlIllustratedModal")?.classList.contains("open"));
     const editorOpen = Boolean(document.getElementById("editorSidePanel")?.classList.contains("open"));
-    const vrOpen = Boolean(document.getElementById("vrOverlayStage")?.classList.contains("open"));
+    const vrStage = document.getElementById("vrOverlayStage");
+    const vrOpen = Boolean(
+      document.body.classList.contains("vr-active") ||
+      (vrStage && (vrStage.classList.contains("open") || vrStage.style.display === "block"))
+    );
     const limitEl = document.getElementById("rioDaLuzLimitAlert");
     const limitOpen = Boolean(limitEl && !limitEl.hidden);
-    return splitOpen || drawerOpen || editorOpen || vrOpen || limitOpen;
+    return splitOpen || drawerOpen || scMapOpen || rdlOpen || editorOpen || vrOpen || limitOpen;
   }
 
   function syncModalUiState() {
@@ -519,7 +527,7 @@
         // Ícones da Legenda do Mapa Oficial (Montanha, Igreja, Clube de Tiro)
         innerHTML = `
           <span class="hs-pulse"></span>
-          <span class="hs-map-legend-badge">${hs.badgeText || "★"}</span>
+          <span class="hs-map-legend-badge">${hs.badgeText || "•"}</span>
         `;
       } else if (hs.iconStyle === "white-circle") {
         innerHTML = `
@@ -1201,6 +1209,11 @@
     // Fechar modais com tecla ESC
     window.addEventListener("keydown", e => {
       if (e.key === "Escape") {
+        const limitEl = document.getElementById("rioDaLuzLimitAlert");
+        if (limitEl && !limitEl.hidden) {
+          executeRioDaLuzReturnNow();
+          return;
+        }
         if (state.isDraggingPegman || pegmanDragSession) {
           cancelActivePegmanDragSession();
           return;
@@ -1563,7 +1576,7 @@
 
   let scMapLayoutTimer = null;
 
-  function applyScMapDisplayMode(splitMode, skipRefresh) {
+  function applyScMapDisplayMode(splitMode, skipRefresh, onLayoutDone) {
     const modal = document.getElementById("scMapModal");
     const expandBtn = document.getElementById("btnToggleScMapExpand");
     if (!modal) return;
@@ -1579,8 +1592,14 @@
         if (!state.leafletMap) return;
         state.leafletMap.stop();
         state.leafletMap.invalidateSize({ animate: false, pan: false });
-        renderFilteredSatelliteMarkers(splitMode ? "pano360" : activeScMapFilter);
+        const nextFilter = splitMode ? "pano360" : (state.aiSearch.active && activeScMapFilter === "pano360" ? "all" : activeScMapFilter);
+        renderFilteredSatelliteMarkers(nextFilter);
+        if (typeof onLayoutDone === "function") {
+          onLayoutDone();
+        }
       }, 160);
+    } else if (typeof onLayoutDone === "function") {
+      setTimeout(onLayoutDone, 40);
     }
   }
 
@@ -2253,6 +2272,7 @@
       + state.customRoute.waypoints.length
       + (state.customRoute.destination ? 1 : 0);
     btn.textContent = `Minha Rota (${count})`;
+    btn.classList.toggle("has-route", count > 0);
     btn.classList.toggle("active", count > 0);
   }
 
@@ -2300,6 +2320,15 @@
         }
       });
     }
+
+    if (state.aiMarkersByKey && state.aiSearch && Array.isArray(state.aiSearch.results)) {
+      state.aiSearch.results.forEach((item, idx) => {
+        const marker = state.aiMarkersByKey[item.key];
+        if (marker && marker.getPopup && marker.getPopup()) {
+          marker.setPopupContent(buildAiMarkerPopupHTML(item, idx));
+        }
+      });
+    }
   }
 
   function setRoutePointRole(keyOrNum, role, focusRoutePanel) {
@@ -2338,12 +2367,17 @@
     if (focusRoutePanel) {
       const modal = document.getElementById("scMapModal");
       if (modal && modal.classList.contains("split-mode")) {
-        applyScMapDisplayMode(false);
+        state.skipNextMapFitBounds = true;
+        applyScMapDisplayMode(false, false, () => {
+          const panel = document.getElementById("scMapRoutePanel");
+          if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      } else {
+        setTimeout(() => {
+          const panel = document.getElementById("scMapRoutePanel");
+          if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 80);
       }
-      setTimeout(() => {
-        const panel = document.getElementById("scMapRoutePanel");
-        if (panel) panel.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 100);
     }
     return true;
   }
@@ -2388,15 +2422,25 @@
       state.customRoute.destination = validItems[validItems.length - 1].key;
     }
     refreshAllRouteViews();
-    const seq = getRouteSequenceItems();
-    if (state.leafletMap && typeof window.L !== "undefined" && seq.length >= 2) {
-      const bounds = window.L.latLngBounds(seq.map(s => [s.item.lat, s.item.lng]));
+
+    const fitRouteBounds = () => {
+      const seq = getRouteSequenceItems();
+      if (!state.leafletMap || typeof window.L === "undefined" || seq.length === 0) return;
       state.leafletMap.stop();
-      state.leafletMap.fitBounds(bounds, { animate: false, padding: [50, 50], maxZoom: 15 });
-    }
+      if (seq.length >= 2) {
+        const bounds = window.L.latLngBounds(seq.map(s => [s.item.lat, s.item.lng]));
+        state.leafletMap.fitBounds(bounds, { animate: false, padding: [50, 50], maxZoom: 15 });
+      } else {
+        state.leafletMap.setView([seq[0].item.lat, seq[0].item.lng], 16, { animate: false });
+      }
+    };
+
     const modal = document.getElementById("scMapModal");
     if (modal && modal.classList.contains("split-mode")) {
-      applyScMapDisplayMode(false);
+      state.skipNextMapFitBounds = true;
+      applyScMapDisplayMode(false, false, fitRouteBounds);
+    } else {
+      fitRouteBounds();
     }
     return true;
   }
@@ -2520,13 +2564,20 @@
       <div class="sc-route-footer">
         <a id="btnOpenCustomRouteMaps"
           href="${mapsUrl || "#"}"
-          ${mapsUrl ? `target="_blank" rel="noopener noreferrer"` : ""}
+          ${mapsUrl ? `target="_blank" rel="noopener noreferrer"` : `aria-disabled="true" tabindex="-1"`}
           class="sc-route-gmaps-btn ${mapsUrl ? "" : "is-disabled"}">
           Abrir Rota no Google Maps
         </a>
         ${!destItem && stopItems.length > 0 ? `<div class="sc-route-subtitle">Sem destino explícito: a última parada será usada como destino no Maps.</div>` : ""}
       </div>
     `;
+
+    const mapsBtn = document.getElementById("btnOpenCustomRouteMaps");
+    if (mapsBtn && !mapsUrl) {
+      mapsBtn.addEventListener("click", e => {
+        e.preventDefault();
+      });
+    }
 
     const clearBtn = document.getElementById("btnClearCustomRoute");
     if (clearBtn) {
@@ -2569,7 +2620,7 @@
   }
 
   // ===========================================================================
-  // BUSCA IA NO MAPA (SEMÂNTICA PT-BR + TRILHAS + OVERPASS OSM AO VIVO)
+  // BUSCA IA NO MAPA (SEMÂNTICA PT-BR + TRILHAS + NOMINATIM & OVERPASS OSM)
   // ===========================================================================
   const AI_STOPWORDS = new Set([
     "quero", "queria", "preciso", "gostaria", "busco", "buscar", "procurar", "procura",
@@ -2584,22 +2635,23 @@
       label: "Almoço e gastronomia típica",
       keywords: [
         "almoco", "almocar", "almoçar", "jantar", "janta", "comer", "comida", "refeicao",
-        "restaurante", "prato", "tipica", "alema", "caseira", "buffet", "marreco",
+        "restaurante", "prato", "tipica", "alema", "alemao", "caseira", "buffet", "marreco",
         "eisbein", "spatzle", "churrasco", "petisco", "porcao", "bier", "cervejaria",
-        "lanche", "fome", "culinaria", "gastronomia"
+        "chopp", "chope", "lanche", "fome", "culinaria", "gastronomia", "peixe", "tilapia",
+        "pesque", "sopa", "sopas", "quitutes"
       ],
       pointCategories: ["gastronomia"],
-      textBoosts: ["restaurante", "gastronomia", "alema", "tipica", "refeicao", "almoco", "cervejaria", "bier", "truffa", "schroeder"]
+      textBoosts: ["restaurante", "gastronomia", "alema", "tipica", "refeicao", "almoco", "cervejaria", "bier", "currywurst", "schroeder", "pesque", "peixe"]
     },
     cafe_bakery: {
       label: "Café colonial, cucas e compras artesanais",
       keywords: [
-        "cafe", "colonial", "cuca", "torta", "bolo", "doce", "sobremesa", "chocolate",
+        "cafe", "colonial", "cuca", "cucas", "torta", "bolo", "doce", "sobremesa", "chocolate",
         "nugali", "artesanal", "pao", "paes", "geleia", "queijo", "mel", "produto",
-        "embutido", "compras", "confeitaria", "padaria", "sorvete"
+        "embutido", "compras", "confeitaria", "padaria", "sorvete", "biscoito"
       ],
       pointCategories: ["gastronomia", "compras"],
-      textBoosts: ["cafe", "colonial", "cuca", "chocolate", "queijo", "mel", "artesanal", "geleia", "produto"]
+      textBoosts: ["cafe", "colonial", "cuca", "chocolate", "queijo", "mel", "artesanal", "geleia", "produto", "biscoito"]
     },
     trail_nature: {
       label: "Trilhas, caminhadas e natureza ao ar livre",
@@ -2632,15 +2684,31 @@
     }
   };
 
+  function matchAiKeyword(normText, tokenSet, kw) {
+    const nkw = normalizeGeoText(kw);
+    if (!nkw) return false;
+    if (nkw.includes(" ") || nkw.length >= 5) {
+      return normText.includes(nkw);
+    }
+    return tokenSet.has(nkw);
+  }
+
   function parseAiSearchQuery(rawQuery) {
     const cleanRaw = String(rawQuery || "").trim();
     const norm = normalizeGeoText(cleanRaw);
     const rawTokens = norm.split(/[^a-z0-9]+/).filter(Boolean);
     const meaningfulTokens = rawTokens.filter(t => t.length >= 2 && !AI_STOPWORDS.has(t));
 
+    // Remove nomes próprios geográficos com "rio" antes de checar intenção de natureza/rio
+    const normForIntent = norm
+      .replace(/\b(rio da luz|rio do testo|rio cerro)\b/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    const intentTokens = new Set(normForIntent.split(/[^a-z0-9]+/).filter(Boolean));
+
     const intents = {};
     Object.entries(AI_INTENT_CLUSTERS).forEach(([intentKey, cfg]) => {
-      const hit = cfg.keywords.some(kw => norm.includes(normalizeGeoText(kw)));
+      const hit = cfg.keywords.some(kw => matchAiKeyword(normForIntent, intentTokens, kw));
       if (hit) intents[intentKey] = true;
     });
 
@@ -2706,7 +2774,7 @@
       });
 
       if (parsed.regionHint && pt.regionKey === parsed.regionHint) {
-        score += 5;
+        score += 10;
       }
 
       if (score >= 4) {
@@ -2730,7 +2798,7 @@
     });
 
     scored.sort((a, b) => b.score - a.score || a.num - b.num);
-    return scored.slice(0, 10);
+    return scored.slice(0, 8);
   }
 
   function scoreLocalTrailsForAi(parsed) {
@@ -2767,7 +2835,7 @@
           matched.push({
             id: `local_trail_${idx}`,
             name: st.name || "Trilha / Estrada Rural",
-            region: trilhaPt ? "Vale do Rio da Luz (Estrada Rural / Tifa)" : "Vale do Rio da Luz",
+            region: "Vale do Rio da Luz (Estrada Rural / Tifa)",
             coords: st.coords,
             source: "Mapa Rio da Luz",
             priority: isUnpaved ? 2 : 1
@@ -2781,128 +2849,244 @@
     return trails;
   }
 
-  function queryOverpassForAi(parsed, reqId) {
-    if (typeof window.fetch !== "function") return;
-    const bbox = "-26.750,-49.245,-26.515,-49.120";
+  function mergeLiveOsmFindings(parsed, reqId, osmResults, osmTrails, markFinished) {
+    if (!state.aiSearch.active || state.aiSearch.reqId !== reqId) return;
+    if (markFinished) state.aiSearch.loadingOsm = false;
+
+    const existingPts = getRotaPointsForMap("all");
+    const seenNames = new Set(state.aiSearch.results.map(r => normalizeGeoText(r.name)));
+    const seenTrailIds = new Set(state.aiSearch.trails.map(t => t.id));
+    const seenTrailNames = new Set(state.aiSearch.trails.map(t => normalizeGeoText(t.name)));
+    let changed = false;
+
+    (osmResults || []).forEach(poi => {
+      const normName = normalizeGeoText(poi.name);
+      if (!normName || seenNames.has(normName)) return;
+      const dupRota = existingPts.some(p => Math.hypot(p.lat - poi.lat, p.lng - poi.lng) < 0.0007);
+      const dupCur = state.aiSearch.results.some(p => Math.hypot(p.lat - poi.lat, p.lng - poi.lng) < 0.0007);
+      if (dupRota || dupCur) return;
+      seenNames.add(normName);
+      state.aiPoiByKey[poi.key] = poi;
+      if (state.aiSearch.results.length < 16) {
+        state.aiSearch.results = [...state.aiSearch.results, poi];
+        changed = true;
+      }
+    });
+
+    (osmTrails || []).forEach(tr => {
+      if (seenTrailIds.has(tr.id)) return;
+      const nName = normalizeGeoText(tr.name);
+      if (nName && seenTrailNames.has(nName) && !tr.coords) return;
+      seenTrailIds.add(tr.id);
+      if (nName) seenTrailNames.add(nName);
+      if (state.aiSearch.trails.length < 14) {
+        state.aiSearch.trails = [...state.aiSearch.trails, tr];
+        changed = true;
+      }
+    });
+
+    const hasOsm = state.aiSearch.results.some(r => r.isOsm) || state.aiSearch.trails.some(t => t.source === "OSM Ao Vivo");
+    state.aiSearch.answer = buildAiSummaryText(parsed, state.aiSearch.results, state.aiSearch.trails, hasOsm);
+    renderAiResultsBox();
+    if (changed) {
+      renderAiResultsOnMap(false);
+    }
+    updateAiSplitBanner();
+  }
+
+  function buildNominatimQueries(parsed) {
+    const terms = [];
+    if (parsed.intents.lunch_food) terms.push("restaurante");
+    if (parsed.intents.trail_nature) terms.push("trilha");
+    if (parsed.intents.cafe_bakery) {
+      if (parsed.norm.includes("chocolate") || parsed.norm.includes("nugali")) terms.push("chocolate");
+      else terms.push("cafe");
+    }
+    if (parsed.intents.lodging) terms.push("pousada");
+    if (parsed.intents.heritage_culture) terms.push("museu");
+    if (terms.length === 0) {
+      const validTokens = parsed.tokens.filter(t => t.length >= 3 && !/^\d+$/.test(t));
+      if (validTokens.length > 0) terms.push(validTokens.slice(0, 3).join(" "));
+    }
+    return Array.from(new Set(terms)).slice(0, 2);
+  }
+
+  function queryOsmForAi(parsed, reqId) {
+    if (typeof window.fetch !== "function") {
+      state.aiSearch.loadingOsm = false;
+      renderAiResultsBox();
+      return;
+    }
+
+    const nomQueries = buildNominatimQueries(parsed);
+    const bboxOverpass = "-26.750,-49.245,-26.515,-49.120";
     const clauses = [];
 
     if (parsed.intents.lunch_food) {
-      clauses.push(`nwr["amenity"~"restaurant|fast_food|food_court|biergarten"](${bbox});`);
+      clauses.push(`nwr["amenity"~"restaurant|fast_food|food_court|biergarten"](${bboxOverpass});`);
     }
     if (parsed.intents.cafe_bakery) {
-      clauses.push(`nwr["amenity"~"cafe|bakery|ice_cream"](${bbox});`);
-      clauses.push(`nwr["shop"~"chocolate|confectionery|bakery|farm"](${bbox});`);
+      clauses.push(`nwr["amenity"~"cafe|bakery|ice_cream"](${bboxOverpass});`);
+      clauses.push(`nwr["shop"~"chocolate|confectionery|bakery|farm"](${bboxOverpass});`);
     }
     if (parsed.intents.lodging) {
-      clauses.push(`nwr["tourism"~"guest_house|hotel|chalet|hostel|camp_site"](${bbox});`);
+      clauses.push(`nwr["tourism"~"guest_house|hotel|chalet|hostel|camp_site"](${bboxOverpass});`);
     }
     if (parsed.intents.heritage_culture) {
-      clauses.push(`nwr["tourism"~"museum|attraction|artwork|viewpoint"](${bbox});`);
-      clauses.push(`nwr["amenity"="place_of_worship"](${bbox});`);
+      clauses.push(`nwr["tourism"~"museum|attraction|artwork|viewpoint"](${bboxOverpass});`);
+      clauses.push(`nwr["amenity"="place_of_worship"](${bboxOverpass});`);
     }
-
     let queryTrails = false;
     if (parsed.intents.trail_nature) {
       queryTrails = true;
-      clauses.push(`nwr["tourism"~"viewpoint|picnic_site|park"](${bbox});`);
-      clauses.push(`way["highway"~"path|track|footway|cycleway|bridleway"]["name"](${bbox});`);
-      clauses.push(`way["highway"~"path|track"](${bbox});`);
+      clauses.push(`nwr["tourism"~"viewpoint|picnic_site|park"](${bboxOverpass});`);
+      clauses.push(`way["highway"~"path|track|footway|cycleway|bridleway"]["name"](${bboxOverpass});`);
     }
-
     if (clauses.length === 0 && parsed.tokens.length > 0) {
       const safeToken = parsed.tokens[0].replace(/[^a-z0-9]/g, "");
       if (safeToken.length >= 3) {
-        clauses.push(`nwr["name"~"${safeToken}",i](${bbox});`);
+        clauses.push(`nwr["name"~"${safeToken}",i](${bboxOverpass});`);
       }
     }
-    if (clauses.length === 0) return;
 
-    const ql = `[out:json][timeout:4];(${clauses.join("")});${queryTrails ? "out geom 24;" : "out center 18;"}`;
-    const controller = typeof AbortController !== "undefined" ? new AbortController() : null;
-    const timer = controller ? setTimeout(() => controller.abort(), 3800) : null;
+    if (nomQueries.length === 0 && clauses.length === 0) {
+      state.aiSearch.loadingOsm = false;
+      renderAiResultsBox();
+      return;
+    }
 
-    window.fetch("https://overpass-api.de/api/interpreter", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
-      body: `data=${encodeURIComponent(ql)}`,
-      signal: controller ? controller.signal : undefined
-    })
-      .then(res => (res.ok ? res.json() : null))
-      .then(data => {
-        if (timer) clearTimeout(timer);
-        if (!state.aiSearch.active || state.aiSearch.reqId !== reqId) return;
-        state.aiSearch.loadingOsm = false;
-        if (!data || !Array.isArray(data.elements)) {
-          renderAiResultsBox();
-          return;
-        }
-
-        const existingPts = getRotaPointsForMap("all");
-        const osmResults = [];
-        const osmTrails = [];
-        const seenNames = new Set(state.aiSearch.results.map(r => normalizeGeoText(r.name)));
-
-        data.elements.forEach(el => {
-          const tags = el.tags || {};
-          const isTrailWay = el.type === "way" && Array.isArray(el.geometry) && el.geometry.length >= 2 && /^(path|track|footway|cycleway|bridleway)$/.test(tags.highway || "");
-          if (isTrailWay) {
-            const coords = el.geometry.map(g => [g.lat, g.lon]);
-            const tName = tags.name || `Trilha / Caminho Rural (OSM #${el.id})`;
-            osmTrails.push({
-              id: `osm_way_${el.id}`,
-              name: tName,
-              region: tags.surface ? `OpenStreetMap (${tags.surface})` : "OpenStreetMap (Trilha/Caminho)",
-              coords,
-              source: "OSM Ao Vivo"
+    // 1. Nominatim (rápido, ~0.3-0.6s, suporta POIs + GeoJSON de trilhas)
+    const nomPromises = nomQueries.map(nq => {
+      const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const tmr = ctrl ? setTimeout(() => ctrl.abort(), 3500) : null;
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&extratags=1&polygon_geojson=1&bounded=1&viewbox=-49.245,-26.515,-49.120,-26.745&limit=8&q=${encodeURIComponent(nq)}`;
+      return window.fetch(url, { signal: ctrl ? ctrl.signal : undefined })
+        .then(res => (res.ok ? res.json() : []))
+        .then(items => {
+          if (tmr) clearTimeout(tmr);
+          if (!Array.isArray(items)) return { results: [], trails: [] };
+          const results = [];
+          const trails = [];
+          items.forEach(it => {
+            const gj = it.geojson;
+            const isTrailHit = parsed.intents.trail_nature && gj && (gj.type === "LineString" || gj.type === "MultiLineString");
+            if (isTrailHit) {
+              const rawLines = gj.type === "LineString" ? [gj.coordinates] : gj.coordinates;
+              rawLines.forEach((line, li) => {
+                if (!Array.isArray(line) || line.length < 2) return;
+                const coords = line.map(c => [Number(c[1]), Number(c[0])]).filter(c => Number.isFinite(c[0]) && Number.isFinite(c[1]));
+                if (coords.length >= 2) {
+                  trails.push({
+                    id: `nom_trail_${it.osm_type || "w"}_${it.osm_id || it.place_id}_${li}`,
+                    name: it.name || (it.display_name || "Trilha OpenStreetMap").split(",")[0],
+                    region: "OpenStreetMap (Trilha / Caminho)",
+                    coords,
+                    source: "OSM Ao Vivo"
+                  });
+                }
+              });
+            }
+            const lat = parseFloat(it.lat);
+            const lng = parseFloat(it.lon);
+            const name = it.name || (it.display_name ? it.display_name.split(",")[0].trim() : "");
+            if (!Number.isFinite(lat) || !Number.isFinite(lng) || !name) return;
+            const addr = it.address || {};
+            const extra = it.extratags || {};
+            const street = [addr.road, addr.house_number].filter(Boolean).join(", ");
+            const suburb = addr.suburb || addr.neighbourhood || addr.city || addr.town || "Rio da Luz / Testo Alto";
+            results.push({
+              key: `osm:${it.osm_type || "n"}_${it.osm_id || it.place_id}`,
+              num: null,
+              name,
+              category: it.type || it.category || "local",
+              region: suburb,
+              endereco: street || suburb,
+              description: extra.cuisine ? `Especialidade: ${extra.cuisine}` : `Local no OpenStreetMap (${it.type || it.category || "ponto"}).`,
+              lat,
+              lng,
+              source: "OSM Ao Vivo",
+              isOsm: true
             });
+          });
+          return { results, trails };
+        })
+        .catch(() => {
+          if (tmr) clearTimeout(tmr);
+          return { results: [], trails: [] };
+        });
+    });
+
+    Promise.all(nomPromises).then(batches => {
+      const mergedResults = [];
+      const mergedTrails = [];
+      batches.forEach(b => {
+        if (b && b.results) mergedResults.push(...b.results);
+        if (b && b.trails) mergedTrails.push(...b.trails);
+      });
+      mergeLiveOsmFindings(parsed, reqId, mergedResults.slice(0, 6), mergedTrails.slice(0, 6), true);
+    });
+
+    // 2. Overpass complementar em paralelo (enriquece se responder rápido; fallback silencioso se 502/timeout)
+    if (clauses.length > 0) {
+      const ql = `[out:json][timeout:4];(${clauses.join("")});${queryTrails ? "out geom 24;" : "out center 18;"}`;
+      const ctrlOp = typeof AbortController !== "undefined" ? new AbortController() : null;
+      const timerOp = ctrlOp ? setTimeout(() => ctrlOp.abort(), 3600) : null;
+
+      window.fetch("https://overpass-api.de/api/interpreter", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8" },
+        body: `data=${encodeURIComponent(ql)}`,
+        signal: ctrlOp ? ctrlOp.signal : undefined
+      })
+        .then(res => (res.ok ? res.json() : null))
+        .then(data => {
+          if (timerOp) clearTimeout(timerOp);
+          if (!state.aiSearch.active || state.aiSearch.reqId !== reqId) return;
+          if (!data || !Array.isArray(data.elements)) {
+            if (nomQueries.length === 0) mergeLiveOsmFindings(parsed, reqId, [], [], true);
             return;
           }
-
-          const lat = typeof el.lat === "number" ? el.lat : (el.center && el.center.lat);
-          const lng = typeof el.lon === "number" ? el.lon : (el.center && el.center.lon);
-          if (typeof lat !== "number" || typeof lng !== "number" || !tags.name) return;
-
-          const normName = normalizeGeoText(tags.name);
-          if (seenNames.has(normName)) return;
-          const dupExisting = existingPts.some(p => Math.hypot(p.lat - lat, p.lng - lng) < 0.0007);
-          if (dupExisting) return;
-
-          seenNames.add(normName);
-          const poiKey = `osm:${el.type}_${el.id}`;
-          const poiObj = {
-            key: poiKey,
-            num: null,
-            name: tags.name,
-            category: tags.amenity || tags.tourism || tags.shop || "local",
-            region: tags["addr:suburb"] || tags["addr:city"] || "Rio da Luz / Testo Alto",
-            endereco: [tags["addr:street"], tags["addr:housenumber"]].filter(Boolean).join(", ") || "Mapa OpenStreetMap",
-            description: tags.cuisine ? `Especialidade: ${tags.cuisine}` : (tags.description || "Local encontrado ao vivo no OpenStreetMap."),
-            lat,
-            lng,
-            source: "OSM Ao Vivo",
-            isOsm: true
-          };
-          state.aiPoiByKey[poiKey] = poiObj;
-          osmResults.push(poiObj);
+          const osmResults = [];
+          const osmTrails = [];
+          data.elements.forEach(el => {
+            const tags = el.tags || {};
+            const isTrailWay = el.type === "way" && Array.isArray(el.geometry) && el.geometry.length >= 2 && /^(path|track|footway|cycleway|bridleway)$/.test(tags.highway || "");
+            if (isTrailWay) {
+              osmTrails.push({
+                id: `osm_way_${el.id}`,
+                name: tags.name || `Trilha / Caminho Rural (OSM #${el.id})`,
+                region: tags.surface ? `OpenStreetMap (${tags.surface})` : "OpenStreetMap (Trilha/Caminho)",
+                coords: el.geometry.map(g => [g.lat, g.lon]),
+                source: "OSM Ao Vivo"
+              });
+              return;
+            }
+            const lat = typeof el.lat === "number" ? el.lat : (el.center && el.center.lat);
+            const lng = typeof el.lon === "number" ? el.lon : (el.center && el.center.lon);
+            if (typeof lat !== "number" || typeof lng !== "number" || !tags.name) return;
+            osmResults.push({
+              key: `osm:${el.type}_${el.id}`,
+              num: null,
+              name: tags.name,
+              category: tags.amenity || tags.tourism || tags.shop || "local",
+              region: tags["addr:suburb"] || tags["addr:city"] || "Rio da Luz / Testo Alto",
+              endereco: [tags["addr:street"], tags["addr:housenumber"]].filter(Boolean).join(", ") || "Mapa OpenStreetMap",
+              description: tags.cuisine ? `Especialidade: ${tags.cuisine}` : (tags.description || "Local encontrado ao vivo no OpenStreetMap."),
+              lat,
+              lng,
+              source: "OSM Ao Vivo",
+              isOsm: true
+            });
+          });
+          mergeLiveOsmFindings(parsed, reqId, osmResults.slice(0, 6), osmTrails.slice(0, 8), true);
+        })
+        .catch(() => {
+          if (timerOp) clearTimeout(timerOp);
+          if (nomQueries.length === 0) {
+            mergeLiveOsmFindings(parsed, reqId, [], [], true);
+          }
         });
-
-        if (osmResults.length > 0) {
-          state.aiSearch.results = [...state.aiSearch.results, ...osmResults.slice(0, 6)];
-        }
-        if (osmTrails.length > 0) {
-          state.aiSearch.trails = [...state.aiSearch.trails, ...osmTrails.slice(0, 8)];
-        }
-        state.aiSearch.answer = buildAiSummaryText(parsed, state.aiSearch.results, state.aiSearch.trails, osmResults.length + osmTrails.length > 0);
-        renderAiResultsBox();
-        renderAiResultsOnMap(state.aiSearch.results.length + state.aiSearch.trails.length === 0 ? false : false);
-        updateAiSplitBanner();
-      })
-      .catch(() => {
-        if (timer) clearTimeout(timer);
-        if (!state.aiSearch.active || state.aiSearch.reqId !== reqId) return;
-        state.aiSearch.loadingOsm = false;
-        renderAiResultsBox();
-      });
+    }
   }
 
   function buildAiSummaryText(parsed, results, trails, hasOsm) {
@@ -2935,8 +3119,45 @@
     state.leafletMap.stop();
     state.leafletMap.setView([item.lat, item.lng], 16, { animate: false });
     if (item.num && state.leafletMarkers && state.leafletMarkers[item.num]) {
-      setTimeout(() => state.leafletMarkers[item.num].openPopup(), 90);
+      state.leafletMarkers[item.num].openPopup();
+    } else if (state.aiMarkersByKey && state.aiMarkersByKey[item.key]) {
+      state.aiMarkersByKey[item.key].openPopup();
     }
+  }
+
+  function focusAiTrailOnMap(trailId) {
+    if (!state.leafletMap || typeof window.L === "undefined") return;
+    const tr = (state.aiSearch.trails || []).find(t => t.id === trailId);
+    if (!tr || !Array.isArray(tr.coords) || tr.coords.length < 2) return;
+    const bounds = window.L.latLngBounds(tr.coords);
+    state.leafletMap.stop();
+    state.leafletMap.fitBounds(bounds, { animate: false, padding: [48, 48], maxZoom: 16 });
+    const layer = state.aiTrailLayersById && state.aiTrailLayersById[trailId];
+    if (layer && typeof layer.openPopup === "function") {
+      layer.openPopup();
+    }
+  }
+
+  function buildAiMarkerPopupHTML(item, idx) {
+    const safeKey = escapeHtml(item.key);
+    const flags = getPointRouteRoleFlags(item.key);
+    const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
+    return `
+      <div style="min-width:215px;font-family:Inter,sans-serif;color:#0f172a;">
+        <div style="font-size:10px;font-weight:800;color:#0284c7;text-transform:uppercase;">Resultado IA #${idx + 1} • ${escapeHtml(item.source)}</div>
+        <strong style="font-size:13.5px;display:block;margin:2px 0 4px 0;">${escapeHtml(item.num ? `${item.num}. ${item.name}` : item.name)}</strong>
+        <div style="font-size:11px;color:#475569;margin-bottom:5px;">${escapeHtml(item.endereco || item.region)}</div>
+        ${item.description ? `<p style="font-size:11px;color:#334155;margin:0 0 7px 0;line-height:1.35;">${escapeHtml(item.description)}</p>` : ""}
+        <div style="display:flex;gap:5px;flex-wrap:wrap;">
+          <button type="button" onclick="window.GeoSC360.setRoutePointRole('${safeKey}', 'stop')"
+            style="padding:5px 8px;background:${flags.isStop ? "#c2410c" : "#ea580c"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">${flags.isStop ? `Parada ${flags.stopIndex + 1}` : "+ Parada"}</button>
+          <button type="button" onclick="window.GeoSC360.setRoutePointRole('${safeKey}', 'destination')"
+            style="padding:5px 8px;background:${flags.isDest ? "#991b1b" : "#dc2626"};color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">${flags.isDest ? "Destino ✓" : "Destino"}</button>
+          <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer"
+            style="padding:5px 8px;background:#1d4ed8;color:#fff;border-radius:6px;text-decoration:none;font-size:11px;font-weight:700;">Maps ↗</a>
+        </div>
+      </div>
+    `;
   }
 
   function renderAiResultsOnMap(fitToResults) {
@@ -2945,6 +3166,8 @@
       state.leafletAiLayer = window.L.layerGroup().addTo(state.leafletMap);
     }
     state.leafletAiLayer.clearLayers();
+    state.aiMarkersByKey = {};
+    state.aiTrailLayersById = {};
     if (!state.aiSearch.active) return;
 
     const boundsPts = [];
@@ -2982,6 +3205,7 @@
           <div style="font-size:11px;color:#475569;">${escapeHtml(tr.region || "")}</div>
         </div>
       `);
+      state.aiTrailLayersById[tr.id] = trailLine;
     });
 
     (state.aiSearch.results || []).forEach((item, idx) => {
@@ -2989,33 +3213,17 @@
       const aiIcon = window.L.divIcon({
         className: "gsat-ai-pin-wrap",
         iconSize: [28, 28],
-        iconAnchor: [14, 14],
-        popupAnchor: [0, -14],
-        html: `<div class="gsat-ai-pin" title="${escapeHtml(item.name)}">IA${idx + 1}</div>`
+        iconAnchor: item.num ? [-4, 24] : [14, 14],
+        popupAnchor: item.num ? [18, -24] : [0, -14],
+        html: `<div class="gsat-ai-pin ${item.isOsm ? "is-osm" : ""}" title="${escapeHtml(item.name)}">IA${idx + 1}</div>`
       });
       const marker = window.L.marker([item.lat, item.lng], {
         icon: aiIcon,
         zIndexOffset: 1200
       }).addTo(state.leafletAiLayer);
 
-      const safeKey = escapeHtml(item.key);
-      const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${item.lat},${item.lng}`;
-      marker.bindPopup(`
-        <div style="min-width:215px;font-family:Inter,sans-serif;color:#0f172a;">
-          <div style="font-size:10px;font-weight:800;color:#0284c7;text-transform:uppercase;">Resultado IA #${idx + 1} • ${escapeHtml(item.source)}</div>
-          <strong style="font-size:13.5px;display:block;margin:2px 0 4px 0;">${escapeHtml(item.num ? `${item.num}. ${item.name}` : item.name)}</strong>
-          <div style="font-size:11px;color:#475569;margin-bottom:5px;">${escapeHtml(item.endereco || item.region)}</div>
-          ${item.description ? `<p style="font-size:11px;color:#334155;margin:0 0 7px 0;line-height:1.35;">${escapeHtml(item.description)}</p>` : ""}
-          <div style="display:flex;gap:5px;flex-wrap:wrap;">
-            <button type="button" onclick="window.GeoSC360.setRoutePointRole('${safeKey}', 'stop')"
-              style="padding:5px 8px;background:#ea580c;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">+ Parada</button>
-            <button type="button" onclick="window.GeoSC360.setRoutePointRole('${safeKey}', 'destination')"
-              style="padding:5px 8px;background:#dc2626;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700;">Destino</button>
-            <a href="${gmapsUrl}" target="_blank" rel="noopener noreferrer"
-              style="padding:5px 8px;background:#1d4ed8;color:#fff;border-radius:6px;text-decoration:none;font-size:11px;font-weight:700;">Maps ↗</a>
-          </div>
-        </div>
-      `);
+      marker.bindPopup(buildAiMarkerPopupHTML(item, idx));
+      state.aiMarkersByKey[item.key] = marker;
     });
 
     if (fitToResults && boundsPts.length > 0) {
@@ -3036,7 +3244,12 @@
     }
     box.hidden = false;
     const { results, trails, answer, loadingOsm } = state.aiSearch;
-    const routeKeys = results.slice(0, 5).map(r => r.key);
+    const localList = results.filter(r => !r.isOsm);
+    const osmList = results.filter(r => r.isOsm);
+    const displayResults = osmList.length > 0
+      ? [...localList.slice(0, 6), ...osmList.slice(0, 6)]
+      : localList.slice(0, 10);
+    const routeKeys = displayResults.slice(0, 5).map(r => r.key);
 
     box.innerHTML = `
       <div class="sc-ai-answer-header">
@@ -3046,7 +3259,7 @@
       <p class="sc-ai-answer-text">${escapeHtml(answer)}</p>
       ${trails.length > 0 ? `
         <div class="sc-ai-trail-list">
-          ${trails.slice(0, 6).map(t => `<span class="sc-ai-trail-chip">${escapeHtml(t.name)}</span>`).join("")}
+          ${trails.slice(0, 6).map(t => `<button type="button" class="sc-ai-trail-chip" data-ai-trail-id="${escapeHtml(t.id)}" title="Focar trilha no mapa">${escapeHtml(t.name)}</button>`).join("")}
         </div>
       ` : ""}
       ${routeKeys.length > 0 ? `
@@ -3055,7 +3268,7 @@
         </div>
       ` : ""}
       <div class="sc-ai-results-list">
-        ${results.slice(0, 7).map((item, idx) => {
+        ${displayResults.map((item, idx) => {
           const flags = getPointRouteRoleFlags(item.key);
           return `
             <div class="sc-ai-result-card">
@@ -3082,6 +3295,11 @@
         applyItemsAsCustomRoute(routeKeys);
       });
     }
+    box.querySelectorAll("[data-ai-trail-id]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        focusAiTrailOnMap(btn.getAttribute("data-ai-trail-id"));
+      });
+    });
     box.querySelectorAll("[data-ai-focus]").forEach(btn => {
       btn.addEventListener("click", () => {
         focusAiResultOnMap(btn.getAttribute("data-ai-focus"));
@@ -3126,15 +3344,24 @@
       btn.classList.toggle("active", q === parsed.norm);
     });
 
-    if (activeScMapFilter === "pano360" && (localPts.some(p => p.num > 2) || localTrails.length > 0)) {
+    const visibleBefore = new Set(getRotaPointsForMap(activeScMapFilter).map(p => p.num));
+    const hasOutOfFilterMatch = activeScMapFilter !== "all" && (
+      (activeScMapFilter === "pano360" && (localPts.some(p => p.num > 2) || localTrails.length > 0)) ||
+      localPts.some(p => p.num && !visibleBefore.has(p.num))
+    );
+
+    if (hasOutOfFilterMatch) {
       state.skipNextMapFitBounds = true;
       renderFilteredSatelliteMarkers("all");
+      renderAiResultsOnMap(true);
+      updateAiSplitBanner();
+    } else {
+      renderAiResultsBox();
+      renderAiResultsOnMap(true);
+      updateAiSplitBanner();
     }
 
-    renderAiResultsBox();
-    renderAiResultsOnMap(true);
-    updateAiSplitBanner();
-    queryOverpassForAi(parsed, reqId);
+    queryOsmForAi(parsed, reqId);
     return state.aiSearch;
   }
 
@@ -3278,7 +3505,7 @@
         if (state.leafletMap && marker) {
           state.leafletMap.stop();
           state.leafletMap.setView([pt.lat, pt.lng], pt.sceneId ? 17 : 16, { animate: false });
-          setTimeout(() => marker.openPopup(), 80);
+          marker.openPopup();
         }
       });
     });
@@ -4054,7 +4281,7 @@
       }
     });
 
-    if (nearestRawPt && nearestRawDist < 0.0006 && !isPointStreetViewAvailable(nearestRawPt)) {
+    if (nearestRawPt && nearestRawDist < 0.00085 && !isPointStreetViewAvailable(nearestRawPt)) {
       return {
         lat: Number(rawLat.toFixed(6)),
         lng: Number(rawLng.toFixed(6)),
@@ -4579,11 +4806,8 @@
     }
   }
 
-  function isClientPointOverMapUiControl(clientX, clientY, targetEl) {
+  function isClientPointOverMapUiControl(clientX, clientY) {
     const checkSelector = ".sat-sv-coverage-banner, .sat-pegman-dock-wrap, .leaflet-control, .leaflet-popup";
-    if (targetEl && typeof targetEl.closest === "function" && targetEl.closest(checkSelector)) {
-      return true;
-    }
     if (typeof document.elementFromPoint === "function") {
       const elAtPt = document.elementFromPoint(clientX, clientY);
       if (elAtPt && typeof elAtPt.closest === "function" && elAtPt.closest(checkSelector)) {

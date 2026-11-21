@@ -531,11 +531,21 @@
       const action = params.get("action");
       if (!sceneParam && !action) return;
       setTimeout(() => {
-        if (sceneParam && window.GeoSC360 && typeof window.GeoSC360.goToScene === "function") {
+        const curState = window.GeoSC360 && typeof window.GeoSC360.getState === "function"
+          ? window.GeoSC360.getState()
+          : null;
+        const switchedScene = Boolean(
+          sceneParam &&
+          window.GeoSC360 &&
+          typeof window.GeoSC360.goToScene === "function" &&
+          (!curState || curState.currentSceneId !== sceneParam)
+        );
+        if (switchedScene) {
           window.GeoSC360.goToScene(sceneParam, false);
         }
         const pitchParam = params.get("pitch");
         const yawParam = params.get("yaw");
+        if (!action && pitchParam === null && yawParam === null) return;
         setTimeout(() => {
           if ((pitchParam !== null || yawParam !== null) && window.GeoSC360 && typeof window.GeoSC360.setView === "function") {
             window.GeoSC360.setView(

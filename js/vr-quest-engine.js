@@ -2197,11 +2197,12 @@
     vr.overlayEl = overlay;
     vr.canvas = canvas;
     overlay.style.display = "block";
+    overlay.classList.add("open");
     document.body.classList.add("vr-active");
     if (window.GeoSC360 && typeof window.GeoSC360.syncModalUiState === "function") {
       window.GeoSC360.syncModalUiState();
     } else {
-      try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: "GEOSC_MODAL_OPEN", active: true }, "*"); } catch (_) {}
+      try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: "GEOSC_MODAL_OPEN", open: true, active: true }, "*"); } catch (_) {}
     }
 
     if (!vr.gl && !initVRWebGL()) {
@@ -2276,7 +2277,7 @@
   }
 
   function exitVR() {
-    if (!vr.active) return;
+    const wasActive = vr.active || document.body.classList.contains("vr-active");
     vr.active = false;
     if (vr.rafId) cancelAnimationFrame(vr.rafId);
     vr.rafId = 0;
@@ -2288,11 +2289,15 @@
     }
     vr.isWebXR = false;
     document.body.classList.remove("vr-active");
-    if (vr.overlayEl) vr.overlayEl.style.display = "none";
+    if (vr.overlayEl) {
+      vr.overlayEl.classList.remove("open");
+      vr.overlayEl.style.display = "none";
+    }
+    if (!wasActive) return;
     if (window.GeoSC360 && typeof window.GeoSC360.syncModalUiState === "function") {
       window.GeoSC360.syncModalUiState();
     } else {
-      try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: "GEOSC_MODAL_OPEN", active: false }, "*"); } catch (_) {}
+      try { if (window.parent && window.parent !== window) window.parent.postMessage({ type: "GEOSC_MODAL_OPEN", open: false, active: false }, "*"); } catch (_) {}
     }
   }
 
