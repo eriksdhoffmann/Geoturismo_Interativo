@@ -125,7 +125,11 @@
   shadowPlane.position.set(0.05, -0.002, 0.06);
   scene.add(shadowPlane);
 
+  const dummyMaskTex = new THREE.DataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, THREE.RGBAFormat);
+  dummyMaskTex.needsUpdate = true;
+
   const rlInit = DATA.rioDaLuz;
+  const itInit = DATA.itajai3D || { lon: -48.75334, lat: -26.96899 };
   const borderUniforms = {
     uIdTex: { value: idTex },
     uSdfTex: { value: sdfTex },
@@ -136,6 +140,11 @@
     uHoverId: { value: 0 },
     uShowRioRing: { value: 0.0 },
     uRioUv: { value: new THREE.Vector2(G.A * rlInit.lon + G.B, G.C * rlInit.lat + G.D) },
+    uShowItajaiRing: { value: 0.0 },
+    uItajaiUv: { value: new THREE.Vector2(G.A * itInit.lon + G.B, G.C * itInit.lat + G.D) },
+    uItajaiFocus: { value: 0.0 },
+    uItajaiMaskTex: { value: dummyMaskTex },
+    uItajaiMaskBounds: { value: new THREE.Vector4(0.855, 0.630, 0.960, 0.765) },
   };
 
   function createTerrainMaterial(baseMat) {
@@ -157,11 +166,32 @@
         uniform int uHoverId;
         uniform float uShowRioRing;
         uniform vec2 uRioUv;
+        uniform float uShowItajaiRing;
+        uniform vec2 uItajaiUv;
+        uniform float uItajaiFocus;
+        uniform sampler2D uItajaiMaskTex;
+        uniform vec4 uItajaiMaskBounds;
         ` +
         shader.fragmentShader.replace(
           "#include <output_fragment>",
           `
           #include <output_fragment>
+          vec3 mFocusVal = vec3(0.0, 1.0, 0.0);
+          bool inMaskRect = false;
+          if (uItajaiFocus > 0.5) {
+            vec2 mUv = (vUv - uItajaiMaskBounds.xy) / (uItajaiMaskBounds.zw - uItajaiMaskBounds.xy);
+            inMaskRect = (mUv.x >= 0.0 && mUv.x <= 1.0 && mUv.y >= 0.0 && mUv.y <= 1.0);
+            if (inMaskRect) {
+              mFocusVal = texture2D(uItajaiMaskTex, mUv).rgb;
+              if (mFocusVal.r > 0.55) {
+                discard;
+              }
+            }
+            // Focus + Context: suavizar e clarear SC ao redor para destacar Itajai 2x
+            float luma = dot(gl_FragColor.rgb, vec3(0.299, 0.587, 0.114));
+            gl_FragColor.rgb = mix(vec3(luma * 0.62 + 0.24), gl_FragColor.rgb, 0.28);
+          }
+
           int rid = int(floor(texture2D(uIdTex, vUv).r * 255.0 + 0.5));
           if (rid > 0) {
             vec3 regSrgb = texture2D(uColorTex, vec2((float(rid) + 0.5) / 16.0, 0.5)).rgb;
@@ -174,15 +204,26 @@
             bool isSel = (rid == uSelectedId);
             bool isHov = (rid == uHoverId);
 
-            // Simbologia vazada fina e limpa (sem faixa branca/vermelha grossa)
+            // Simbologia vazada fina e limpa (suavizada no modo Focus+Context de Itajai)
             float borderEnd = (isSel || isHov) ? 2.3 : 1.65;
             float borderAlpha = 1.0 - smoothstep(borderEnd - 0.65, borderEnd, distScreen);
             float fillAlpha = isSel ? (isHov ? 0.14 : 0.07) : (isHov ? 0.16 : 0.0);
+            if (uItajaiFocus > 0.5) {
+              borderAlpha *= 0.26;
+              fillAlpha *= 0.25;
+            }
 
             float outAlpha = max(borderAlpha * 0.94, fillAlpha);
             if (outAlpha > 0.002) {
               gl_FragColor.rgb = mix(gl_FragColor.rgb, regLin, outAlpha);
             }
+          }
+          if (uItajaiFocus > 0.5 && inMaskRect) {
+            // Sombra suave de contato + filete fino ao redor do recorte de Itajai
+            float shadowF = 1.0 - smoothstep(0.0, 0.36, mFocusVal.g);
+            gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.09, 0.13, 0.20), shadowF * 0.40);
+            float rimF = (1.0 - smoothstep(0.0, 0.075, mFocusVal.g)) * smoothstep(0.0, 0.015, mFocusVal.g);
+            gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.06, 0.48, 0.44), rimF * 0.72);
           }
           if (uShowRioRing > 0.5) {
             vec2 dUvR = fwidth(vUv * uTexSize);
@@ -193,15 +234,24 @@
               gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.91, 0.12, 0.35), ringA);
             }
           }
+          if (uShowItajaiRing > 0.5) {
+            vec2 dUvI = fwidth(vUv * uTexSize);
+            float tpsI = max(0.08, length(dUvI) * 0.7071);
+            float iDistPx = length((vUv - uItajaiUv) * uTexSize) / tpsI;
+            float ringI = 1.0 - smoothstep(0.9, 1.8, abs(iDistPx - 11.5));
+            if (ringI > 0.002) {
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.06, 0.46, 0.43), ringI);
+            }
+          }
           `
         );
     };
-    mat.customProgramCacheKey = () => "geosc-setur15-sdf-v2";
+    mat.customProgramCacheKey = () => "geosc-setur15-sdf-v4";
     return mat;
   }
 
   // --------------------------------------------------------------------------
-  // Estado
+  // Estado (SC + modo municipal Itajaí sob demanda)
   // --------------------------------------------------------------------------
   const state = {
     model: null,
@@ -221,14 +271,45 @@
     overview: null,
     overviewParams: null,
     rioWorld: null,
+    itajaiWorld: null,
+    itajaiRingsUV: null,
+    itajaiBboxUV: null,
     viewOffX: 0,
     viewOffTarget: 0,
     pointer: new THREE.Vector2(),
+    pointerClient: { x: 0, y: 0 },
     isDragging: false,
     lastPickAt: 0,
     pickPending: false,
     w: 1,
     h: 1,
+  };
+
+  const itajaiState = {
+    active: false,
+    loading: false,
+    group: null,
+    topMesh: null,
+    triGrid: null,
+    meta: null,
+    bairros: [],
+    byId: {},
+    byIdx: {},
+    selectedId: null,
+    hoverId: null,
+    showBorders: true,
+    showLabels: true,
+    overview: null,
+    centerWorld: null,
+    radiusWorld: 0.092,
+    uniforms: null,
+    idPixels: null,
+    idW: 0,
+    idH: 0,
+    textures: [],
+    savedScZ: null,
+    labelEls: {},
+    legendEls: {},
   };
   const raycaster = new THREE.Raycaster();
   const DOWN = new THREE.Vector3(0, -1, 0);
@@ -236,23 +317,24 @@
   // --------------------------------------------------------------------------
   // Grade espacial 2D da malha do topo (raycasting < 0.05 ms em 45k triângulos)
   // --------------------------------------------------------------------------
-  function buildTriGrid(mesh) {
+  function buildTriGrid(mesh, isYUp) {
     const geom = mesh.geometry;
     const pos = geom.attributes.position.array;
     const uvAttr = geom.attributes.uv ? geom.attributes.uv.array : null;
     const idxAttr = geom.index ? geom.index.array : null;
     const triCount = idxAttr ? (idxAttr.length / 3) | 0 : (geom.attributes.position.count / 3) | 0;
+    const yAxisIdx = isYUp ? 2 : 1;
 
     geom.computeBoundingBox();
-    const bb = geom.boundingBox;
+    const bb = geom.boundingBox.clone();
     const minX = bb.min.x - 1e-4;
-    const minY = bb.min.y - 1e-4;
+    const minH = (isYUp ? bb.min.z : bb.min.y) - 1e-4;
     const maxX = bb.max.x + 1e-4;
-    const maxY = bb.max.y + 1e-4;
-    const cols = 40;
-    const rows = 28;
+    const maxH = (isYUp ? bb.max.z : bb.max.y) + 1e-4;
+    const cols = 42;
+    const rows = isYUp ? 48 : 28;
     const cellW = (maxX - minX) / cols;
-    const cellH = (maxY - minY) / rows;
+    const cellH = (maxH - minH) / rows;
     const cells = new Array(cols * rows);
     for (let i = 0; i < cells.length; i++) cells[i] = [];
 
@@ -260,22 +342,23 @@
       const i0 = idxAttr ? idxAttr[t * 3] : t * 3;
       const i1 = idxAttr ? idxAttr[t * 3 + 1] : t * 3 + 1;
       const i2 = idxAttr ? idxAttr[t * 3 + 2] : t * 3 + 2;
-      const x0 = pos[i0 * 3], y0 = pos[i0 * 3 + 1];
-      const x1 = pos[i1 * 3], y1 = pos[i1 * 3 + 1];
-      const x2 = pos[i2 * 3], y2 = pos[i2 * 3 + 1];
+      const x0 = pos[i0 * 3], h0 = pos[i0 * 3 + yAxisIdx];
+      const x1 = pos[i1 * 3], h1 = pos[i1 * 3 + yAxisIdx];
+      const x2 = pos[i2 * 3], h2 = pos[i2 * 3 + yAxisIdx];
       const c0 = Math.max(0, Math.min(cols - 1, ((Math.min(x0, x1, x2) - minX) / cellW) | 0));
       const c1 = Math.max(0, Math.min(cols - 1, ((Math.max(x0, x1, x2) - minX) / cellW) | 0));
-      const r0 = Math.max(0, Math.min(rows - 1, ((Math.min(y0, y1, y2) - minY) / cellH) | 0));
-      const r1 = Math.max(0, Math.min(rows - 1, ((Math.max(y0, y1, y2) - minY) / cellH) | 0));
+      const r0 = Math.max(0, Math.min(rows - 1, ((Math.min(h0, h1, h2) - minH) / cellH) | 0));
+      const r1 = Math.max(0, Math.min(rows - 1, ((Math.max(h0, h1, h2) - minH) / cellH) | 0));
       for (let r = r0; r <= r1; r++) {
         const rowOff = r * cols;
         for (let c = c0; c <= c1; c++) cells[rowOff + c].push(t);
       }
     }
 
+    mesh.updateMatrixWorld(true);
     const invWorld = new THREE.Matrix4().copy(mesh.matrixWorld).invert();
     return {
-      mesh, pos, uvAttr, idxAttr, bb, minX, minY, maxX, maxY, cols, rows, cellW, cellH, cells, invWorld,
+      mesh, isYUp: Boolean(isYUp), pos, uvAttr, idxAttr, bb, minX, minH, maxX, maxH, cols, rows, cellW, cellH, cells, invWorld,
       testedStamp: new Uint32Array(triCount),
       stamp: 1,
     };
@@ -285,17 +368,19 @@
   const _boxHitMin = new THREE.Vector3();
   const _boxHitMax = new THREE.Vector3();
 
-  function raycastTopGrid(worldRay) {
-    const g = state.triGrid;
+  function raycastGrid(g, worldRay) {
     if (!g) return null;
     _rayLocal.copy(worldRay).applyMatrix4(g.invWorld);
     if (!_rayLocal.intersectsBox(g.bb)) return null;
 
-    const oz = _rayLocal.origin.z, dz = _rayLocal.direction.z;
+    const vMin = g.isYUp ? g.bb.min.y : g.bb.min.z;
+    const vMax = g.isYUp ? g.bb.max.y : g.bb.max.z;
+    const ov = g.isYUp ? _rayLocal.origin.y : _rayLocal.origin.z;
+    const dv = g.isYUp ? _rayLocal.direction.y : _rayLocal.direction.z;
     let tMin = 0, tMax = 1e6;
-    if (Math.abs(dz) > 1e-7) {
-      const ta = (g.bb.min.z - 0.02 - oz) / dz;
-      const tb = (g.bb.max.z + 0.02 - oz) / dz;
+    if (Math.abs(dv) > 1e-7) {
+      const ta = (vMin - 0.02 - ov) / dv;
+      const tb = (vMax + 0.02 - ov) / dv;
       tMin = Math.max(0, Math.min(ta, tb));
       tMax = Math.max(tMin, Math.max(ta, tb));
     } else {
@@ -304,13 +389,15 @@
     _rayLocal.at(tMin, _boxHitMin);
     _rayLocal.at(tMax, _boxHitMax);
 
+    const hMinHit = g.isYUp ? Math.min(_boxHitMin.z, _boxHitMax.z) : Math.min(_boxHitMin.y, _boxHitMax.y);
+    const hMaxHit = g.isYUp ? Math.max(_boxHitMin.z, _boxHitMax.z) : Math.max(_boxHitMin.y, _boxHitMax.y);
     const c0 = Math.max(0, Math.min(g.cols - 1, ((Math.min(_boxHitMin.x, _boxHitMax.x) - g.minX) / g.cellW) | 0));
     const c1 = Math.max(0, Math.min(g.cols - 1, ((Math.max(_boxHitMin.x, _boxHitMax.x) - g.minX) / g.cellW) | 0));
-    const r0 = Math.max(0, Math.min(g.rows - 1, ((Math.min(_boxHitMin.y, _boxHitMax.y) - g.minY) / g.cellH) | 0));
-    const r1 = Math.max(0, Math.min(g.rows - 1, ((Math.max(_boxHitMin.y, _boxHitMax.y) - g.minY) / g.cellH) | 0));
+    const r0 = Math.max(0, Math.min(g.rows - 1, ((hMinHit - g.minH) / g.cellH) | 0));
+    const r1 = Math.max(0, Math.min(g.rows - 1, ((hMaxHit - g.minH) / g.cellH) | 0));
 
-    const ox = _rayLocal.origin.x, oy = _rayLocal.origin.y;
-    const dx = _rayLocal.direction.x, dy = _rayLocal.direction.y;
+    const ox = _rayLocal.origin.x, oy = _rayLocal.origin.y, oz = _rayLocal.origin.z;
+    const dx = _rayLocal.direction.x, dy = _rayLocal.direction.y, dz = _rayLocal.direction.z;
     const pos = g.pos, idx = g.idxAttr, uv = g.uvAttr;
     const stamp = ++g.stamp;
     let bestT = Infinity, bestU = 0, bestV = 0;
@@ -365,7 +452,11 @@
     if (bestT === Infinity) return null;
     const hitPoint = new THREE.Vector3().copy(_rayLocal.origin).addScaledVector(_rayLocal.direction, bestT);
     hitPoint.applyMatrix4(g.mesh.matrixWorld);
-    return { point: hitPoint, uv: { x: bestU, y: bestV } };
+    return { point: hitPoint, uv: { x: bestU, y: bestV }, distance: worldRay.origin.distanceTo(hitPoint) };
+  }
+
+  function raycastTopGrid(worldRay) {
+    return raycastGrid(state.triGrid, worldRay);
   }
 
   // --------------------------------------------------------------------------
@@ -467,7 +558,7 @@
 
     state.topMesh = topCandidate;
     model.updateMatrixWorld(true);
-    state.triGrid = buildTriGrid(state.topMesh);
+    state.triGrid = buildTriGrid(state.topMesh, false);
 
     buildRegions();
     buildLegend();
@@ -524,6 +615,33 @@
     const rl = DATA.rioDaLuz;
     const uv = lonLatToUV(rl.lon, rl.lat);
     state.rioWorld = uvToWorld(uv.u, uv.v, 0.002);
+    if (DATA.itajai3D) {
+      const it = DATA.itajai3D;
+      const iuv = lonLatToUV(it.lon, it.lat);
+      state.itajaiWorld = uvToWorld(iuv.u, iuv.v, 0.002);
+      let uMin = 1, uMax = 0, vMin = 1, vMax = 0;
+      state.itajaiRingsUV = (it.rings || []).map((ring) =>
+        ring.map(([lon, lat]) => {
+          const p = lonLatToUV(lon, lat);
+          if (p.u < uMin) uMin = p.u;
+          if (p.u > uMax) uMax = p.u;
+          if (p.v < vMin) vMin = p.v;
+          if (p.v > vMax) vMax = p.v;
+          return [p.u, p.v];
+        })
+      );
+      state.itajaiBboxUV = [uMin, vMin, uMax, vMax];
+    }
+  }
+
+  function isPointInItajaiUV(uv) {
+    if (!state.itajaiRingsUV || !state.itajaiBboxUV) return false;
+    const [u0, v0, u1, v1] = state.itajaiBboxUV;
+    if (uv.x < u0 || uv.x > u1 || uv.y < v0 || uv.y > v1) return false;
+    for (let k = 0; k < state.itajaiRingsUV.length; k++) {
+      if (pointInRing(uv.x, uv.y, state.itajaiRingsUV[k])) return true;
+    }
+    return false;
   }
 
   function regionAtUV(uv) {
@@ -549,13 +667,31 @@
   // --------------------------------------------------------------------------
   // Legenda, rótulos e pino 360°
   // --------------------------------------------------------------------------
+  const legendBox = $("geoLegendBox");
+  const legendTitle = $("geoLegendTitle");
+  const legendMinBtn = $("btnGeoLegendToggle");
+  const legendSearchWrap = $("geoLegendSearchWrap");
+  const legendSearch = $("geoLegendSearch");
   const legendList = $("geoLegendList");
+  const headerKicker = $("geoHeaderKicker");
+  const headerTitle = $("geoHeaderTitle");
+  const creditsEl = $("geoCredits");
+  const creditsDefaultHtml = creditsEl ? creditsEl.innerHTML : "";
+  const hoverPill = $("geoHoverPill");
+  const btnBackSC = $("btnGeoBackSC");
+  const btnItajaiBorders = $("btnItajaiBorders");
+  const btnItajaiLabels = $("btnItajaiLabels");
   const labelEls = {};
   const legendEls = {};
   let pinEl = null;
+  let pinItajaiEl = null;
 
   function is360Region(id) {
     return id === "vale_dos_encantos";
+  }
+
+  function isItajaiRegion(id) {
+    return id === "costa_verde_mar" && Boolean(DATA.itajai3D);
   }
 
   function has360Action(id) {
@@ -563,6 +699,7 @@
   }
 
   function buildLegend() {
+    legendList.innerHTML = "";
     state.regions.forEach((r) => {
       const li = document.createElement("li");
       const btn = document.createElement("button");
@@ -570,7 +707,8 @@
       btn.style.setProperty("--c", r.color);
       btn.innerHTML =
         '<span class="geo-swatch"></span><span>' + r.name + "</span>" +
-        (is360Region(r.id) ? '<span class="geo-legend-360">360°</span>' : "");
+        (is360Region(r.id) ? '<span class="geo-legend-360">360°</span>' : "") +
+        (isItajaiRegion(r.id) ? '<span class="geo-legend-360" style="background:#0f766e">3D</span>' : "");
       btn.addEventListener("mouseenter", () => setHover(r.id));
       btn.addEventListener("mouseleave", () => setHover(null));
       btn.addEventListener("click", () => selectRegion(r.id));
@@ -589,6 +727,7 @@
       el.innerHTML =
         '<span class="txt">' + r.name +
         (is360Region(r.id) ? ' <span class="lbl-360">360°</span>' : "") +
+        (isItajaiRegion(r.id) ? ' <span class="lbl-360" style="background:#0f766e">3D</span>' : "") +
         '</span><span class="stem"></span><span class="dot"></span>';
       el.addEventListener("mouseenter", () => setHover(r.id));
       el.addEventListener("mouseleave", () => setHover(null));
@@ -613,6 +752,22 @@
       goToRioDaLuz(true);
     });
     labelsLayer.appendChild(pinEl);
+
+    if (DATA.itajai3D) {
+      pinItajaiEl = document.createElement("button");
+      pinItajaiEl.type = "button";
+      pinItajaiEl.className = "geo-pin360 geo-pin3d";
+      pinItajaiEl.title = "Abrir relevo 3D de Itajaí · 35 bairros sobre o estado";
+      pinItajaiEl.innerHTML =
+        '<span class="pin-card"><span class="pin-badge"><span>3D</span></span>' +
+        "<span>" + DATA.itajai3D.name + "<small>Bairros 3D · MDT 2×</small></span></span>" +
+        '<span class="pin-stem"></span><span class="pin-pulse"></span>';
+      pinItajaiEl.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        enterItajaiMode();
+      });
+      labelsLayer.appendChild(pinItajaiEl);
+    }
   }
 
   const tmpV = new THREE.Vector3();
@@ -623,19 +778,71 @@
     const y = (-tmpV.y * 0.5 + 0.5) * state.h;
     el.style.transform = "translate3d(" + x.toFixed(1) + "px," + y.toFixed(1) + "px,0) translate(-50%,-100%)";
     el.style.visibility = vis ? "visible" : "hidden";
-    return { x, y };
+    return { x, y, vis };
+  }
+
+  function updateItajaiLabels() {
+    if (!itajaiState.showLabels) {
+      Object.keys(itajaiState.labelEls).forEach((id) => itajaiState.labelEls[id].classList.add("is-culled"));
+      return;
+    }
+    const dCam = itajaiState.centerWorld ? camera.position.distanceTo(itajaiState.centerWorld) : 0.25;
+    // De longe exige mais respiro entre rótulos (mostra bairros principais); no zoom revela os bairros menores centrais
+    const zoomSpan = THREE.MathUtils.clamp((dCam - 0.075) / 0.20, 0.0, 1.0);
+    const gapScale = 1.0 + zoomSpan * 0.68;
+
+    const placed = [];
+    const ordered = itajaiState.bairros.slice().sort((a, b) => {
+      const pa = a.id === itajaiState.selectedId ? -2 : (a.id === itajaiState.hoverId ? -1 : a._rank);
+      const pb = b.id === itajaiState.selectedId ? -2 : (b.id === itajaiState.hoverId ? -1 : b._rank);
+      return pa - pb;
+    });
+    ordered.forEach((b) => {
+      const el = itajaiState.labelEls[b.id];
+      if (!el || !b.worldPt) return;
+      const p = placeEl(el, b.worldPt);
+      if (!p.vis || p.x < -30 || p.x > state.w + 30 || p.y < 10 || p.y > state.h + 20) {
+        el.classList.add("is-culled");
+        return;
+      }
+      const isPrio = b.id === itajaiState.selectedId || b.id === itajaiState.hoverId;
+      const bw = (b.nome.length * 6.0 + 24) * (isPrio ? 1.0 : gapScale);
+      const bh = 22 * (isPrio ? 1.0 : gapScale);
+      let overlaps = false;
+      if (!isPrio) {
+        for (let i = 0; i < placed.length; i++) {
+          const q = placed[i];
+          if (Math.abs(p.x - q.x) < (bw + q.w) * 0.48 && Math.abs(p.y - q.y) < (bh + q.h) * 0.55) {
+            overlaps = true;
+            break;
+          }
+        }
+      }
+      if (overlaps) {
+        el.classList.add("is-culled");
+      } else {
+        el.classList.remove("is-culled");
+        placed.push({ x: p.x, y: p.y, w: bw, h: bh });
+      }
+    });
   }
 
   function updateLabels() {
+    if (itajaiState.active) {
+      updateItajaiLabels();
+      return;
+    }
     for (let i = 0; i < state.regions.length; i++) {
       const r = state.regions[i];
       placeEl(labelEls[r.id], r.labelWorld);
     }
     if (pinEl && state.rioWorld) placeEl(pinEl, state.rioWorld);
+    if (pinItajaiEl && state.itajaiWorld) placeEl(pinItajaiEl, state.itajaiWorld);
   }
 
   function refreshClasses() {
-    const showPin = has360Action(state.selectedId);
+    const showPin = !itajaiState.active && has360Action(state.selectedId);
+    const showItajaiPin = !itajaiState.active && isItajaiRegion(state.selectedId);
     state.regions.forEach((r) => {
       const el = labelEls[r.id];
       const lg = legendEls[r.id];
@@ -644,11 +851,16 @@
       el.classList.toggle("is-active", sel);
       el.classList.toggle("is-hover", hov);
       el.classList.toggle("is-faded", !!state.selectedId && !sel && !hov);
-      lg.classList.toggle("is-active", sel);
-      lg.classList.toggle("is-hover", hov);
+      el.classList.toggle("is-hidden", itajaiState.active);
+      if (lg) {
+        lg.classList.toggle("is-active", sel);
+        lg.classList.toggle("is-hover", hov);
+      }
     });
-    if (labelEls.vale_dos_encantos) labelEls.vale_dos_encantos.classList.toggle("is-hidden", showPin);
+    if (labelEls.vale_dos_encantos) labelEls.vale_dos_encantos.classList.toggle("is-hidden", itajaiState.active || showPin);
+    if (labelEls.costa_verde_mar) labelEls.costa_verde_mar.classList.toggle("is-hidden", itajaiState.active || showItajaiPin);
     if (pinEl) pinEl.classList.toggle("is-visible", showPin);
+    if (pinItajaiEl) pinItajaiEl.classList.toggle("is-visible", showItajaiPin);
   }
 
   function setHover(id) {
@@ -664,6 +876,7 @@
     state.selectedId = id;
     borderUniforms.uSelectedId.value = id ? (state.idxById[id] || 0) : 0;
     borderUniforms.uShowRioRing.value = has360Action(id) ? 1.0 : 0.0;
+    borderUniforms.uShowItajaiRing.value = (!itajaiState.active && isItajaiRegion(id)) ? 1.0 : 0.0;
     refreshClasses();
     requestRender();
   }
@@ -733,18 +946,33 @@
 
   function showCard(r) {
     const is360 = has360Action(r.id);
+    const hasItajai = isItajaiRegion(r.id);
+    const chipsHtml = r.highlights
+      .map((h) =>
+        hasItajai && h === "Itajaí"
+          ? '<button type="button" class="chip chip-3d" data-go-itajai title="Abrir relevo 3D e 35 bairros de Itajaí sobre SC">📍 Itajaí · 3D</button>'
+          : '<span class="chip">' + h + "</span>"
+      )
+      .join("");
+    let actionHtml = '<span class="geo-soon">📷 Fotos 360° desta região em breve</span>';
+    if (is360) {
+      actionHtml =
+        '<button type="button" class="geo-cta-360" data-go360>🌐 Ir ao Rio da Luz · Foto 360°</button>' +
+        '<div class="geo-progress"><i></i></div>';
+    } else if (hasItajai) {
+      actionHtml =
+        '<button type="button" class="geo-cta-360 geo-cta-3d" data-go-itajai>🏔️ Abrir Itajaí 3D sobre o mapa (35 bairros)</button>' +
+        '<div class="geo-progress"><i></i></div>';
+    }
     card.style.setProperty("--c", r.color);
     card.innerHTML =
       '<div class="geo-card-bar"></div><div class="geo-card-body">' +
       '<button type="button" class="geo-card-close" title="Fechar e voltar à visão geral">✕</button>' +
       '<span class="kicker">IGR · Mapa do Turismo SC 2025</span><h2>' + r.name + "</h2>" +
       "<p>" + r.description + "</p>" +
-      '<div class="chips">' + r.highlights.map((h) => '<span class="chip">' + h + "</span>").join("") + "</div>" +
+      '<div class="chips">' + chipsHtml + "</div>" +
       "<details><summary>" + r.municipios.length + " municípios</summary><p>" + r.municipios.join(", ") + "</p></details>" +
-      (is360
-        ? '<button type="button" class="geo-cta-360" data-go360>🌐 Ir ao Rio da Luz · Foto 360°</button>' +
-          '<div class="geo-progress"><i></i></div>'
-        : '<span class="geo-soon">📷 Fotos 360° desta região em breve</span>') +
+      actionHtml +
       "</div>";
     card.hidden = false;
     card.style.animation = "none";
@@ -753,6 +981,9 @@
     card.querySelector(".geo-card-close").addEventListener("click", goOverview);
     const cta = card.querySelector("[data-go360]");
     if (cta) cta.addEventListener("click", () => goToRioDaLuz(true));
+    card.querySelectorAll("[data-go-itajai]").forEach((el) => {
+      el.addEventListener("click", () => enterItajaiMode());
+    });
     state.viewOffTarget = window.innerWidth > 820 ? 195 : 0;
     requestRender();
   }
@@ -858,6 +1089,10 @@
 
   function goOverview() {
     cancelSequence();
+    if (itajaiState.active) {
+      selectBairro(null, { focus: true });
+      return;
+    }
     setSelected(null);
     hideCard();
     const o = viewFor(state.overviewParams.center, state.overviewParams.radius, 40, 0);
@@ -865,30 +1100,676 @@
   }
 
   // --------------------------------------------------------------------------
-  // Overlay 360° (passeio virtual: rio_da_luz_360.html)
+  // Itajaí 3D sobre Santa Catarina (carregado sob demanda ao clicar em Itajaí)
+  // --------------------------------------------------------------------------
+  function loadScriptOnce(src, readyCheck) {
+    return new Promise((resolve, reject) => {
+      if (readyCheck()) return resolve();
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = () => (readyCheck() ? resolve() : reject(new Error("Dados não inicializados: " + src)));
+      s.onerror = () => reject(new Error("Falha ao carregar " + src));
+      document.body.appendChild(s);
+    });
+  }
+
+  function loadItajaiPngTex(b64, nearest, capturePixels) {
+    const tex = new THREE.Texture();
+    tex.flipY = false;
+    tex.generateMipmaps = false;
+    tex.minFilter = nearest ? THREE.NearestFilter : THREE.LinearFilter;
+    tex.magFilter = nearest ? THREE.NearestFilter : THREE.LinearFilter;
+    tex.wrapS = THREE.ClampToEdgeWrapping;
+    tex.wrapT = THREE.ClampToEdgeWrapping;
+    const img = new Image();
+    img.onload = () => {
+      tex.image = img;
+      tex.needsUpdate = true;
+      if (capturePixels && window.ITAJAI_BAIRROS_SDF) {
+        const w = window.ITAJAI_BAIRROS_SDF.w;
+        const h = window.ITAJAI_BAIRROS_SDF.h;
+        const cv = document.createElement("canvas");
+        cv.width = w;
+        cv.height = h;
+        const ctx = cv.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        itajaiState.idPixels = ctx.getImageData(0, 0, w, h).data;
+        itajaiState.idW = w;
+        itajaiState.idH = h;
+      }
+      requestRender();
+    };
+    img.src = "data:image/png;base64," + b64;
+    itajaiState.textures.push(tex);
+    return tex;
+  }
+
+  function createItajaiMaterial(baseMat, IDATA, ISDF) {
+    const iIdTex = loadItajaiPngTex(ISDF.idPngB64, true, true);
+    const iSdfTex = loadItajaiPngTex(ISDF.sdfPngB64, false, false);
+
+    const iPal = new Uint8Array(64 * 4);
+    const tmpC = new THREE.Color();
+    IDATA.bairros.forEach((b) => {
+      tmpC.set(b.color);
+      const o = b.idx * 4;
+      iPal[o] = Math.round(tmpC.r * 255);
+      iPal[o + 1] = Math.round(tmpC.g * 255);
+      iPal[o + 2] = Math.round(tmpC.b * 255);
+      iPal[o + 3] = 255;
+    });
+    const iColorTex = new THREE.DataTexture(iPal, 64, 1, THREE.RGBAFormat);
+    iColorTex.minFilter = THREE.NearestFilter;
+    iColorTex.magFilter = THREE.NearestFilter;
+    iColorTex.generateMipmaps = false;
+    iColorTex.needsUpdate = true;
+    itajaiState.textures.push(iColorTex);
+
+    itajaiState.uniforms = {
+      uIdTex: { value: iIdTex },
+      uSdfTex: { value: iSdfTex },
+      uColorTex: { value: iColorTex },
+      uTexSize: { value: new THREE.Vector2(ISDF.w, ISDF.h) },
+      uMaxDistPx: { value: ISDF.maxDistPx },
+      uSelectedId: { value: 0 },
+      uHoverId: { value: 0 },
+      uShowBorders: { value: itajaiState.showBorders ? 1.0 : 0.0 },
+    };
+
+    const mat = new THREE.MeshLambertMaterial({
+      map: baseMat && baseMat.map ? baseMat.map : null,
+      color: 0xffffff,
+    });
+    mat.extensions = { derivatives: true };
+    mat.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, itajaiState.uniforms);
+      shader.fragmentShader =
+        `
+        uniform sampler2D uIdTex;
+        uniform sampler2D uSdfTex;
+        uniform sampler2D uColorTex;
+        uniform vec2 uTexSize;
+        uniform float uMaxDistPx;
+        uniform int uSelectedId;
+        uniform int uHoverId;
+        uniform float uShowBorders;
+        ` +
+        shader.fragmentShader.replace(
+          "#include <output_fragment>",
+          `
+          #include <output_fragment>
+          int rid = int(floor(texture2D(uIdTex, vUv).r * 255.0 + 0.5));
+          if (rid > 0) {
+            vec3 regSrgb = texture2D(uColorTex, vec2((float(rid) + 0.5) / 64.0, 0.5)).rgb;
+            vec3 regLin = pow(regSrgb, vec3(2.2));
+            float distTex = texture2D(uSdfTex, vUv).r * uMaxDistPx;
+            vec2 dUv = fwidth(vUv * uTexSize);
+            float texPerScreen = max(0.08, length(dUv) * 0.7071);
+            float distScreen = distTex / texPerScreen;
+
+            bool isSel = (rid == uSelectedId);
+            bool isHov = (rid == uHoverId);
+
+            float borderEnd = (isSel || isHov) ? 2.4 : (uShowBorders > 0.5 ? 1.65 : 0.0);
+            float borderAlpha = (borderEnd > 0.05) ? (1.0 - smoothstep(borderEnd - 0.65, borderEnd, distScreen)) : 0.0;
+            float fillAlpha = isSel ? (isHov ? 0.14 : 0.07) : (isHov ? 0.16 : 0.0);
+
+            float outAlpha = max(borderAlpha * (isSel || isHov ? 0.98 : 0.92), fillAlpha);
+            if (outAlpha > 0.002) {
+              gl_FragColor.rgb = mix(gl_FragColor.rgb, regLin, outAlpha);
+            }
+          }
+          `
+        );
+    };
+    mat.customProgramCacheKey = () => "geosc-itajai35-inscene-v1";
+    return mat;
+  }
+
+  function distPointToSegSq(px, py, ax, ay, bx, by) {
+    const abx = bx - ax, aby = by - ay;
+    const lenSq = abx * abx + aby * aby;
+    if (lenSq < 1e-12) return (px - ax) * (px - ax) + (py - ay) * (py - ay);
+    const t = Math.max(0, Math.min(1, ((px - ax) * abx + (py - ay) * aby) / lenSq));
+    const dx = px - (ax + t * abx), dy = py - (ay + t * aby);
+    return dx * dx + dy * dy;
+  }
+
+  function distToItajaiOutlineUV(u, v) {
+    if (isPointInItajaiUV({ x: u, y: v })) return 0.0;
+    const rings = state.itajaiRingsUV || [];
+    let bestSq = 1e9;
+    for (let r = 0; r < rings.length; r++) {
+      const ring = rings[r];
+      for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+        const dSq = distPointToSegSq(u, v, ring[j][0], ring[j][1], ring[i][0], ring[i][1]);
+        if (dSq < bestSq) bestSq = dSq;
+      }
+    }
+    return Math.sqrt(bestSq);
+  }
+
+  function recessScInsideItajai() {
+    if (!state.topMesh || itajaiState.savedScZ || !state.itajaiBboxUV) return;
+    const geom = state.topMesh.geometry;
+    const pos = geom.attributes.position.array;
+    const uvs = geom.attributes.uv ? geom.attributes.uv.array : null;
+    if (!uvs) return;
+    const [u0, v0, u1, v1] = state.itajaiBboxUV;
+    const apronOut = 0.028;
+    const flatMargin = 0.0045;
+    const saved = [];
+    const targetLocalZ = 0.0942; // world_y = 0.11775 (nível costeiro limpo, sem paredões)
+    const count = geom.attributes.position.count;
+    for (let i = 0; i < count; i++) {
+      const u = uvs[i * 2], v = uvs[i * 2 + 1];
+      if (u < u0 - apronOut || u > u1 + apronOut || v < v0 - apronOut || v > v1 + apronOut) continue;
+      const d = distToItajaiOutlineUV(u, v);
+      if (d >= apronOut) continue;
+      let w = 1.0;
+      if (d > flatMargin) {
+        const t = (d - flatMargin) / (apronOut - flatMargin);
+        w = 1.0 - (t * t * (3.0 - 2.0 * t));
+      }
+      const z = pos[i * 3 + 2];
+      if (z > targetLocalZ) {
+        saved.push({ idx: i, z });
+        pos[i * 3 + 2] = z * (1.0 - w) + targetLocalZ * w;
+      }
+    }
+    if (saved.length) {
+      geom.attributes.position.needsUpdate = true;
+      itajaiState.savedScZ = saved;
+    }
+  }
+
+  function restoreScElevation() {
+    if (!state.topMesh || !itajaiState.savedScZ) return;
+    const posAttr = state.topMesh.geometry.attributes.position;
+    const pos = posAttr.array;
+    for (let i = 0; i < itajaiState.savedScZ.length; i++) {
+      const item = itajaiState.savedScZ[i];
+      pos[item.idx * 3 + 2] = item.z;
+    }
+    posAttr.needsUpdate = true;
+    itajaiState.savedScZ = null;
+  }
+
+  function findBairroAtUV(u, v) {
+    if (u < 0 || u > 1 || v < 0 || v > 1) return null;
+    if (itajaiState.idPixels && itajaiState.idW) {
+      const px = Math.max(0, Math.min(itajaiState.idW - 1, Math.floor(u * itajaiState.idW)));
+      const py = Math.max(0, Math.min(itajaiState.idH - 1, Math.floor(v * itajaiState.idH)));
+      const idx = itajaiState.idPixels[(py * itajaiState.idW + px) * 4];
+      if (idx > 0 && itajaiState.byIdx[idx]) return itajaiState.byIdx[idx];
+    }
+    for (let i = 0; i < itajaiState.bairros.length; i++) {
+      const b = itajaiState.bairros[i];
+      const bb = b.bboxUV;
+      if (u < bb[0] || u > bb[2] || v < bb[1] || v > bb[3]) continue;
+      for (let k = 0; k < b.rings.length; k++) {
+        if (pointInRing(u, v, b.rings[k])) return b;
+      }
+    }
+    return null;
+  }
+
+  function uvToItajaiWorld(u, v, lift) {
+    const ws = (itajaiState.meta && itajaiState.meta.worldSize) || [1.728747, 2.0];
+    const pTop = new THREE.Vector3((u - 0.5) * ws[0], 1.5, (v - 0.5) * ws[1]).applyMatrix4(itajaiState.topMesh.matrixWorld);
+    const pBot = new THREE.Vector3((u - 0.5) * ws[0], -1.0, (v - 0.5) * ws[1]).applyMatrix4(itajaiState.topMesh.matrixWorld);
+    const dir = pBot.clone().sub(pTop).normalize();
+    const hit = raycastGrid(itajaiState.triGrid, new THREE.Ray(pTop, dir));
+    const pt = hit ? hit.point : new THREE.Vector3(pTop.x, 0.125, pTop.z);
+    pt.y += lift || 0;
+    return pt;
+  }
+
+  function buildItajaiUI() {
+    legendBox.classList.add("is-itajai");
+    legendBox.classList.remove("is-collapsed");
+    legendTitle.textContent = "Bairros de Itajaí · 35 Oficiais (MDT 2×)";
+    if (legendMinBtn) { legendMinBtn.hidden = false; legendMinBtn.textContent = "▾"; }
+    if (legendSearchWrap) legendSearchWrap.hidden = false;
+    if (legendSearch) legendSearch.value = "";
+    if (headerKicker) headerKicker.textContent = "Geoturismo SC · Costa Verde & Mar";
+    if (headerTitle) headerTitle.textContent = "Itajaí — Bairros (Relevo 2×)";
+    if (creditsEl) {
+      creditsEl.innerHTML =
+        'Relevo 2×: <strong>GeoItajaí MDT + Ortoimagem 2024</strong> · Limites: <strong>Geoportal Itajaí (35 bairros)</strong> · Base estadual: <a href="https://3dmap.app/geoheritage/ra/index.php?id=sc" target="_blank" rel="noopener">3dmap.app</a>';
+    }
+    if (btnBackSC) btnBackSC.hidden = false;
+    if (btnItajaiBorders) { btnItajaiBorders.hidden = false; btnItajaiBorders.classList.toggle("is-on", itajaiState.showBorders); }
+    if (btnItajaiLabels) { btnItajaiLabels.hidden = false; btnItajaiLabels.classList.toggle("is-on", itajaiState.showLabels); }
+
+    // Ordenar para declutter: maiores bairros primeiro
+    const byArea = itajaiState.bairros.slice().sort((a, b) => b.areaKm2 - a.areaKm2);
+    byArea.forEach((b, rank) => { b._rank = rank; });
+
+    legendList.innerHTML = "";
+    itajaiState.legendEls = {};
+    itajaiState.labelEls = {};
+
+    itajaiState.bairros.forEach((b) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.style.setProperty("--c", b.color);
+      const has360 = b.photo360 && b.photo360.ready;
+      btn.innerHTML =
+        '<span class="geo-swatch"></span><span>' + b.nome + "</span>" +
+        (has360 ? '<span class="geo-legend-360">360°</span>' : "");
+      btn.addEventListener("mouseenter", () => setBairroHover(b.id));
+      btn.addEventListener("mouseleave", () => { if (itajaiState.hoverId === b.id) setBairroHover(null); });
+      btn.addEventListener("click", () => selectBairro(b.id, { focus: true }));
+      li.appendChild(btn);
+      legendList.appendChild(li);
+      itajaiState.legendEls[b.id] = btn;
+
+      const lbl = document.createElement("button");
+      lbl.type = "button";
+      lbl.className = "geo-region-label geo-b-label";
+      lbl.style.setProperty("--c", b.color);
+      lbl.innerHTML =
+        '<span class="txt">' + b.nome +
+        (has360 ? ' <span class="lbl-360">360°</span>' : "") +
+        '</span><span class="stem"></span><span class="dot"></span>';
+      lbl.addEventListener("mouseenter", () => setBairroHover(b.id));
+      lbl.addEventListener("mouseleave", () => { if (itajaiState.hoverId === b.id) setBairroHover(null); });
+      lbl.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        selectBairro(b.id, { focus: true });
+      });
+      labelsLayer.appendChild(lbl);
+      itajaiState.labelEls[b.id] = lbl;
+    });
+  }
+
+  function showBairroCard(b) {
+    if (!b) {
+      hideCard();
+      return;
+    }
+    const leiTxt = b.leiNumero
+      ? "Lei Municipal nº " + b.leiNumero + (b.leiAno ? "/" + b.leiAno : "")
+      : "Delimitação oficial · Geoportal Itajaí";
+    const p360 = b.photo360 || {};
+    let photoSlot = "";
+    if (p360.ready && p360.url) {
+      photoSlot = '<button type="button" class="geo-cta-360" data-open-b360>🌐 Abrir Foto 360° · ' + b.nome + "</button>";
+    } else if (p360.planned) {
+      photoSlot = '<span class="geo-soon">📷 ' + (p360.label || "Foto 360° prevista em breve") + "</span>";
+    }
+
+    card.style.setProperty("--c", b.color);
+    card.innerHTML =
+      '<div class="geo-card-bar"></div><div class="geo-card-body">' +
+      '<button type="button" class="geo-card-close" title="Voltar à visão geral de Itajaí">✕</button>' +
+      '<span class="kicker">BAIRRO Nº ' + String(b.numero || b.idx).padStart(2, "0") + " · " + b.tipo.toUpperCase() + "</span>" +
+      "<h2>" + b.nome + "</h2>" +
+      "<p>" + leiTxt + "</p>" +
+      '<div class="geo-b-stats">' +
+      '<div class="geo-b-stat"><div class="geo-b-stat-k">Área</div><div class="geo-b-stat-v">' + b.areaKm2.toFixed(2).replace(".", ",") + " km²</div></div>" +
+      '<div class="geo-b-stat"><div class="geo-b-stat-k">Alt. Média</div><div class="geo-b-stat-v">' + Math.round(b.elevMean) + " m</div></div>" +
+      '<div class="geo-b-stat"><div class="geo-b-stat-k">Alt. Máx.</div><div class="geo-b-stat-v">' + Math.round(b.elevMax) + " m</div></div>" +
+      "</div>" +
+      photoSlot +
+      '<div class="geo-card-nav">' +
+      '<button type="button" class="geo-mini-btn" data-b-prev>‹ Bairro anterior</button>' +
+      '<button type="button" class="geo-mini-btn" data-b-next>Próximo bairro ›</button>' +
+      "</div>" +
+      "</div>";
+    card.hidden = false;
+    card.style.animation = "none";
+    void card.offsetWidth;
+    card.style.animation = "";
+
+    card.querySelector(".geo-card-close").addEventListener("click", () => selectBairro(null, { focus: true }));
+    const iCurr = itajaiState.bairros.findIndex((x) => x.id === b.id);
+    card.querySelector("[data-b-prev]").addEventListener("click", () => {
+      selectBairro(itajaiState.bairros[(iCurr - 1 + itajaiState.bairros.length) % itajaiState.bairros.length].id, { focus: true });
+    });
+    card.querySelector("[data-b-next]").addEventListener("click", () => {
+      selectBairro(itajaiState.bairros[(iCurr + 1) % itajaiState.bairros.length].id, { focus: true });
+    });
+    const b360 = card.querySelector("[data-open-b360]");
+    if (b360 && p360.ready && p360.url) {
+      b360.addEventListener("click", () => openOverlay(p360.url, "Foto 360° — " + b.nome));
+    }
+    state.viewOffTarget = window.innerWidth > 820 ? 195 : 0;
+    requestRender();
+  }
+
+  function refreshItajaiClasses() {
+    itajaiState.bairros.forEach((b) => {
+      const sel = b.id === itajaiState.selectedId;
+      const hov = b.id === itajaiState.hoverId;
+      const lbl = itajaiState.labelEls[b.id];
+      const lg = itajaiState.legendEls[b.id];
+      if (lbl) {
+        lbl.classList.toggle("is-active", sel);
+        lbl.classList.toggle("is-hover", hov);
+        lbl.classList.toggle("is-faded", Boolean(itajaiState.selectedId) && !sel && !hov);
+      }
+      if (lg) {
+        lg.classList.toggle("is-active", sel);
+        lg.classList.toggle("is-hover", hov);
+      }
+    });
+  }
+
+  function setBairroHover(id) {
+    if (itajaiState.hoverId === id) return;
+    itajaiState.hoverId = id;
+    const b = id ? itajaiState.byId[id] : null;
+    if (itajaiState.uniforms) itajaiState.uniforms.uHoverId.value = b ? b.idx : 0;
+    stage.classList.toggle("is-pointer", Boolean(b));
+    if (hoverPill) {
+      if (b) {
+        hoverPill.innerHTML = b.nome + "<small>" + b.areaKm2.toFixed(1).replace(".", ",") + " km²</small>";
+        hoverPill.style.left = state.pointerClient.x + "px";
+        hoverPill.style.top = state.pointerClient.y + "px";
+        hoverPill.hidden = false;
+      } else {
+        hoverPill.hidden = true;
+      }
+    }
+    refreshItajaiClasses();
+    requestRender();
+  }
+
+  function selectBairro(id, opts) {
+    const b = id ? itajaiState.byId[id] : null;
+    itajaiState.selectedId = b ? b.id : null;
+    if (itajaiState.uniforms) itajaiState.uniforms.uSelectedId.value = b ? b.idx : 0;
+    refreshItajaiClasses();
+    if (b) {
+      showBairroCard(b);
+      if (itajaiState.legendEls[b.id]) {
+        itajaiState.legendEls[b.id].scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+      if (opts && opts.focus && b.worldPt) {
+        const scSpanU = Math.max(b.bboxUV[2] - b.bboxUV[0], b.bboxUV[3] - b.bboxUV[1]);
+        if (window.innerWidth <= 820 && legendBox) { legendBox.classList.add("is-collapsed"); if (legendMinBtn) legendMinBtn.textContent = "▸"; }
+        const rad = THREE.MathUtils.clamp(scSpanU * 0.155, 0.032, 0.088);
+        const v = viewFor(b.worldPt, rad, 45, -0.18);
+        flyTo(v.pos, v.target, 780);
+      }
+    } else {
+      hideCard();
+      if (opts && opts.focus && itajaiState.centerWorld) {
+        const v = viewFor(itajaiState.centerWorld, itajaiState.radiusWorld, 46, -0.22);
+        flyTo(v.pos, v.target, 750);
+      }
+    }
+    requestRender();
+  }
+
+  function pickBairro() {
+    if (!itajaiState.triGrid) return null;
+    raycaster.setFromCamera(state.pointer, camera);
+    const hit = raycastGrid(itajaiState.triGrid, raycaster.ray);
+    if (!hit) return null;
+    return findBairroAtUV(hit.uv.x, hit.uv.y);
+  }
+
+  function loadItajaiModelBuffer() {
+    return new Promise((resolve, reject) => {
+      const mLoader = new THREE.GLTFLoader();
+      const loadFromB64 = () => {
+        loadScriptOnce("js/itajai-mapa3d-glb.js", () => Boolean(window.ITAJAI_MAP_GLB_B64))
+          .then(() => mLoader.parse(b64ToArrayBuffer(window.ITAJAI_MAP_GLB_B64), "", resolve, reject))
+          .catch(reject);
+      };
+      if (location.protocol === "file:") {
+        loadFromB64();
+      } else {
+        mLoader.load("assets/modelos/itajai_terreno.glb", resolve, undefined, loadFromB64);
+      }
+    });
+  }
+
+  function enterItajaiMode() {
+    if (itajaiState.active || itajaiState.loading) return;
+    cancelSequence();
+    controls.autoRotate = false;
+    $("btnGeoRotate").classList.remove("is-on");
+    hideHint();
+    hideCard();
+
+    if (state.selectedId !== "costa_verde_mar") {
+      setSelected("costa_verde_mar");
+    }
+
+    itajaiState.loading = true;
+    toast("🏔️ Carregando Itajaí 3D (2×) e 35 bairros sobre SC…", 3500);
+
+    // Começa voo suave até Itajaí enquanto os assets baixam sob demanda
+    const targetApproach = state.itajaiWorld || uvToWorld(0.908, 0.698, 0.002);
+    const approachView = viewFor(targetApproach, 0.145, 44, -0.20);
+    flyTo(approachView.pos, approachView.target, 950);
+
+    Promise.all([
+      loadScriptOnce("js/itajai-bairros-data.js", () => Boolean(window.ITAJAI_BAIRROS_DATA)),
+      loadScriptOnce("js/itajai-bairros-sdf.js", () => Boolean(window.ITAJAI_BAIRROS_SDF)),
+      loadItajaiModelBuffer(),
+    ])
+      .then(([, , gltf]) => {
+        const IDATA = window.ITAJAI_BAIRROS_DATA;
+        const ISDF = window.ITAJAI_BAIRROS_SDF;
+        const root = gltf.scene || (gltf.scenes && gltf.scenes[0]);
+        if (!root) throw new Error("GLB de Itajaí vazio");
+
+        const pl = IDATA.meta.scPlacement;
+        root.position.set(pl.centerX, pl.baseY, pl.centerZ);
+        root.rotation.set(0, pl.rotYRad, 0);
+        root.scale.set(pl.scaleX, pl.scaleY, pl.scaleZ);
+
+        let topMesh = null;
+        root.traverse((obj) => {
+          if (!obj.isMesh) return;
+          if (obj.geometry && obj.geometry.attributes && obj.geometry.attributes.uv && obj.material && obj.material.map) {
+            obj.material.map.encoding = THREE.sRGBEncoding;
+            obj.material.map.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+            obj.material = createItajaiMaterial(obj.material, IDATA, ISDF);
+            topMesh = obj;
+          } else {
+            // Estender a base da saia para baixo do recorte estadual (sem vãos por qualquer ângulo)
+            const sPos = obj.geometry && obj.geometry.attributes && obj.geometry.attributes.position;
+            if (sPos) {
+              for (let vi = 0; vi < sPos.count; vi++) {
+                if (sPos.getY(vi) < 0.002) sPos.setY(vi, -0.18);
+              }
+              sPos.needsUpdate = true;
+              obj.geometry.computeBoundingBox();
+              obj.geometry.computeBoundingSphere();
+            }
+            obj.material = new THREE.MeshLambertMaterial({ color: 0x64748b });
+          }
+        });
+
+        scene.add(root);
+        root.updateMatrixWorld(true);
+        recessScInsideItajai();
+
+        if (ISDF.scMaskPngB64 && ISDF.scMaskBounds) {
+          const mb = ISDF.scMaskBounds;
+          borderUniforms.uItajaiMaskBounds.value.set(mb[0], mb[1], mb[2], mb[3]);
+          borderUniforms.uItajaiMaskTex.value = loadItajaiPngTex(ISDF.scMaskPngB64, false, false);
+        }
+        borderUniforms.uItajaiFocus.value = 1.0;
+
+        itajaiState.group = root;
+        itajaiState.topMesh = topMesh;
+        itajaiState.meta = IDATA.meta;
+        itajaiState.bairros = IDATA.bairros.slice();
+        itajaiState.byId = {};
+        itajaiState.byIdx = {};
+        itajaiState.bairros.forEach((b) => {
+          itajaiState.byId[b.id] = b;
+          itajaiState.byIdx[b.idx] = b;
+        });
+        itajaiState.triGrid = topMesh ? buildTriGrid(topMesh, true) : null;
+        itajaiState.bairros.forEach((b) => {
+          b.worldPt = topMesh ? uvToItajaiWorld(b.labelUV[0], b.labelUV[1], 0.0025) : targetApproach.clone();
+        });
+
+        const box = new THREE.Box3().setFromObject(root);
+        const ctr = box.getCenter(new THREE.Vector3());
+        ctr.y = pl.baseY + 0.004;
+        const ws = IDATA.meta.worldSize || [1.728747, 2.0];
+        itajaiState.centerWorld = ctr;
+        itajaiState.radiusWorld = Math.max(ws[0] * pl.scaleX, ws[1] * pl.scaleZ) * 0.54;
+
+        itajaiState.active = true;
+        itajaiState.loading = false;
+        itajaiState.selectedId = null;
+        itajaiState.hoverId = null;
+
+        borderUniforms.uShowItajaiRing.value = 0.0;
+        controls.minDistance = 0.022;
+        controls.maxDistance = 0.85;
+
+        buildItajaiUI();
+        refreshClasses();
+
+        const itView = viewFor(ctr, itajaiState.radiusWorld, 46, -0.22);
+        flyTo(itView.pos, itView.target, 700, () => toast("🗺️ Itajaí 3D (2×) · Clique em um dos 35 bairros", 1600));
+        requestRender();
+      })
+      .catch((err) => {
+        console.error(err);
+        itajaiState.loading = false;
+        toast("❌ Não foi possível carregar Itajaí 3D.", 3000);
+      });
+  }
+
+  function unloadItajaiResources() {
+    if (itajaiState.group) {
+      scene.remove(itajaiState.group);
+      itajaiState.group.traverse((obj) => {
+        if (!obj.isMesh) return;
+        if (obj.geometry) obj.geometry.dispose();
+        if (obj.material) {
+          if (obj.material.map) obj.material.map.dispose();
+          obj.material.dispose();
+        }
+      });
+      itajaiState.group = null;
+    }
+    itajaiState.textures.forEach((t) => t && t.dispose && t.dispose());
+    itajaiState.textures = [];
+    Object.keys(itajaiState.labelEls).forEach((id) => {
+      const el = itajaiState.labelEls[id];
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    itajaiState.labelEls = {};
+    itajaiState.legendEls = {};
+    itajaiState.topMesh = null;
+    itajaiState.triGrid = null;
+    itajaiState.uniforms = null;
+    itajaiState.idPixels = null;
+    itajaiState.selectedId = null;
+    itajaiState.hoverId = null;
+  }
+
+  function exitItajaiMode() {
+    if (!itajaiState.active) return;
+    cancelSequence();
+    setBairroHover(null);
+    hideCard();
+    borderUniforms.uItajaiFocus.value = 0.0;
+    borderUniforms.uItajaiMaskTex.value = dummyMaskTex;
+    unloadItajaiResources();
+    restoreScElevation();
+
+    itajaiState.active = false;
+    controls.minDistance = 0.08;
+    controls.maxDistance = 7;
+
+    legendBox.classList.remove("is-itajai", "is-collapsed");
+    legendTitle.textContent = "Mapa do Turismo · 15 IGRs (SETUR-SC)";
+    if (legendMinBtn) legendMinBtn.hidden = true;
+    if (legendSearchWrap) legendSearchWrap.hidden = true;
+    if (headerKicker) headerKicker.textContent = "Geoturismo SC";
+    if (headerTitle) headerTitle.textContent = "Regiões Turísticas de Santa Catarina";
+    if (creditsEl) creditsEl.innerHTML = creditsDefaultHtml;
+    if (btnBackSC) btnBackSC.hidden = true;
+    if (btnItajaiBorders) btnItajaiBorders.hidden = true;
+    if (btnItajaiLabels) btnItajaiLabels.hidden = true;
+
+    buildLegend();
+    selectRegion("costa_verde_mar", { noSequence: true });
+    requestRender();
+  }
+
+  if (legendSearch) {
+    legendSearch.addEventListener("input", () => {
+      if (!itajaiState.active) return;
+      const q = (legendSearch.value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+      itajaiState.bairros.forEach((b) => {
+        const el = itajaiState.legendEls[b.id];
+        if (!el) return;
+        const norm = b.nome.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        el.parentElement.style.display = !q || norm.includes(q) ? "" : "none";
+      });
+    });
+  }
+  if (legendMinBtn) {
+    legendMinBtn.addEventListener("click", () => {
+      const col = legendBox.classList.toggle("is-collapsed");
+      legendMinBtn.textContent = col ? "▸" : "▾";
+    });
+  }
+  if (btnBackSC) btnBackSC.addEventListener("click", exitItajaiMode);
+  if (btnItajaiBorders) {
+    btnItajaiBorders.addEventListener("click", () => {
+      itajaiState.showBorders = !itajaiState.showBorders;
+      if (itajaiState.uniforms) itajaiState.uniforms.uShowBorders.value = itajaiState.showBorders ? 1.0 : 0.0;
+      btnItajaiBorders.classList.toggle("is-on", itajaiState.showBorders);
+      requestRender();
+    });
+  }
+  if (btnItajaiLabels) {
+    btnItajaiLabels.addEventListener("click", () => {
+      itajaiState.showLabels = !itajaiState.showLabels;
+      btnItajaiLabels.classList.toggle("is-on", itajaiState.showLabels);
+      requestRender();
+    });
+  }
+
+  // --------------------------------------------------------------------------
+  // Overlay 360° (passeio virtual existente e futuras fotos 360° de bairros)
   // --------------------------------------------------------------------------
   const overlay = $("tour360Overlay");
   const backBtn = $("btnBackToMap");
   let iframe = null;
   let unloadTimer = null;
 
-  function ensureIframe() {
+  function ensureIframe(url, title) {
     clearTimeout(unloadTimer);
-    if (iframe) return iframe;
+    const targetUrl = url || DATA.rioDaLuz.tourUrl;
+    if (iframe) {
+      if (iframe.getAttribute("data-src-url") === targetUrl) return iframe;
+      iframe.src = "about:blank";
+      iframe.remove();
+      iframe = null;
+    }
     iframe = document.createElement("iframe");
-    iframe.title = "Foto 360° — Vale Tombado do Rio da Luz";
+    iframe.setAttribute("data-src-url", targetUrl);
+    iframe.title = title || "Foto 360° — Vale Tombado do Rio da Luz";
     iframe.allow = "fullscreen; gyroscope; accelerometer; xr-spatial-tracking";
     iframe.setAttribute("allowfullscreen", "");
     iframe.addEventListener("load", () => iframe && iframe.classList.add("is-ready"));
-    iframe.src = DATA.rioDaLuz.tourUrl;
+    iframe.src = targetUrl;
     overlay.insertBefore(iframe, backBtn);
     return iframe;
   }
 
-  function open360() {
+  function openOverlay(url, title) {
     cancelSequence();
-    ensureIframe();
-    const p = state.rioWorld ? placeEl(pinEl, state.rioWorld) : { x: state.w / 2, y: state.h / 2 };
+    ensureIframe(url, title);
+    const p = !itajaiState.active && state.rioWorld ? placeEl(pinEl, state.rioWorld) : { x: state.w / 2, y: state.h / 2 };
     overlay.style.setProperty("--ox", p.x + "px");
     overlay.style.setProperty("--oy", p.y + "px");
     overlay.classList.add("is-open");
@@ -896,9 +1777,15 @@
     later(() => {
       if (overlay.classList.contains("is-open")) pauseLoop();
     }, 1150);
-    try {
-      history.replaceState(null, "", "#rio-da-luz-360");
-    } catch (e) { /* file:// em alguns navegadores */ }
+    if (!itajaiState.active) {
+      try {
+        history.replaceState(null, "", "#rio-da-luz-360");
+      } catch (e) { /* file:// em alguns navegadores */ }
+    }
+  }
+
+  function open360() {
+    openOverlay(DATA.rioDaLuz.tourUrl, "Foto 360° — Vale Tombado do Rio da Luz");
   }
 
   function close360() {
@@ -916,7 +1803,9 @@
         iframe = null;
       }
     }, 1200);
-    later(() => selectRegion(returnId, { noSequence: true }), 260);
+    if (!itajaiState.active) {
+      later(() => selectRegion(returnId, { noSequence: true }), 260);
+    }
   }
   backBtn.addEventListener("click", close360);
 
@@ -947,11 +1836,15 @@
     if (now - state.lastPickAt < 45) return;
     state.lastPickAt = now;
     const rect = canvas.getBoundingClientRect();
+    state.pointerClient = { x: e.clientX, y: e.clientY };
     state.pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
     state.pickPending = true;
     requestRender();
   });
-  canvas.addEventListener("pointerleave", () => setHover(null));
+  canvas.addEventListener("pointerleave", () => {
+    if (itajaiState.active) setBairroHover(null);
+    else setHover(null);
+  });
   canvas.addEventListener("pointerup", (e) => {
     if (!downAt) return;
     const moved = Math.hypot(e.clientX - downAt.x, e.clientY - downAt.y);
@@ -959,8 +1852,23 @@
     downAt = null;
     if (moved > 6 || dt > 600) return;
     const rect = canvas.getBoundingClientRect();
+    state.pointerClient = { x: e.clientX, y: e.clientY };
     state.pointer.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
-    const r = pick();
+
+    if (itajaiState.active) {
+      const b = pickBairro();
+      if (b) selectBairro(b.id, { focus: true });
+      else if (itajaiState.selectedId) selectBairro(null, { focus: true });
+      return;
+    }
+
+    raycaster.setFromCamera(state.pointer, camera);
+    const hit = state.triGrid ? raycastTopGrid(raycaster.ray) : null;
+    if (hit && state.selectedId === "costa_verde_mar" && isPointInItajaiUV(hit.uv)) {
+      enterItajaiMode();
+      return;
+    }
+    const r = hit ? regionAtUV(hit.uv) : null;
     if (r) selectRegion(r.id);
     else if (state.selectedId) goOverview();
   });
@@ -968,6 +1876,8 @@
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (overlay.classList.contains("is-open")) close360();
+    else if (itajaiState.active && itajaiState.selectedId) selectBairro(null, { focus: true });
+    else if (itajaiState.active) exitItajaiMode();
     else if (state.selectedId) goOverview();
   });
 
@@ -1010,11 +1920,14 @@
     hintEl.classList.add("is-hidden");
   }
 
-  // Deep link: ?regiao=vale_dos_encantos | ?regiao=vale_europeu | #rio-da-luz-360
+  // Deep link: ?regiao=costa_verde_mar | ?municipio=itajai | #itajai-3d | #rio-da-luz-360
   function handleDeepLink() {
     const params = new URLSearchParams(location.search);
     const reg = params.get("regiao");
-    if (location.hash === "#rio-da-luz-360") {
+    const mun = params.get("municipio");
+    if (location.hash === "#itajai-3d" || mun === "itajai") {
+      setTimeout(() => enterItajaiMode(), 1500);
+    } else if (location.hash === "#rio-da-luz-360") {
       setTimeout(() => goToRioDaLuz(true), 1500);
     } else if (reg && state.byId[reg]) {
       setTimeout(() => selectRegion(reg, { noSequence: params.get("auto360") === "0" }), 1500);
@@ -1070,8 +1983,13 @@
 
     if (state.pickPending && !tweening) {
       state.pickPending = false;
-      const r = pick();
-      setHover(r ? r.id : null);
+      if (itajaiState.active) {
+        const b = pickBairro();
+        setBairroHover(b ? b.id : null);
+      } else {
+        const r = pick();
+        setHover(r ? r.id : null);
+      }
     }
 
     if (state.topMesh) {
@@ -1114,5 +2032,5 @@
   resize();
 
   // API para depuração / integração
-  window.GeoturismoSC = { selectRegion, goOverview, goToRioDaLuz, open360, close360, requestRender, state };
+  window.GeoturismoSC = { selectRegion, goOverview, goToRioDaLuz, enterItajaiMode, exitItajaiMode, selectBairro, open360, close360, requestRender, state, itajaiState };
 })();
