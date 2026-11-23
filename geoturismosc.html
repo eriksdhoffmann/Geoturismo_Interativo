@@ -28,15 +28,21 @@
         <path d="M4 36 Q24 30 44 36" fill="none" stroke="#0ea5e9" stroke-width="3" stroke-linecap="round"/>
       </svg>
       <div>
-        <span class="geo-kicker">Geoturismo SC</span>
-        <h1>Regiões Turísticas de Santa Catarina</h1>
+        <span id="geoHeaderKicker" class="geo-kicker">Geoturismo SC</span>
+        <h1 id="geoHeaderTitle">Regiões Turísticas de Santa Catarina</h1>
       </div>
     </div>
   </header>
 
-  <!-- Legenda: Mapa do Turismo SC 2025 — 15 IGRs (clicável) -->
-  <aside class="geo-legend" aria-label="Mapa do Turismo SC 2025 (15 IGRs)">
-    <h2>Mapa do Turismo · 15 IGRs (SETUR-SC)</h2>
+  <!-- Legenda: alterna entre 15 IGRs de SC e 35 Bairros de Itajaí -->
+  <aside id="geoLegendBox" class="geo-legend" aria-label="Mapa do Turismo SC 2025 (15 IGRs)">
+    <div class="geo-legend-top">
+      <h2 id="geoLegendTitle">Mapa do Turismo · 15 IGRs (SETUR-SC)</h2>
+      <button type="button" id="btnGeoLegendToggle" class="geo-legend-min" title="Recolher ou expandir lista" hidden>▾</button>
+    </div>
+    <div id="geoLegendSearchWrap" class="geo-legend-search-wrap" hidden>
+      <input type="search" id="geoLegendSearch" class="geo-legend-search" placeholder="Filtrar bairro (ex: Cabeçudas, Centro…)" aria-label="Filtrar bairros de Itajaí" />
+    </div>
     <ul id="geoLegendList"></ul>
   </aside>
 
@@ -45,12 +51,16 @@
 
   <!-- Barra de ferramentas -->
   <nav class="geo-toolbar" aria-label="Controles do mapa">
-    <button type="button" id="btnGeoOverview" title="Visão geral do estado">⟲ <span>Visão geral</span></button>
+    <button type="button" id="btnGeoBackSC" class="geo-btn-sc" title="Voltar para Santa Catarina" hidden>← <span>Mapa de SC</span></button>
+    <button type="button" id="btnGeoOverview" title="Visão geral">⟲ <span>Visão geral</span></button>
     <button type="button" id="btnGeoRotate" title="Giro automático">↻ <span>Girar</span></button>
+    <button type="button" id="btnItajaiBorders" class="is-on" title="Mostrar ou ocultar limites dos bairros" hidden>◻ <span>Limites</span></button>
+    <button type="button" id="btnItajaiLabels" class="is-on" title="Mostrar ou ocultar nomes dos bairros" hidden>◈ <span>Rótulos</span></button>
     <button type="button" id="btnGeoFullscreen" title="Tela cheia">⛶</button>
   </nav>
 
   <div id="geoHint" class="geo-hint">Clique em uma região · Arraste para girar · Role para aproximar</div>
+  <div id="geoHoverPill" class="geo-hover-pill" hidden></div>
   <div id="geoToast" class="geo-toast" role="status"></div>
 
   <!-- Carregamento -->
@@ -65,7 +75,7 @@
     <button type="button" id="btnBackToMap" class="tour360-back">← Voltar ao mapa de SC</button>
   </div>
 
-  <footer class="geo-credits">
+  <footer id="geoCredits" class="geo-credits">
     Modelo 3D base: <a href="https://3dmap.app/geoheritage/ra/index.php?id=sc" target="_blank" rel="noopener">3dmap.app · Geoheritage</a>
     · Limites: IBGE / Mapa do Turismo SC 2025 (SETUR-SC)
   </footer>
