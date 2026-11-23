@@ -4,6 +4,10 @@ Passeio Virtual Interativo em **360° (WebGL Esférico)** desenvolvido para divu
 
 Inspirado na arquitetura de navegação 360° do projeto *Geohereditas (IGc-USP)*.
 
+> **Acesse a página online (GitHub Pages):**
+> - **Abrir Plataforma Completa (Mapa 3D de SC + Passeio 360°):** https://eriksdhoffmann.github.io/Geoturismo_Interativo/
+> - **Abrir Direto no Vale do Rio da Luz 360°:** https://eriksdhoffmann.github.io/Geoturismo_Interativo/rio_da_luz_360.html
+
 ---
 
 ## ✨ Funcionalidades Principais
