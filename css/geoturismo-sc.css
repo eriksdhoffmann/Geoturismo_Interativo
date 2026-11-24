@@ -80,7 +80,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
   font: 600 11.5px/1.2 "Inter", sans-serif; color: var(--ink); outline: none;
 }
 .geo-legend-search:focus { border-color: #0f766e; box-shadow: 0 0 0 2px rgba(15,118,110,0.14); }
-.geo-legend.is-itajai { max-width: 348px; }
+.geo-legend.is-itajai { width: 264px; max-width: 264px; }
 .geo-legend.is-itajai ul { max-height: 205px; overflow-y: auto; padding-right: 3px; }
 .geo-legend.is-itajai.is-collapsed .geo-legend-search-wrap,
 .geo-legend.is-itajai.is-collapsed ul { display: none; }
@@ -198,6 +198,38 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
   transition: transform 0.15s, filter 0.15s;
 }
 .geo-card button.chip-3d:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.geo-card button.chip-mun {
+  cursor: pointer; background: rgba(248,250,252,0.96); color: var(--ink);
+  border: 1.5px solid rgba(15,23,42,0.14); transition: all 0.15s;
+}
+.geo-card button.chip-mun:hover,
+.geo-card button.chip-mun.is-hover {
+  border-color: var(--mc, #0284c7); background: rgba(255,255,255,1);
+  color: #0f172a; box-shadow: 0 3px 10px rgba(15,23,42,0.12); transform: translateY(-1px);
+}
+.geo-card button.chip-mun.has-bairros {
+  border-color: rgba(15,118,110,0.45); background: rgba(240,253,250,0.95); font-weight: 700;
+}
+.geo-card button.chip-mun .chip-dot {
+  display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px;
+  background: var(--mc, #0284c7); vertical-align: middle;
+}
+.geo-card button.chip-mun .chip-tag {
+  font-size: 9px; font-weight: 800; color: #0f766e; margin-left: 4px;
+}
+.geo-cvm-label { z-index: 17; }
+.geo-cvm-label .txt {
+  font-size: 9.5px; font-weight: 700; padding: 1.5px 5.5px; border-width: 1.5px;
+  background: rgba(255,255,255,0.9); backdrop-filter: blur(4px);
+  box-shadow: 0 2px 7px rgba(15,23,42,0.14);
+}
+.geo-cvm-label .stem { height: 6px; }
+.geo-cvm-label .dot { width: 5px; height: 5px; border-width: 1.5px; }
+.geo-cvm-label.is-hover .txt { background: var(--c); color: #fff; transform: translateY(-1px) scale(1.06); }
+.geo-cvm-label .lbl-bairros {
+  font-size: 8px; font-weight: 800; background: #0f766e; color: #fff;
+  padding: 1px 4px; border-radius: 999px; margin-left: 2px;
+}
 .geo-b-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 12px 0 8px; }
 .geo-b-stat { padding: 7px 8px; border-radius: 10px; background: rgba(241,245,249,0.9); border: 1px solid rgba(15,23,42,0.06); }
 .geo-b-stat-k { font-size: 9.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
@@ -210,6 +242,8 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
 .geo-mini-btn:hover { background: #e2e8f0; color: var(--ink); }
 .geo-toolbar .geo-btn-sc { background: rgba(15,118,110,0.12); color: #0f766e; }
 .geo-toolbar .geo-btn-sc:hover { background: #0f766e; color: #fff; }
+.geo-toolbar .geo-btn-cvm { background: rgba(2,132,199,0.12); color: #0369a1; }
+.geo-toolbar .geo-btn-cvm:hover { background: #0284c7; color: #fff; }
 .geo-hover-pill {
   position: fixed; z-index: 35; pointer-events: none;
   padding: 5px 10px; border-radius: 999px;
@@ -227,13 +261,17 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
 /* ---------------------------------------------------------------- toolbar */
 .geo-toolbar {
   position: fixed; bottom: 54px; left: 50%; transform: translateX(-50%); z-index: 20;
-  display: flex; gap: 6px; padding: 6px; border-radius: 999px;
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 5px; padding: 5px 6px; border-radius: 999px;
+  max-width: calc(100vw - 24px); overflow-x: auto; scrollbar-width: none;
   background: var(--panel); border: 1px solid var(--panel-border); box-shadow: var(--shadow);
 }
+.geo-toolbar::-webkit-scrollbar { display: none; }
 .geo-toolbar button {
-  border: 0; background: transparent; cursor: pointer; border-radius: 999px;
-  padding: 9px 14px; font: 700 13px/1 "Inter", sans-serif; color: var(--ink);
+  border: 0; background: transparent; cursor: pointer; border-radius: 999px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
+  padding: 8px 11px; font: 700 12.5px/1 "Inter", sans-serif; color: var(--ink);
 }
+.geo-toolbar button[hidden] { display: none !important; }
 .geo-toolbar button:hover { background: rgba(15,23,42,0.07); }
 .geo-toolbar button.is-on { background: #0f172a; color: #fff; }
 
