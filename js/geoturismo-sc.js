@@ -128,7 +128,7 @@
   const dummyMaskTex = new THREE.DataTexture(new Uint8Array([0, 255, 0, 255]), 1, 1, THREE.RGBAFormat);
   dummyMaskTex.needsUpdate = true;
 
-  const dummyCvmColorTex = new THREE.DataTexture(new Uint8Array(16 * 4), 16, 1, THREE.RGBAFormat);
+  const dummyCvmColorTex = new THREE.DataTexture(new Uint8Array(64 * 4), 64, 1, THREE.RGBAFormat);
   dummyCvmColorTex.needsUpdate = true;
 
   const rlInit = DATA.rioDaLuz;
@@ -256,7 +256,7 @@
             if (cUv.x >= 0.0 && cUv.x <= 1.0 && cUv.y >= 0.0 && cUv.y <= 1.0) {
               int cmid = int(floor(texture2D(uCvmIdTex, cUv).r * 255.0 + 0.5));
               if (cmid > 0) {
-                vec3 mSrgb = texture2D(uCvmColorTex, vec2((float(cmid) + 0.5) / 16.0, 0.5)).rgb;
+                vec3 mSrgb = texture2D(uCvmColorTex, vec2((float(cmid) + 0.5) / 64.0, 0.5)).rgb;
                 vec3 mLin = pow(mSrgb, vec3(2.2));
                 float cDistTex = texture2D(uCvmSdfTex, cUv).r * uCvmMaxDistPx;
                 vec2 cDuv = fwidth(cUv * uCvmTexSize);
@@ -308,7 +308,7 @@
           `
         );
     };
-    mat.customProgramCacheKey = () => "geosc-setur15-cvm10-timbe-sdf-v6";
+    mat.customProgramCacheKey = () => "geosc-setur15-igr295-sdf-v7";
     return mat;
   }
 
@@ -348,9 +348,12 @@
     h: 1,
   };
 
+  const igrCache = {};
   const cvmState = {
     loaded: false,
-    loading: false,
+    activeIgrId: null,
+    loadingId: null,
+    loadingPromise: null,
     municipios: [],
     byId: {},
     byIdx: {},
@@ -361,23 +364,12 @@
     hoverId: null,
     selectedId: null,
     labelEls: {},
-    priority: {
-      itajai: 0,
-      itapema: 1,
-      balneario_camboriu: 2,
-      bombinhas: 3,
-      navegantes: 4,
-      porto_belo: 5,
-      penha: 6,
-      camboriu: 7,
-      balneario_picarras: 8,
-      ilhota: 9,
-    },
   };
 
   const itajaiState = {
     active: false,
     loading: false,
+    igrId: null,
     munId: null,
     munRecord: null,
     hasBairros: false,
@@ -410,6 +402,7 @@
     savedScZ: null,
     labelEls: {},
     legendEls: {},
+    pin360Els: [],
   };
   const raycaster = new THREE.Raycaster();
   const DOWN = new THREE.Vector3(0, -1, 0);
@@ -877,103 +870,187 @@
     return id === "costa_verde_mar" && Boolean(DATA.itajai3D);
   }
 
-  function isAuto360Region(id) {
-    return id === "vale_dos_encantos";
+  function clearIgrLabels() {
+    Object.keys(cvmState.labelEls).forEach((id) => {
+      const el = cvmState.labelEls[id];
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+    });
+    cvmState.labelEls = {};
   }
 
-  function ensureCvmLoaded() {
-    if (cvmState.loaded) return Promise.resolve();
-    if (cvmState.loading) return cvmState.loading;
-    cvmState.loading = Promise.all([
-      loadScriptOnce("js/cvm-municipios-data.js", () => Boolean(window.CVM_MUNICIPIOS_DATA)),
-      loadScriptOnce("js/cvm-municipios-sdf.js", () => Boolean(window.CVM_MUNICIPIOS_SDF)),
+  function activateIgr(igrId) {
+    const entry = igrCache[igrId];
+    if (!entry) return;
+    if (cvmState.activeIgrId === igrId && cvmState.loaded) {
+      borderUniforms.uCvmActive.value = !itajaiState.active && state.selectedId === igrId ? 1.0 : 0.0;
+      refreshClasses();
+      requestRender();
+      return;
+    }
+
+    setCvmHover(null);
+    clearIgrLabels();
+    cvmState.activeIgrId = igrId;
+    cvmState.uvBounds = entry.uvBounds;
+    cvmState.municipios = entry.municipios;
+    cvmState.byId = entry.byId;
+    cvmState.byIdx = entry.byIdx;
+    cvmState.idPixels = entry.idPixels;
+    cvmState.idW = entry.idW;
+    cvmState.idH = entry.idH;
+    cvmState.loaded = true;
+
+    entry.municipios.forEach((m) => {
+      const has360 = Boolean(m.tours360 && m.tours360.length);
+      const lbl = document.createElement("button");
+      lbl.type = "button";
+      lbl.className = "geo-region-label geo-cvm-label";
+      lbl.style.setProperty("--c", m.color || "#0284c7");
+      lbl.innerHTML =
+        '<span class="txt">' + m.name +
+        (has360 ? ' <span class="lbl-360">360°</span>' : "") +
+        '</span><span class="stem"></span><span class="dot"></span>';
+      lbl.addEventListener("mouseenter", () => setCvmHover(m.id));
+      lbl.addEventListener("mouseleave", () => { if (cvmState.hoverId === m.id) setCvmHover(null); });
+      lbl.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        enterMunMode(m.id, igrId);
+      });
+      labelsLayer.appendChild(lbl);
+      cvmState.labelEls[m.id] = lbl;
+    });
+
+    borderUniforms.uCvmColorTex.value = entry.colorTex;
+    borderUniforms.uCvmIdTex.value = entry.idTex;
+    borderUniforms.uCvmSdfTex.value = entry.sdfTex;
+    borderUniforms.uCvmBounds.value.set(entry.uvBounds[0], entry.uvBounds[1], entry.uvBounds[2], entry.uvBounds[3]);
+    borderUniforms.uCvmTexSize.value.set(entry.idW, entry.idH);
+    borderUniforms.uCvmMaxDistPx.value = entry.maxDistPx || 18.0;
+    borderUniforms.uCvmHoverId.value = 0;
+    borderUniforms.uCvmSelectedId.value = 0;
+    borderUniforms.uCvmActive.value = !itajaiState.active && state.selectedId === igrId ? 1.0 : 0.0;
+
+    if (state.selectedId === igrId && state.byId[igrId] && !itajaiState.active && !itajaiState.loading) {
+      showCard(state.byId[igrId]);
+    }
+    refreshClasses();
+    requestRender();
+  }
+
+  function ensureIgrLoaded(igrId) {
+    if (!igrId) return Promise.resolve(null);
+    if (igrCache[igrId]) {
+      if (state.selectedId === igrId) activateIgr(igrId);
+      return Promise.resolve(igrCache[igrId]);
+    }
+    if (cvmState.loadingId === igrId && cvmState.loadingPromise) return cvmState.loadingPromise;
+    cvmState.loadingId = igrId;
+    const p = Promise.all([
+      loadScriptOnce("js/igrs/" + igrId + "-data.js", () => Boolean(window.SC_IGR_DATA && window.SC_IGR_DATA[igrId])),
+      loadScriptOnce("js/igrs/" + igrId + "-sdf.js", () => Boolean(window.SC_IGR_SDF && window.SC_IGR_SDF[igrId])),
     ])
       .then(() => {
-        const CD = window.CVM_MUNICIPIOS_DATA;
-        const CS = window.CVM_MUNICIPIOS_SDF;
-        cvmState.uvBounds = CD.uvBounds;
-        cvmState.municipios = CD.municipios.slice();
-        cvmState.byId = {};
-        cvmState.byIdx = {};
-        const pal = new Uint8Array(16 * 4);
+        const CD = window.SC_IGR_DATA[igrId];
+        const CS = window.SC_IGR_SDF[igrId];
+        const muns = CD.municipios.slice();
+        const byId = {};
+        const byIdx = {};
+        const pal = new Uint8Array(64 * 4);
         const tmpC = new THREE.Color();
-        cvmState.municipios.forEach((m, i) => {
+
+        // Ordenar prioridade de rótulo: municípios com 360° primeiro, depois maiores áreas
+        const byPrio = muns.slice().sort((a, b) => {
+          const a360 = a.tours360 && a.tours360.length ? 1 : 0;
+          const b360 = b.tours360 && b.tours360.length ? 1 : 0;
+          if (a360 !== b360) return b360 - a360;
+          const aB = a.hasBairros ? 1 : 0;
+          const bB = b.hasBairros ? 1 : 0;
+          if (aB !== bB) return bB - aB;
+          return (b.areaKm2 || 0) - (a.areaKm2 || 0);
+        });
+        const rankMap = {};
+        byPrio.forEach((m, rk) => { rankMap[m.id] = rk; });
+
+        muns.forEach((m, i) => {
           m._idx = i + 1;
-          m._rank = cvmState.priority[m.id] !== undefined ? cvmState.priority[m.id] : 20 + i;
+          m._rank = rankMap[m.id] !== undefined ? rankMap[m.id] : 50 + i;
           m.worldPt = m.labelUV ? uvToWorld(m.labelUV[0], m.labelUV[1], 0.004) : null;
-          cvmState.byId[m.id] = m;
-          cvmState.byIdx[m._idx] = m;
+          byId[m.id] = m;
+          byId[m.ibge] = m;
+          byIdx[m._idx] = m;
           tmpC.set(m.color || "#0ea5e9");
           const o = m._idx * 4;
-          pal[o] = Math.round(tmpC.r * 255);
-          pal[o + 1] = Math.round(tmpC.g * 255);
-          pal[o + 2] = Math.round(tmpC.b * 255);
-          pal[o + 3] = 255;
-
-          if (!cvmState.labelEls[m.id]) {
-            const lbl = document.createElement("button");
-            lbl.type = "button";
-            lbl.className = "geo-region-label geo-cvm-label";
-            lbl.style.setProperty("--c", m.color || "#0284c7");
-            lbl.innerHTML =
-              '<span class="txt">' + m.name +
-              (m.hasBairros ? ' <span class="lbl-bairros">Bairros</span>' : ' <span class="lbl-bairros" style="background:#0284c7">3D</span>') +
-              '</span><span class="stem"></span><span class="dot"></span>';
-            lbl.addEventListener("mouseenter", () => setCvmHover(m.id));
-            lbl.addEventListener("mouseleave", () => { if (cvmState.hoverId === m.id) setCvmHover(null); });
-            lbl.addEventListener("click", (ev) => {
-              ev.stopPropagation();
-              enterMunMode(m.id);
-            });
-            labelsLayer.appendChild(lbl);
-            cvmState.labelEls[m.id] = lbl;
+          if (o + 3 < pal.length) {
+            pal[o] = Math.round(tmpC.r * 255);
+            pal[o + 1] = Math.round(tmpC.g * 255);
+            pal[o + 2] = Math.round(tmpC.b * 255);
+            pal[o + 3] = 255;
           }
         });
 
-        const cTex = new THREE.DataTexture(pal, 16, 1, THREE.RGBAFormat);
-        cTex.minFilter = THREE.NearestFilter;
-        cTex.magFilter = THREE.NearestFilter;
-        cTex.generateMipmaps = false;
-        cTex.needsUpdate = true;
-        borderUniforms.uCvmColorTex.value = cTex;
+        const colorTexIgr = new THREE.DataTexture(pal, 64, 1, THREE.RGBAFormat);
+        colorTexIgr.minFilter = THREE.NearestFilter;
+        colorTexIgr.magFilter = THREE.NearestFilter;
+        colorTexIgr.generateMipmaps = false;
+        colorTexIgr.needsUpdate = true;
 
         const w = CS.width || 768;
-        const h = CS.height || 960;
-        const cIdTex = loadPngTexture(CS.idPngB64, true, (tex) => {
+        const h = CS.height || 768;
+        const entry = {
+          igrId,
+          igrName: CD.igrName,
+          uvBounds: CD.uvBounds,
+          municipios: muns,
+          byId,
+          byIdx,
+          colorTex: colorTexIgr,
+          idTex: null,
+          sdfTex: null,
+          idPixels: null,
+          idW: w,
+          idH: h,
+          maxDistPx: CS.maxDistPx || 18.0,
+        };
+        entry.idTex = loadPngTexture(CS.idPngB64, true, (tex) => {
           const cv = document.createElement("canvas");
           cv.width = w;
           cv.height = h;
           const ctx = cv.getContext("2d");
           ctx.drawImage(tex.image, 0, 0, w, h);
-          cvmState.idPixels = ctx.getImageData(0, 0, w, h).data;
-          cvmState.idW = w;
-          cvmState.idH = h;
+          entry.idPixels = ctx.getImageData(0, 0, w, h).data;
+          if (cvmState.activeIgrId === igrId) {
+            cvmState.idPixels = entry.idPixels;
+          }
         });
-        const cSdfTex = loadPngTexture(CS.sdfPngB64, false);
-        borderUniforms.uCvmIdTex.value = cIdTex;
-        borderUniforms.uCvmSdfTex.value = cSdfTex;
-        borderUniforms.uCvmBounds.value.set(CD.uvBounds[0], CD.uvBounds[1], CD.uvBounds[2], CD.uvBounds[3]);
-        borderUniforms.uCvmTexSize.value.set(w, h);
-        borderUniforms.uCvmMaxDistPx.value = CS.maxDistPx || 18.0;
-        borderUniforms.uCvmActive.value = state.selectedId === "costa_verde_mar" ? 1.0 : 0.0;
-
-        cvmState.loaded = true;
-        cvmState.loading = false;
-        if (state.selectedId === "costa_verde_mar" && state.byId.costa_verde_mar && !itajaiState.active) {
-          showCard(state.byId.costa_verde_mar);
+        entry.sdfTex = loadPngTexture(CS.sdfPngB64, false);
+        igrCache[igrId] = entry;
+        if (cvmState.loadingId === igrId) {
+          cvmState.loadingId = null;
+          cvmState.loadingPromise = null;
         }
-        refreshClasses();
-        requestRender();
+        if (state.selectedId === igrId) {
+          activateIgr(igrId);
+        }
+        return entry;
       })
       .catch((err) => {
-        cvmState.loading = false;
-        console.warn("CVM municípios lazy-load erro:", err);
+        if (cvmState.loadingId === igrId) {
+          cvmState.loadingId = null;
+          cvmState.loadingPromise = null;
+        }
+        console.warn("IGR municípios lazy-load erro (" + igrId + "):", err);
+        return null;
       });
-    return cvmState.loading;
+    cvmState.loadingPromise = p;
+    return p;
+  }
+
+  function ensureCvmLoaded() {
+    return ensureIgrLoaded("costa_verde_mar");
   }
 
   function findCvmMunicipioAtUV(u, v) {
-    if (!cvmState.loaded || !cvmState.uvBounds) return null;
+    if (!cvmState.loaded || !cvmState.uvBounds || cvmState.activeIgrId !== state.selectedId) return null;
     const [u0, v0, u1, v1] = cvmState.uvBounds;
     if (u < u0 || u > u1 || v < v0 || v > v1) return null;
     if (cvmState.idPixels && cvmState.idW) {
@@ -1002,11 +1079,12 @@
     borderUniforms.uCvmHoverId.value = m ? m._idx : 0;
     stage.classList.toggle("is-pointer", Boolean(m));
     if (hoverPill) {
-      if (m && !itajaiState.active && state.selectedId === "costa_verde_mar") {
-        const tag = m.hasBairros
-          ? (m.id === "itajai" ? "3D 2× + 35 bairros" : "3D SEPLAN + 12 bairros")
-          : "Modelo 3D SEPLAN";
-        hoverPill.innerHTML = m.name + "<small>" + tag + "</small>";
+      if (m && !itajaiState.active && state.selectedId === cvmState.activeIgrId) {
+        const parts = [];
+        if (m.tours360 && m.tours360.length) parts.push("360° disponível");
+        if (m.hasBairros && m.bairrosCount) parts.push(m.bairrosCount + " bairros");
+        else if (m.areaKm2) parts.push(Number(m.areaKm2).toFixed(0) + " km²");
+        hoverPill.innerHTML = m.name + (parts.length ? "<small>" + parts.join(" · ") + "</small>" : "");
         hoverPill.style.left = state.pointerClient.x + "px";
         hoverPill.style.top = state.pointerClient.y + "px";
         hoverPill.hidden = false;
@@ -1035,8 +1113,7 @@
       btn.style.setProperty("--c", r.color);
       btn.innerHTML =
         '<span class="geo-swatch"></span><span>' + r.name + "</span>" +
-        (is360Region(r.id) ? '<span class="geo-legend-360">360°</span>' : "") +
-        (isItajaiRegion(r.id) ? '<span class="geo-legend-360" style="background:#0f766e">3D</span>' : "");
+        (is360Region(r.id) ? '<span class="geo-legend-360">360°</span>' : "");
       btn.addEventListener("mouseenter", () => setHover(r.id));
       btn.addEventListener("mouseleave", () => setHover(null));
       btn.addEventListener("click", () => selectRegion(r.id));
@@ -1055,7 +1132,6 @@
       el.innerHTML =
         '<span class="txt">' + r.name +
         (is360Region(r.id) ? ' <span class="lbl-360">360°</span>' : "") +
-        (isItajaiRegion(r.id) ? ' <span class="lbl-360" style="background:#0f766e">3D</span>' : "") +
         '</span><span class="stem"></span><span class="dot"></span>';
       el.addEventListener("mouseenter", () => setHover(r.id));
       el.addEventListener("mouseleave", () => setHover(null));
@@ -1066,38 +1142,6 @@
       labelsLayer.appendChild(el);
       labelEls[r.id] = el;
     });
-
-    Object.values(TOUR_DESTS).forEach((d) => {
-      const pEl = document.createElement("button");
-      pEl.type = "button";
-      pEl.className = "geo-pin360";
-      pEl.title = d.pinTitle;
-      pEl.innerHTML =
-        '<span class="pin-card"><span class="pin-badge"><span>360°</span></span>' +
-        "<span>" + d.data.name + "<small>" + d.badgeSubtitle + "</small></span></span>" +
-        '<span class="pin-stem"></span><span class="pin-pulse"></span>';
-      pEl.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        goToTour(d.key, true);
-      });
-      labelsLayer.appendChild(pEl);
-      d.pinEl = pEl;
-    });
-    if (DATA.itajai3D) {
-      pinItajaiEl = document.createElement("button");
-      pinItajaiEl.type = "button";
-      pinItajaiEl.className = "geo-pin360 geo-pin3d";
-      pinItajaiEl.title = "Abrir relevo 3D de Itajaí · 35 bairros sobre o estado";
-      pinItajaiEl.innerHTML =
-        '<span class="pin-card"><span class="pin-badge"><span>3D</span></span>' +
-        "<span>" + DATA.itajai3D.name + "<small>Bairros 3D · MDT 2×</small></span></span>" +
-        '<span class="pin-stem"></span><span class="pin-pulse"></span>';
-      pinItajaiEl.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        enterMunMode("itajai");
-      });
-      labelsLayer.appendChild(pinItajaiEl);
-    }
   }
 
   const tmpV = new THREE.Vector3();
@@ -1112,19 +1156,20 @@
   }
 
   function updateCvmLabels() {
-    const show = !itajaiState.active && cvmState.loaded && state.selectedId === "costa_verde_mar";
+    const show = !itajaiState.active && cvmState.loaded && Boolean(state.selectedId) && cvmState.activeIgrId === state.selectedId;
     if (!show) {
       Object.keys(cvmState.labelEls).forEach((id) => cvmState.labelEls[id].classList.add("is-hidden"));
       return;
     }
-    const cvmReg = state.byId.costa_verde_mar;
-    const dCam = cvmReg ? camera.position.distanceTo(cvmReg.center) : 0.8;
-    const zoomSpan = THREE.MathUtils.clamp((dCam - 0.30) / 0.55, 0.0, 1.0);
-    const gapScale = 0.88 + zoomSpan * 0.52;
+    const igrReg = state.byId[state.selectedId];
+    const dCam = igrReg ? camera.position.distanceTo(igrReg.center) : 0.8;
+    const rRef = igrReg ? Math.max(0.18, igrReg.radius) : 0.35;
+    const zoomSpan = THREE.MathUtils.clamp((dCam - rRef * 1.15) / (rRef * 2.2), 0.0, 1.0);
+    const gapScale = 0.88 + zoomSpan * 0.58;
     const placed = [];
     const ordered = cvmState.municipios.slice().sort((a, b) => {
-      const pa = a.id === cvmState.hoverId ? -2 : (a.id === cvmState.selectedId ? -1 : a._rank);
-      const pb = b.id === cvmState.hoverId ? -2 : (b.id === cvmState.selectedId ? -1 : b._rank);
+      const pa = a.id === cvmState.hoverId ? -3 : (a.id === cvmState.selectedId ? -2 : a._rank);
+      const pb = b.id === cvmState.hoverId ? -3 : (b.id === cvmState.selectedId ? -2 : b._rank);
       return pa - pb;
     });
     ordered.forEach((m) => {
@@ -1136,11 +1181,12 @@
         el.classList.add("is-culled");
         return;
       }
-      const isPrio = m.id === cvmState.hoverId || m.id === cvmState.selectedId;
-      const bw = (m.name.length * 5.0 + 28) * (isPrio ? 1.0 : gapScale);
-      const bh = 20 * (isPrio ? 1.0 : gapScale);
+      const isPrio = m.id === cvmState.hoverId || m.id === cvmState.selectedId || (m.tours360 && m.tours360.length);
+      const extraW = (m.tours360 && m.tours360.length) ? 30 : 12;
+      const bw = (m.name.length * 5.0 + extraW) * (isPrio ? 0.95 : gapScale);
+      const bh = 19 * (isPrio ? 0.95 : gapScale);
       let overlaps = false;
-      if (!isPrio) {
+      if (m.id !== cvmState.hoverId && m.id !== cvmState.selectedId) {
         for (let i = 0; i < placed.length; i++) {
           const q = placed[i];
           if (Math.abs(p.x - q.x) < (bw + q.w) * 0.49 && Math.abs(p.y - q.y) < (bh + q.h) * 0.56) {
@@ -1159,20 +1205,25 @@
   }
 
   function updateItajaiLabels() {
+    for (let i = 0; i < itajaiState.pin360Els.length; i++) {
+      const item = itajaiState.pin360Els[i];
+      if (item && item.el && item.world) {
+        placeEl(item.el, item.world);
+      }
+    }
     if (!itajaiState.showLabels || !itajaiState.hasBairros) {
       Object.keys(itajaiState.labelEls).forEach((id) => itajaiState.labelEls[id].classList.add("is-culled"));
       return;
     }
     const dCam = itajaiState.centerWorld ? camera.position.distanceTo(itajaiState.centerWorld) : 0.25;
     const rBase = Math.max(0.03, itajaiState.radiusWorld || 0.092);
-    // De longe exige mais respiro entre rótulos (mostra bairros principais); no zoom revela os bairros menores centrais
     const zoomSpan = THREE.MathUtils.clamp((dCam - rBase * 0.8) / (rBase * 2.2), 0.0, 1.0);
     const gapScale = 1.0 + zoomSpan * 0.68;
 
     const placed = [];
     const ordered = itajaiState.bairros.slice().sort((a, b) => {
-      const pa = a.id === itajaiState.selectedId ? -2 : (a.id === itajaiState.hoverId ? -1 : a._rank);
-      const pb = b.id === itajaiState.selectedId ? -2 : (b.id === itajaiState.hoverId ? -1 : b._rank);
+      const pa = a.id === itajaiState.selectedId ? -3 : (a.id === itajaiState.hoverId ? -2 : (a.photo360 && a.photo360.ready ? -1 : a._rank));
+      const pb = b.id === itajaiState.selectedId ? -3 : (b.id === itajaiState.hoverId ? -2 : (b.photo360 && b.photo360.ready ? -1 : b._rank));
       return pa - pb;
     });
     ordered.forEach((b) => {
@@ -1183,7 +1234,7 @@
         el.classList.add("is-culled");
         return;
       }
-      const isPrio = b.id === itajaiState.selectedId || b.id === itajaiState.hoverId;
+      const isPrio = b.id === itajaiState.selectedId || b.id === itajaiState.hoverId || (b.photo360 && b.photo360.ready);
       const bw = (b.nome.length * 6.0 + 24) * (isPrio ? 1.0 : gapScale);
       const bh = 22 * (isPrio ? 1.0 : gapScale);
       let overlaps = false;
@@ -1215,17 +1266,11 @@
       const r = state.regions[i];
       placeEl(labelEls[r.id], r.labelWorld);
     }
-    Object.values(TOUR_DESTS).forEach((d) => {
-      if (d.pinEl && d.world) placeEl(d.pinEl, d.world);
-    });
-    if (pinItajaiEl && state.itajaiWorld) placeEl(pinItajaiEl, state.itajaiWorld);
     updateCvmLabels();
   }
 
   function refreshClasses() {
-    const activeDest = destForRegion(state.selectedId);
-    const cvmDivisionOn = !itajaiState.active && cvmState.loaded && state.selectedId === "costa_verde_mar";
-    const showItajaiPin = !itajaiState.active && !cvmDivisionOn && isItajaiRegion(state.selectedId);
+    const igrDivisionOn = !itajaiState.active && cvmState.loaded && Boolean(state.selectedId) && cvmState.activeIgrId === state.selectedId;
     state.regions.forEach((r) => {
       const el = labelEls[r.id];
       const lg = legendEls[r.id];
@@ -1234,22 +1279,12 @@
       el.classList.toggle("is-active", sel);
       el.classList.toggle("is-hover", hov);
       el.classList.toggle("is-faded", !!state.selectedId && !sel && !hov);
-      el.classList.toggle("is-hidden", itajaiState.active || (cvmDivisionOn && r.id === "costa_verde_mar"));
+      el.classList.toggle("is-hidden", itajaiState.active || (igrDivisionOn && sel));
       if (lg) {
         lg.classList.toggle("is-active", sel);
         lg.classList.toggle("is-hover", hov);
       }
     });
-    if (labelEls.vale_dos_encantos) {
-      labelEls.vale_dos_encantos.classList.toggle("is-hidden", itajaiState.active || activeDest === TOUR_DESTS.rioDaLuz);
-    }
-    if (labelEls.costa_verde_mar) {
-      labelEls.costa_verde_mar.classList.toggle("is-hidden", itajaiState.active || showItajaiPin || cvmDivisionOn);
-    }
-    Object.values(TOUR_DESTS).forEach((d) => {
-      if (d.pinEl) d.pinEl.classList.toggle("is-visible", !itajaiState.active && activeDest === d);
-    });
-    if (pinItajaiEl) pinItajaiEl.classList.toggle("is-visible", showItajaiPin);
     updateCvmLabels();
   }
 
@@ -1265,13 +1300,19 @@
   function setSelected(id) {
     state.selectedId = id;
     borderUniforms.uSelectedId.value = id ? (state.idxById[id] || 0) : 0;
-    const activeDest = destForRegion(id);
-    borderUniforms.uShowRioRing.value = activeDest === TOUR_DESTS.rioDaLuz ? 1.0 : 0.0;
-    borderUniforms.uShowTimbeRing.value = TOUR_DESTS.timbeDoSul && activeDest === TOUR_DESTS.timbeDoSul ? 1.0 : 0.0;
-    borderUniforms.uCvmActive.value = (!itajaiState.active && id === "costa_verde_mar" && cvmState.loaded) ? 1.0 : 0.0;
-    borderUniforms.uShowItajaiRing.value = (!itajaiState.active && !cvmState.loaded && isItajaiRegion(id)) ? 1.0 : 0.0;
-    if (id !== "costa_verde_mar") setCvmHover(null);
-    if (id === "costa_verde_mar" && !cvmState.loaded) ensureCvmLoaded();
+    borderUniforms.uShowRioRing.value = 0.0;
+    borderUniforms.uShowTimbeRing.value = 0.0;
+    borderUniforms.uShowItajaiRing.value = 0.0;
+    if (!id) {
+      setCvmHover(null);
+      borderUniforms.uCvmActive.value = 0.0;
+    } else if (cvmState.activeIgrId === id && cvmState.loaded) {
+      borderUniforms.uCvmActive.value = itajaiState.active ? 0.0 : 1.0;
+    } else {
+      setCvmHover(null);
+      borderUniforms.uCvmActive.value = 0.0;
+      ensureIgrLoaded(id);
+    }
     refreshClasses();
     requestRender();
   }
@@ -1341,76 +1382,51 @@
   // --------------------------------------------------------------------------
   const card = $("geoInfoCard");
 
-  const CVM_FALLBACK_LIST = [
-    { id: "itajai", name: "Itajaí", hasBairros: true, color: "#e11d48" },
-    { id: "itapema", name: "Itapema", hasBairros: true, color: "#0ea5e9" },
-    { id: "balneario_camboriu", name: "Balneário Camboriú", hasBairros: false, color: "#8b5cf6" },
-    { id: "bombinhas", name: "Bombinhas", hasBairros: false, color: "#14b8a6" },
-    { id: "camboriu", name: "Camboriú", hasBairros: false, color: "#f59e0b" },
-    { id: "navegantes", name: "Navegantes", hasBairros: false, color: "#3b82f6" },
-    { id: "porto_belo", name: "Porto Belo", hasBairros: false, color: "#10b981" },
-    { id: "penha", name: "Penha", hasBairros: false, color: "#ec4899" },
-    { id: "balneario_picarras", name: "Balneário Piçarras", hasBairros: false, color: "#84cc16" },
-    { id: "ilhota", name: "Ilhota", hasBairros: false, color: "#f97316" },
-  ];
-
   function showCard(r) {
     const dest = destForRegion(r.id);
-    const munSlugs = dest && dest.munSlugs ? dest.munSlugs : null;
-    const isCvm = r.id === "costa_verde_mar";
-    card.style.setProperty("--c", r.color);
-    let chipsHtml = "";
-    let detailsHtml = "";
-    let actionHtml = "";
-    if (isCvm) {
-      const mList = cvmState.loaded && cvmState.municipios.length ? cvmState.municipios : CVM_FALLBACK_LIST;
-      chipsHtml = mList
-        .map((m) => {
-          const bTag = m.id === "itajai" ? "2× · 35 bairros" : (m.id === "itapema" ? "12 bairros" : "3D");
-          return (
-            '<button type="button" class="chip chip-mun' + (m.hasBairros ? " has-bairros" : "") + '" data-mun-id="' + m.id +
-            '" style="--mc:' + (m.color || "#0284c7") + '" title="Abrir relevo 3D isolado de ' + m.name + '">' +
-            '<span class="chip-dot"></span>' + m.name +
-            '<span class="chip-tag">' + bTag + "</span></button>"
-          );
+    const igrLoaded = cvmState.loaded && cvmState.activeIgrId === r.id;
+    const mList = igrLoaded && cvmState.municipios.length
+      ? cvmState.municipios.slice().sort((a, b) => {
+          const a360 = a.tours360 && a.tours360.length ? 1 : 0;
+          const b360 = b.tours360 && b.tours360.length ? 1 : 0;
+          if (a360 !== b360) return b360 - a360;
+          return a.name.localeCompare(b.name, "pt-BR");
         })
-        .join("");
-      actionHtml =
-        '<button type="button" class="geo-cta-360 geo-cta-3d" data-go-mun="itajai">🏔️ Itajaí 3D (2× · 35 bairros)</button>' +
-        '<button type="button" class="geo-mini-btn" style="margin-top:6px;width:100%" data-go-mun="itapema">🏝️ Itapema 3D (SEPLAN · 12 bairros)</button>';
-    } else {
-      chipsHtml = r.highlights.map((h) => {
-        if (dest && dest.chipMatch && dest.chipMatch.test(h)) {
-          return '<button type="button" class="chip chip-360" data-go360="1" title="Clique para viajar até ' + dest.data.name + ' em 360°">' + dest.chipLabel + "</button>";
-        }
-        if (munSlugs && munSlugs[h]) {
-          return '<button type="button" class="chip chip-route" data-route-filter="' + munSlugs[h] + '" title="Abrir rotas e trilhas de ' + h + ' no satélite">' + h + " 🗺️</button>";
-        }
-        return '<span class="chip">' + h + "</span>";
-      }).join("");
-      const munsBodyHtml = munSlugs
-        ? '<div class="mun-pills">' + r.municipios.map((m) => {
-            const slug = munSlugs[m];
-            return slug
-              ? '<button type="button" class="mun-pill" data-route-filter="' + slug + '" title="Ver rotas e trilhas de ' + m + '">' + m + " 🗺️</button>"
-              : '<span class="mun-pill">' + m + "</span>";
-          }).join("") + "</div>"
-        : "<p>" + r.municipios.join(", ") + "</p>";
-      detailsHtml = "<details" + (munSlugs ? " open" : "") + "><summary>" + r.municipios.length + " municípios" + (munSlugs ? " · clique para abrir a rota" : "") + "</summary>" + munsBodyHtml + "</details>";
-      actionHtml = dest
-        ? '<button type="button" class="geo-cta-360" data-go360="1">' + dest.ctaLabel + "</button>" +
-          (dest.routesCtaLabel ? '<button type="button" class="geo-cta-routes" data-route-filter="all">' + dest.routesCtaLabel + "</button>" : "") +
-          (dest.cachoeirasCtaLabel ? '<button type="button" class="geo-cta-routes" style="margin-top:6px;background:linear-gradient(135deg,#0284c7,#0f766e);" data-open-cachoeiras="1">' + dest.cachoeirasCtaLabel + "</button>" : "") +
-          '<div class="geo-progress"><i></i></div>'
-        : '<span class="geo-soon">📷 Fotos 360° desta região em breve</span>';
+      : (r.municipios || []).map((nm) => ({ id: null, name: nm, color: r.color, tours360: null }));
+
+    card.style.setProperty("--c", r.color);
+    const chipsHtml = mList
+      .map((m) => {
+        const has360 = Boolean(m.tours360 && m.tours360.length);
+        const titleTxt = has360
+          ? "Abrir " + m.name + " em 3D (com experiência 360°)"
+          : "Abrir " + m.name + (m.hasBairros && m.bairrosCount ? " (" + m.bairrosCount + " bairros)" : "");
+        return (
+          '<button type="button" class="chip chip-mun' + (has360 ? " has-bairros" : "") + '"' +
+          (m.id ? ' data-mun-id="' + m.id + '"' : ' data-mun-name="' + m.name + '"') +
+          ' style="--mc:' + (m.color || r.color) + '" title="' + titleTxt + '">' +
+          '<span class="chip-dot"></span>' + m.name +
+          (has360 ? '<span class="chip-tag" style="color:#e11d48">360°</span>' : "") +
+          "</button>"
+        );
+      })
+      .join("");
+
+    let actionHtml = "";
+    if (dest && dest.routesCtaLabel) {
+      actionHtml += '<button type="button" class="geo-cta-routes" data-route-filter="all">' + dest.routesCtaLabel + "</button>";
     }
+    if (dest && dest.cachoeirasCtaLabel) {
+      actionHtml += '<button type="button" class="geo-cta-routes" style="margin-top:6px;background:linear-gradient(135deg,#0284c7,#0f766e);color:#fff;border-color:transparent;" data-open-cachoeiras="1">' + dest.cachoeirasCtaLabel + "</button>";
+    }
+
+    const totalM = r.municipios ? r.municipios.length : mList.length;
     card.innerHTML =
       '<div class="geo-card-bar"></div><div class="geo-card-body">' +
       '<button type="button" class="geo-card-close" title="Fechar e voltar à visão geral">✕</button>' +
-      '<span class="kicker">IGR · Mapa do Turismo SC 2025</span><h2>' + r.name + "</h2>" +
-      "<p>" + (isCvm ? "Divisão dos 10 municípios da Costa Verde & Mar. Clique no mapa ou abaixo para abrir o modelo GLB 3D de cada município." : r.description) + "</p>" +
-      '<div class="chips">' + chipsHtml + "</div>" +
-      detailsHtml +
+      '<span class="kicker">IGR · Mapa do Turismo SC 2025 · ' + totalM + " municípios</span><h2>" + r.name + "</h2>" +
+      "<p>" + r.description + "</p>" +
+      '<div class="chips" style="max-height:190px;overflow:auto;padding-right:2px">' + chipsHtml + "</div>" +
       actionHtml +
       "</div>";
     card.hidden = false;
@@ -1418,24 +1434,32 @@
     void card.offsetWidth;
     card.style.animation = "";
     card.querySelector(".geo-card-close").addEventListener("click", goOverview);
-    if (isCvm) {
-      card.querySelectorAll("[data-mun-id], [data-go-mun]").forEach((el) => {
-        const mid = el.getAttribute("data-mun-id") || el.getAttribute("data-go-mun");
-        el.addEventListener("mouseenter", () => setCvmHover(mid));
-        el.addEventListener("mouseleave", () => { if (cvmState.hoverId === mid) setCvmHover(null); });
-        el.addEventListener("click", () => enterMunMode(mid));
+
+    card.querySelectorAll("[data-mun-id], [data-mun-name]").forEach((el) => {
+      const mid = el.getAttribute("data-mun-id");
+      const mname = el.getAttribute("data-mun-name");
+      el.addEventListener("mouseenter", () => { if (mid) setCvmHover(mid); });
+      el.addEventListener("mouseleave", () => { if (mid && cvmState.hoverId === mid) setCvmHover(null); });
+      el.addEventListener("click", () => {
+        if (mid) {
+          enterMunMode(mid, r.id);
+        } else if (mname) {
+          ensureIgrLoaded(r.id).then((entry) => {
+            if (!entry) return;
+            const found = entry.municipios.find((x) => x.name === mname);
+            if (found) enterMunMode(found.id, r.id);
+          });
+        }
       });
-    }
+    });
+
     if (dest) {
-      card.querySelectorAll("[data-go360]").forEach((btn) => {
-        btn.addEventListener("click", () => goToTour(dest.key, true));
-      });
       card.querySelectorAll("[data-route-filter]").forEach((btn) => {
         btn.addEventListener("click", () => {
           const filter = btn.getAttribute("data-route-filter") || "all";
           const sep = dest.data.tourUrl.indexOf("?") === -1 ? "?" : "&";
           const routeUrl = dest.data.tourUrl + sep + "action=scmap&filter=" + encodeURIComponent(filter) + "&expand=1";
-          toast("🗺️ Abrindo rotas de " + (filter === "all" ? "todos os 15 municípios" : btn.textContent.replace(" 🗺️", "").trim()) + "…", 1800);
+          toast("🗺️ Abrindo rotas de todos os 15 municípios…", 1800);
           open360(dest, routeUrl);
         });
       });
@@ -1512,15 +1536,9 @@
     setSelected(id);
     showCard(r);
     hideHint();
-    const regRad = id === "costa_verde_mar" ? 0.165 : Math.max(r.radius, 0.24);
+    const regRad = id === "costa_verde_mar" ? 0.165 : Math.max(r.radius * 0.94, 0.21);
     const v = viewFor(r.center, regRad, 46, 0);
-    if (isAuto360Region(id)) {
-      flyTo(v.pos, v.target, 1150, () => {
-        if (!opts.noSequence) goToTour("rioDaLuz", false);
-      });
-    } else {
-      flyTo(v.pos, v.target, 1150);
-    }
+    flyTo(v.pos, v.target, 1100);
   }
 
   /** Zoom suave até o atrativo 360° (Rio da Luz ou Timbé do Sul) e entrada no tour. */
@@ -1624,17 +1642,19 @@
     const iIdTex = loadItajaiPngTex(ISDF.idPngB64, true, true, sw, sh);
     const iSdfTex = loadItajaiPngTex(ISDF.sdfPngB64, false, false);
 
-    const iPal = new Uint8Array(64 * 4);
+    const iPal = new Uint8Array(256 * 4);
     const tmpC = new THREE.Color();
     IDATA.bairros.forEach((b) => {
       tmpC.set(b.color);
       const o = b.idx * 4;
-      iPal[o] = Math.round(tmpC.r * 255);
-      iPal[o + 1] = Math.round(tmpC.g * 255);
-      iPal[o + 2] = Math.round(tmpC.b * 255);
-      iPal[o + 3] = 255;
+      if (o + 3 < iPal.length) {
+        iPal[o] = Math.round(tmpC.r * 255);
+        iPal[o + 1] = Math.round(tmpC.g * 255);
+        iPal[o + 2] = Math.round(tmpC.b * 255);
+        iPal[o + 3] = 255;
+      }
     });
-    const iColorTex = new THREE.DataTexture(iPal, 64, 1, THREE.RGBAFormat);
+    const iColorTex = new THREE.DataTexture(iPal, 256, 1, THREE.RGBAFormat);
     iColorTex.minFilter = THREE.NearestFilter;
     iColorTex.magFilter = THREE.NearestFilter;
     iColorTex.generateMipmaps = false;
@@ -1684,7 +1704,7 @@
           #include <output_fragment>
           int rid = int(floor(texture2D(uIdTex, vUv).r * 255.0 + 0.5));
           if (rid > 0 && vTopMask > 0.35) {
-            vec3 regSrgb = texture2D(uColorTex, vec2((float(rid) + 0.5) / 64.0, 0.5)).rgb;
+            vec3 regSrgb = texture2D(uColorTex, vec2((float(rid) + 0.5) / 256.0, 0.5)).rgb;
             vec3 regLin = pow(regSrgb, vec3(2.2));
             float distTex = texture2D(uSdfTex, vUv).r * uMaxDistPx;
             vec2 dUv = fwidth(vUv * uTexSize);
@@ -1828,27 +1848,49 @@
     return pt;
   }
 
+  function openTourUrl(title, url, hash, loadingMsg) {
+    open360(
+      {
+        key: "mun_" + (hash || url),
+        overlayTitle: title || "Foto 360°",
+        loadingMsg: loadingMsg || "Abrindo a experiência 360°…",
+        hash: hash || "",
+        data: { tourUrl: url },
+      },
+      url
+    );
+  }
+
   function buildItajaiUI() {
-    const mun = itajaiState.munRecord || { name: "Itajaí", areaKm2: 289.14, sourceLabel: "" };
+    const mun = itajaiState.munRecord || { name: "Itajaí", areaKm2: 289.14, sourceLabel: "", igrId: "costa_verde_mar" };
+    const igrObj = state.byId[mun.igrId || itajaiState.igrId] || { name: "Santa Catarina" };
     const hasB = itajaiState.hasBairros;
 
     legendBox.classList.add("is-itajai");
     legendBox.classList.remove("is-collapsed");
     if (legendMinBtn) { legendMinBtn.hidden = false; legendMinBtn.textContent = "▾"; }
     if (legendSearchWrap) legendSearchWrap.hidden = !hasB;
-    if (legendSearch) legendSearch.value = "";
-    if (headerKicker) headerKicker.textContent = "Geoturismo SC · Costa Verde & Mar";
+    if (legendSearch) {
+      legendSearch.value = "";
+      legendSearch.placeholder = "Filtrar bairro de " + mun.name + "…";
+    }
+    if (headerKicker) headerKicker.textContent = "Geoturismo SC · " + igrObj.name;
     if (headerTitle) {
       headerTitle.textContent = mun.id === "itajai"
         ? "Itajaí — Bairros (Relevo 2×)"
-        : (hasB ? mun.name + " — Bairros (3D SEPLAN)" : mun.name + " — Relevo 3D (SEPLAN-SC)");
+        : (hasB ? mun.name + " — Bairros" : mun.name);
     }
     if (creditsEl) {
       creditsEl.innerHTML = (mun.sourceLabel || "Modelo 3D Municipal") +
         ' · Base estadual: <a href="https://3dmap.app/geoheritage/ra/index.php?id=sc" target="_blank" rel="noopener">3dmap.app</a>';
     }
     if (btnBackSC) btnBackSC.hidden = false;
-    if (btnBackCVM) btnBackCVM.hidden = false;
+    if (btnBackCVM) {
+      btnBackCVM.hidden = false;
+      const sp = btnBackCVM.querySelector("span");
+      if (sp) sp.textContent = igrObj.name;
+      btnBackCVM.title = "Voltar para " + igrObj.name;
+    }
     if (btnItajaiBorders) {
       btnItajaiBorders.hidden = !hasB;
       btnItajaiBorders.classList.toggle("is-on", itajaiState.showBorders);
@@ -1905,44 +1947,79 @@
         itajaiState.labelEls[b.id] = lbl;
       });
     } else if (cvmState.loaded && cvmState.municipios.length) {
-      // Sem divisão de bairros: mostra seletor rápido dos 10 municípios de Costa Verde & Mar
-      legendTitle.textContent = "Costa Verde & Mar · Trocar Município";
-      cvmState.municipios.forEach((m) => {
+      legendTitle.textContent = igrObj.name + " · Trocar Município";
+      cvmState.municipios.slice().sort((a, b) => a.name.localeCompare(b.name, "pt-BR")).forEach((m) => {
         const li = document.createElement("li");
         const btn = document.createElement("button");
         btn.type = "button";
         btn.style.setProperty("--c", m.color || "#0284c7");
         if (m.id === mun.id) btn.classList.add("is-active");
+        const has360 = Boolean(m.tours360 && m.tours360.length);
         btn.innerHTML =
           '<span class="geo-swatch"></span><span>' + m.name + "</span>" +
-          (m.hasBairros ? '<span class="geo-legend-360" style="background:#0f766e">Bairros</span>' : "");
+          (has360 ? '<span class="geo-legend-360">360°</span>' : "");
         btn.addEventListener("click", () => {
-          if (m.id !== mun.id) enterMunMode(m.id);
+          if (m.id !== mun.id) enterMunMode(m.id, mun.igrId);
         });
         li.appendChild(btn);
         legendList.appendChild(li);
         itajaiState.legendEls[m.id] = btn;
       });
     }
+
+    // Montar pinos 360° georreferenciados diretamente sobre o GLB municipal (final da experiência!)
+    itajaiState.pin360Els = [];
+    if (mun.tours360 && mun.tours360.length && itajaiState.topMesh) {
+      mun.tours360.forEach((t360) => {
+        const wPt = t360.uv
+          ? uvToItajaiWorld(t360.uv[0], t360.uv[1], 0.0045)
+          : itajaiState.centerWorld.clone();
+        const pEl = document.createElement("button");
+        pEl.type = "button";
+        pEl.className = "geo-pin360 is-visible";
+        pEl.title = "Abrir experiência 360°: " + t360.name;
+        pEl.innerHTML =
+          '<span class="pin-card"><span class="pin-badge"><span>360°</span></span>' +
+          "<span>" + t360.name + "<small>" + (t360.subtitle || "Foto 360°") + "</small></span></span>" +
+          '<span class="pin-stem"></span><span class="pin-pulse"></span>';
+        pEl.addEventListener("click", (ev) => {
+          ev.stopPropagation();
+          openTourUrl(t360.overlayTitle || ("Foto 360° — " + t360.name), t360.url, t360.hash, "Abrindo " + t360.name + "…");
+        });
+        labelsLayer.appendChild(pEl);
+        itajaiState.pin360Els.push({ el: pEl, world: wPt, tour: t360 });
+      });
+    }
   }
 
   function showMunSummaryCard(mun) {
     if (!mun) return;
+    const igrObj = state.byId[mun.igrId || itajaiState.igrId] || { name: "Santa Catarina" };
+    let extraBtns = "";
+    if (mun.tours360 && mun.tours360.length) {
+      mun.tours360.forEach((t360, idx) => {
+        extraBtns += '<button type="button" class="geo-cta-360" data-mun-tour="' + idx + '">🌐 Abrir 360° · ' + t360.name + "</button>";
+      });
+    }
+    if (mun.id === "timbe_do_sul" && TOUR_DESTS.timbeDoSul && TOUR_DESTS.timbeDoSul.cachoeirasUrl) {
+      extraBtns += '<button type="button" class="geo-cta-routes" style="margin-top:6px;background:linear-gradient(135deg,#0284c7,#0f766e);color:#fff;border-color:transparent;" data-open-cachoeiras="1">💧 Rota das Cachoeiras · Satélite</button>';
+    }
     card.style.setProperty("--c", mun.color || "#0284c7");
     card.innerHTML =
       '<div class="geo-card-bar"></div><div class="geo-card-body">' +
       '<button type="button" class="geo-card-close" title="Fechar card">✕</button>' +
-      '<span class="kicker">COSTA VERDE &amp; MAR · IBGE ' + (mun.ibge || "") + "</span>" +
+      '<span class="kicker">' + igrObj.name.toUpperCase() + " · IBGE " + (mun.ibge || "") + "</span>" +
       "<h2>" + mun.name + "</h2>" +
-      "<p>Modelo tridimensional público do relevo municipal (SEPLAN-SC / DITER) em visualização isolada.</p>" +
+      "<p>" + (mun.hasGlb === false ? "Município destacado na malha estadual (GLB individual ainda não publicado no portal SEPLAN-SC)." : "Modelo tridimensional do relevo municipal (SEPLAN-SC / DITER) em visualização isolada.") + "</p>" +
       '<div class="geo-b-stats">' +
       '<div class="geo-b-stat"><div class="geo-b-stat-k">Área</div><div class="geo-b-stat-v">' + Number(mun.areaKm2 || 0).toFixed(1).replace(".", ",") + " km²</div></div>" +
-      '<div class="geo-b-stat"><div class="geo-b-stat-k">Fonte 3D</div><div class="geo-b-stat-v">SEPLAN</div></div>' +
-      '<div class="geo-b-stat"><div class="geo-b-stat-k">Escala</div><div class="geo-b-stat-v">Municipal</div></div>' +
+      '<div class="geo-b-stat"><div class="geo-b-stat-k">Fonte 3D</div><div class="geo-b-stat-v">' + (mun.id === "itajai" ? "GeoItajaí" : "SEPLAN") + "</div></div>" +
+      '<div class="geo-b-stat"><div class="geo-b-stat-k">Bairros</div><div class="geo-b-stat-v">' + (mun.hasBairros && mun.bairrosCount ? mun.bairrosCount : "—") + "</div></div>" +
       "</div>" +
+      extraBtns +
       '<div class="geo-card-nav">' +
-      '<button type="button" class="geo-mini-btn" data-back-cvm>← Costa Verde &amp; Mar</button>' +
-      '<button type="button" class="geo-mini-btn" data-toggle-ctx>🗺️ Alternar Fundo SC</button>' +
+      '<button type="button" class="geo-mini-btn" data-back-cvm>← ' + igrObj.name + "</button>" +
+      (mun.hasGlb !== false ? '<button type="button" class="geo-mini-btn" data-toggle-ctx>🗺️ Alternar Fundo SC</button>' : "") +
       "</div>" +
       "</div>";
     card.hidden = false;
@@ -1950,8 +2027,23 @@
     void card.offsetWidth;
     card.style.animation = "";
     card.querySelector(".geo-card-close").addEventListener("click", hideCard);
-    card.querySelector("[data-back-cvm]").addEventListener("click", () => exitItajaiMode("cvm"));
-    card.querySelector("[data-toggle-ctx]").addEventListener("click", () => setIsolatedMode(!itajaiState.isolated));
+    card.querySelector("[data-back-cvm]").addEventListener("click", () => {
+      if (itajaiState.active) exitItajaiMode("igr");
+      else if (mun.igrId) selectRegion(mun.igrId, { noSequence: true });
+    });
+    const tgl = card.querySelector("[data-toggle-ctx]");
+    if (tgl) tgl.addEventListener("click", () => setIsolatedMode(!itajaiState.isolated));
+    card.querySelectorAll("[data-mun-tour]").forEach((btn) => {
+      const idx = parseInt(btn.getAttribute("data-mun-tour"), 10);
+      const t360 = mun.tours360 && mun.tours360[idx];
+      if (t360) {
+        btn.addEventListener("click", () => openTourUrl(t360.overlayTitle || ("Foto 360° — " + t360.name), t360.url, t360.hash, "Abrindo " + t360.name + "…"));
+      }
+    });
+    const cachBtn = card.querySelector("[data-open-cachoeiras]");
+    if (cachBtn && TOUR_DESTS.timbeDoSul) {
+      cachBtn.addEventListener("click", () => openTourUrl("Rota das Cachoeiras · Satélite", TOUR_DESTS.timbeDoSul.cachoeirasUrl, "", "Carregando Rota das Cachoeiras…"));
+    }
     state.viewOffTarget = window.innerWidth > 820 ? 195 : 0;
     requestRender();
   }
@@ -1969,24 +2061,27 @@
     const p360 = b.photo360 || {};
     let photoSlot = "";
     if (p360.ready && p360.url) {
-      photoSlot = '<button type="button" class="geo-cta-360" data-open-b360>🌐 Abrir Foto 360° · ' + b.nome + "</button>";
+      photoSlot = '<button type="button" class="geo-cta-360" data-open-b360>🌐 Abrir Foto 360° · ' + (p360.label || b.nome) + "</button>";
     } else if (p360.planned) {
       photoSlot = '<span class="geo-soon">📷 ' + (p360.label || "Foto 360° prevista em breve") + "</span>";
     }
 
-    const altPrefix = isItajai ? "" : "~";
+    const statsHtml = isItajai
+      ? '<div class="geo-b-stat"><div class="geo-b-stat-k">Área</div><div class="geo-b-stat-v">' + b.areaKm2.toFixed(2).replace(".", ",") + " km²</div></div>" +
+        '<div class="geo-b-stat"><div class="geo-b-stat-k">Alt. Média</div><div class="geo-b-stat-v">' + Math.round(b.elevMean) + " m</div></div>" +
+        '<div class="geo-b-stat"><div class="geo-b-stat-k">Alt. Máx.</div><div class="geo-b-stat-v">' + Math.round(b.elevMax) + " m</div></div>"
+      : '<div class="geo-b-stat"><div class="geo-b-stat-k">Área</div><div class="geo-b-stat-v">' + b.areaKm2.toFixed(2).replace(".", ",") + " km²</div></div>" +
+        '<div class="geo-b-stat"><div class="geo-b-stat-k">Município</div><div class="geo-b-stat-v">' + (b.areaPct !== undefined ? String(b.areaPct).replace(".", ",") + "%" : "—") + "</div></div>" +
+        '<div class="geo-b-stat"><div class="geo-b-stat-k">Zona</div><div class="geo-b-stat-v">' + (/rural/i.test(b.tipo || "") ? "Rural" : "Urbana") + "</div></div>";
+
     card.style.setProperty("--c", b.color);
     card.innerHTML =
       '<div class="geo-card-bar"></div><div class="geo-card-body">' +
       '<button type="button" class="geo-card-close" title="Voltar à visão geral de ' + munName + '">✕</button>' +
-      '<span class="kicker">' + munName.toUpperCase() + ' · BAIRRO ' + String(b.numero || b.idx).padStart(2, "0") + "</span>" +
+      '<span class="kicker">' + munName.toUpperCase() + " · BAIRRO " + String(b.numero || b.idx).padStart(2, "0") + "</span>" +
       "<h2>" + b.nome + "</h2>" +
       "<p>" + leiTxt + "</p>" +
-      '<div class="geo-b-stats">' +
-      '<div class="geo-b-stat"><div class="geo-b-stat-k">Área</div><div class="geo-b-stat-v">' + b.areaKm2.toFixed(2).replace(".", ",") + " km²</div></div>" +
-      '<div class="geo-b-stat"><div class="geo-b-stat-k">Alt. Média</div><div class="geo-b-stat-v">' + altPrefix + Math.round(b.elevMean) + " m</div></div>" +
-      '<div class="geo-b-stat"><div class="geo-b-stat-k">Alt. Máx.</div><div class="geo-b-stat-v">' + altPrefix + Math.round(b.elevMax) + " m</div></div>" +
-      "</div>" +
+      '<div class="geo-b-stats">' + statsHtml + "</div>" +
       photoSlot +
       '<div class="geo-card-nav">' +
       '<button type="button" class="geo-mini-btn" data-b-prev>‹ Bairro anterior</button>' +
@@ -2008,7 +2103,7 @@
     });
     const b360 = card.querySelector("[data-open-b360]");
     if (b360 && p360.ready && p360.url) {
-      b360.addEventListener("click", () => openOverlay(p360.url, "Foto 360° — " + b.nome));
+      b360.addEventListener("click", () => openTourUrl("Foto 360° — " + (p360.label || b.nome), p360.url, p360.hash || "", "Abrindo foto 360° de " + b.nome + "…"));
     }
     state.viewOffTarget = window.innerWidth > 820 ? 195 : 0;
     requestRender();
@@ -2136,10 +2231,25 @@
     requestRender();
   }
 
-  function enterMunMode(munId) {
-    const id = munId || "itajai";
+  function resolveMunIgr(munKey, igrIdHint) {
+    if (igrIdHint && state.byId[igrIdHint]) return Promise.resolve(igrIdHint);
+    if (cvmState.loaded && cvmState.byId[munKey]) return Promise.resolve(cvmState.activeIgrId);
+    const cachedKeys = Object.keys(igrCache);
+    for (let i = 0; i < cachedKeys.length; i++) {
+      if (igrCache[cachedKeys[i]].byId[munKey]) return Promise.resolve(cachedKeys[i]);
+    }
+    return loadScriptOnce("js/sc-municipios-index.js", () => Boolean(window.SC_MUNICIPIOS_INDEX)).then(() => {
+      const idx = window.SC_MUNICIPIOS_INDEX || {};
+      const keyNorm = String(munKey || "").replace(/-/g, "_").toLowerCase();
+      const hit = idx[munKey] || idx[keyNorm];
+      return hit ? hit.igrId : "costa_verde_mar";
+    });
+  }
+
+  function enterMunMode(munId, igrIdHint) {
+    const id = String(munId || "itajai").replace(/-/g, "_");
     if (itajaiState.loading) return;
-    if (itajaiState.active && itajaiState.munId === id) {
+    if (itajaiState.active && (itajaiState.munId === id || (itajaiState.munRecord && itajaiState.munRecord.ibge === id))) {
       if (itajaiState.centerWorld) {
         const v = viewFor(itajaiState.centerWorld, itajaiState.radiusWorld, 46, -0.22);
         flyTo(v.pos, v.target, 700);
@@ -2166,61 +2276,75 @@
       borderUniforms.uItajaiMaskTex.value = dummyMaskTex;
     }
 
-    if (state.selectedId !== "costa_verde_mar") {
-      setSelected("costa_verde_mar");
-    }
-
     itajaiState.loading = true;
     borderUniforms.uCvmActive.value = 0.0;
 
-    ensureCvmLoaded()
-      .then(() => {
-        const mun = cvmState.byId[id] || {
-          id,
-          name: id === "itapema" ? "Itapema" : "Itajaí",
-          glbUrl: id === "itapema" ? "assets/modelos/itapema_terreno.glb" : "assets/modelos/itajai_terreno.glb",
-          hasBairros: id === "itajai" || id === "itapema",
-          bboxUV: state.itajaiBboxUV,
-          rings: state.itajaiRingsUV,
-        };
+    resolveMunIgr(id, igrIdHint)
+      .then((resolvedIgr) => {
+        if (state.selectedId !== resolvedIgr) {
+          state.selectedId = resolvedIgr;
+          borderUniforms.uSelectedId.value = state.idxById[resolvedIgr] || 0;
+        }
+        return ensureIgrLoaded(resolvedIgr).then((entry) => ({ resolvedIgr, entry }));
+      })
+      .then(({ resolvedIgr, entry }) => {
+        if (entry) activateIgr(resolvedIgr);
+        const mun = (entry && entry.byId[id]) || cvmState.byId[id];
+        if (!mun) throw new Error("Município não encontrado: " + id);
+
+        // Caso raríssimo sem GLB publicado pela SEPLAN (ex: São Domingos 4216107)
+        if (mun.hasGlb === false || !mun.glbUrl) {
+          itajaiState.loading = false;
+          borderUniforms.uCvmActive.value = 1.0;
+          const pt = mun.worldPt || (mun.labelUV ? uvToWorld(mun.labelUV[0], mun.labelUV[1], 0.002) : state.overviewParams.center);
+          const v = viewFor(pt, 0.14, 46, 0);
+          flyTo(v.pos, v.target, 850);
+          showMunSummaryCard(mun);
+          toast("ℹ️ " + mun.name + " ainda não possui GLB 3D publicado na SEPLAN-SC", 2800);
+          return Promise.resolve(null);
+        }
+
         toast("🏔️ Carregando modelo 3D de " + mun.name + "…", 3500);
 
         const targetApproach = (mun.labelUV && uvToWorld(mun.labelUV[0], mun.labelUV[1], 0.002)) ||
           state.itajaiWorld || uvToWorld(0.908, 0.698, 0.002);
         if (!wasActive) {
           const approachView = viewFor(targetApproach, 0.145, 44, -0.20);
-          flyTo(approachView.pos, approachView.target, 850);
+          flyTo(approachView.pos, approachView.target, 820);
         }
 
         const extraLoads = [];
-        if (mun.id === "itajai") {
+        if (mun.ibge === "4208203" || mun.id === "itajai") {
           extraLoads.push(loadScriptOnce("js/itajai-bairros-data.js", () => Boolean(window.ITAJAI_BAIRROS_DATA)));
           extraLoads.push(loadScriptOnce("js/itajai-bairros-sdf.js", () => Boolean(window.ITAJAI_BAIRROS_SDF)));
-        } else if (mun.id === "itapema") {
-          extraLoads.push(loadScriptOnce("js/itapema-bairros-data.js", () => Boolean(window.ITAPEMA_BAIRROS_DATA)));
-          extraLoads.push(loadScriptOnce("js/itapema-bairros-sdf.js", () => Boolean(window.ITAPEMA_BAIRROS_SDF)));
+        } else if (mun.hasBairros && mun.ibge) {
+          const code = mun.ibge;
+          extraLoads.push(loadScriptOnce("js/bairros/" + code + "-data.js", () => Boolean(window.SC_BAIRROS_DATA && window.SC_BAIRROS_DATA[code])));
+          extraLoads.push(loadScriptOnce("js/bairros/" + code + "-sdf.js", () => Boolean(window.SC_BAIRROS_SDF && window.SC_BAIRROS_SDF[code])));
         }
         extraLoads.push(loadMunModelBuffer(mun));
 
-        return Promise.all(extraLoads).then((res) => ({ mun, res }));
+        return Promise.all(extraLoads).then((res) => ({ mun, resolvedIgr, res }));
       })
-      .then(({ mun, res }) => {
+      .then((payload) => {
+        if (!payload) return;
+        const { mun, resolvedIgr, res } = payload;
         const gltf = res[res.length - 1];
         const root = gltf.scene || (gltf.scenes && gltf.scenes[0]);
         if (!root) throw new Error("GLB vazio para " + mun.name);
 
         let BDATA = null;
         let BSDF = null;
-        if (mun.id === "itajai") {
+        if (mun.ibge === "4208203" || mun.id === "itajai") {
           BDATA = window.ITAJAI_BAIRROS_DATA;
           BSDF = window.ITAJAI_BAIRROS_SDF;
-        } else if (mun.id === "itapema") {
-          BDATA = window.ITAPEMA_BAIRROS_DATA;
-          BSDF = window.ITAPEMA_BAIRROS_SDF;
+        } else if (mun.hasBairros && mun.ibge && window.SC_BAIRROS_DATA && window.SC_BAIRROS_SDF) {
+          BDATA = window.SC_BAIRROS_DATA[mun.ibge] || null;
+          BSDF = window.SC_BAIRROS_SDF[mun.ibge] || null;
         }
 
         const pl = mun.scPlacement || (BDATA && BDATA.meta && BDATA.meta.scPlacement);
-        let isYUp = mun.id === "itajai";
+        let isYUp = mun.ibge === "4208203" || mun.id === "itajai";
         let baseY = 0.1182;
 
         if (pl) {
@@ -2229,7 +2353,6 @@
           root.scale.set(pl.scaleX, pl.scaleY, pl.scaleZ);
           baseY = pl.baseY;
         } else {
-          // Posicionamento georreferenciado automático para qualquer GLB SEPLAN em Costa Verde & Mar
           root.updateMatrixWorld(true);
           const rawBox = new THREE.Box3().setFromObject(root);
           const rawSize = rawBox.getSize(new THREE.Vector3());
@@ -2286,7 +2409,7 @@
               });
             }
             topMesh = obj;
-          } else if (mun.id === "itajai") {
+          } else if (isYUp) {
             const sPos = obj.geometry && obj.geometry.attributes && obj.geometry.attributes.position;
             if (sPos) {
               skirtOrigYs = new Float32Array(sPos.count);
@@ -2301,7 +2424,6 @@
             skirtMesh = obj;
             obj.material = new THREE.MeshLambertMaterial({ color: 0x64748b });
           } else {
-            // Base inferior limpa do modelo SEPLAN
             obj.material = new THREE.MeshLambertMaterial({ color: 0xe2e8f0 });
           }
         });
@@ -2324,7 +2446,6 @@
         const ctr = box.getCenter(new THREE.Vector3());
         ctr.y = baseY + boxSize.y * 0.25;
 
-        // Sombra suave no piso para o modo estúdio isolado (quando o mapa de SC é ocultado ao aproximar)
         let munShadow = null;
         const shB64 = mun.shadowPngB64 || (BDATA && BDATA.meta && BDATA.meta.shadowPngB64);
         if (shB64) {
@@ -2340,12 +2461,13 @@
             })
           );
           munShadow.rotation.x = -Math.PI / 2;
-          const floorY = mun.id === "itajai" ? (baseY - 0.025 * pl.scaleY - 0.0005) : (box.min.y - 0.0005);
+          const floorY = isYUp ? (baseY - 0.025 * pl.scaleY - 0.0005) : (box.min.y - 0.0005);
           munShadow.position.set(ctr.x, floorY, ctr.z);
           munShadow.visible = false;
           scene.add(munShadow);
         }
 
+        itajaiState.igrId = resolvedIgr;
         itajaiState.munId = mun.id;
         itajaiState.munRecord = mun;
         itajaiState.hasBairros = Boolean(BDATA && BDATA.bairros && BDATA.bairros.length);
@@ -2384,7 +2506,11 @@
 
         buildItajaiUI();
         refreshClasses();
-        if (!itajaiState.hasBairros) showMunSummaryCard(mun);
+        if (!itajaiState.hasBairros || (mun.tours360 && mun.tours360.length)) {
+          showMunSummaryCard(mun);
+        } else {
+          hideCard();
+        }
 
         const itView = viewFor(ctr, itajaiState.radiusWorld, 46, -0.22);
         let isoDone = false;
@@ -2398,13 +2524,15 @@
           wasActive ? 560 : 760,
           () => {
             if (!isoDone) setIsolatedMode(true);
-            const doneMsg = itajaiState.hasBairros
-              ? "🗺️ " + mun.name + " 3D · Clique em um dos " + itajaiState.bairros.length + " bairros"
-              : "🏔️ " + mun.name + " 3D (SEPLAN) · Arraste para girar ou use 'Fundo SC'";
+            const has360 = mun.tours360 && mun.tours360.length;
+            const doneMsg = has360
+              ? "🌐 " + mun.name + " · Clique no pino 360° ou em um bairro"
+              : (itajaiState.hasBairros
+                ? "🗺️ " + mun.name + " · " + itajaiState.bairros.length + " bairros (IBGE)"
+                : "🏔️ " + mun.name + " · Arraste para girar ou use 'Fundo SC'");
             toast(doneMsg, 1800);
           },
           (e) => {
-            // Quando chega perto do modelo GLB, oculta o mapa de SC ao fundo para destacar só o GLB
             if (!isoDone && e >= 0.72) {
               isoDone = true;
               setIsolatedMode(true);
@@ -2421,7 +2549,7 @@
   }
 
   function enterItajaiMode() {
-    enterMunMode("itajai");
+    enterMunMode("itajai", "costa_verde_mar");
   }
 
   function unloadItajaiResources() {
@@ -2452,6 +2580,10 @@
       const el = itajaiState.labelEls[id];
       if (el && el.parentNode) el.parentNode.removeChild(el);
     });
+    itajaiState.pin360Els.forEach((item) => {
+      if (item && item.el && item.el.parentNode) item.el.parentNode.removeChild(item.el);
+    });
+    itajaiState.pin360Els = [];
     itajaiState.labelEls = {};
     itajaiState.legendEls = {};
     itajaiState.topMesh = null;
@@ -2471,6 +2603,7 @@
 
   function exitItajaiMode(dest) {
     if (!itajaiState.active) return;
+    const prevIgr = itajaiState.igrId || state.selectedId || "costa_verde_mar";
     cancelSequence();
     setBairroHover(null);
     hideCard();
@@ -2482,6 +2615,7 @@
     restoreScElevation();
 
     itajaiState.active = false;
+    itajaiState.igrId = null;
     controls.minDistance = 0.08;
     controls.maxDistance = 7;
 
@@ -2502,7 +2636,7 @@
     if (dest === "sc") {
       goOverview();
     } else {
-      selectRegion("costa_verde_mar", { noSequence: true });
+      selectRegion(prevIgr, { noSequence: true });
     }
     requestRender();
   }
@@ -2684,15 +2818,10 @@
 
     raycaster.setFromCamera(state.pointer, camera);
     const hit = state.triGrid ? raycastTopGrid(raycaster.ray) : null;
-    if (hit && state.selectedId === "costa_verde_mar") {
-      if (cvmState.loaded) {
-        const cm = findCvmMunicipioAtUV(hit.uv.x, hit.uv.y);
-        if (cm) {
-          enterMunMode(cm.id);
-          return;
-        }
-      } else if (isPointInItajaiUV(hit.uv)) {
-        enterMunMode("itajai");
+    if (hit && state.selectedId && cvmState.loaded && cvmState.activeIgrId === state.selectedId) {
+      const cm = findCvmMunicipioAtUV(hit.uv.x, hit.uv.y);
+      if (cm) {
+        enterMunMode(cm.id, state.selectedId);
         return;
       }
     }
@@ -2748,23 +2877,23 @@
     hintEl.classList.add("is-hidden");
   }
 
-  // Deep link: ?regiao=... | ?municipio=itajai|itapema|timbe_do_sul | #itajai-3d | #itapema-3d | #rio-da-luz-360 | #timbe-do-sul-360
+  // Deep link: ?regiao=... | ?municipio=<slug|ibge> | #itajai-3d | #itapema-3d | #rio-da-luz-360 | #timbe-do-sul-360
   function handleDeepLink() {
     const params = new URLSearchParams(location.search);
     const reg = params.get("regiao");
     const mun = params.get("municipio");
     if (location.hash === "#itajai-3d") {
-      setTimeout(() => enterMunMode("itajai"), 1500);
+      setTimeout(() => enterMunMode("itajai", "costa_verde_mar"), 1500);
     } else if (location.hash === "#itapema-3d") {
-      setTimeout(() => enterMunMode("itapema"), 1500);
-    } else if (location.hash === "#timbe-do-sul-360" || mun === "timbe_do_sul" || mun === "timbe-do-sul") {
+      setTimeout(() => enterMunMode("itapema", "costa_verde_mar"), 1500);
+    } else if (location.hash === "#timbe-do-sul-360") {
       setTimeout(() => goToTour("timbeDoSul", true), 1500);
-    } else if (mun) {
-      setTimeout(() => enterMunMode(mun), 1500);
     } else if (location.hash === "#rio-da-luz-360") {
       setTimeout(() => goToTour("rioDaLuz", true), 1500);
+    } else if (mun) {
+      setTimeout(() => enterMunMode(mun), 1500);
     } else if (reg && state.byId[reg]) {
-      setTimeout(() => selectRegion(reg, { noSequence: params.get("auto360") === "0" }), 1500);
+      setTimeout(() => selectRegion(reg, { noSequence: true }), 1500);
     }
   }
 
@@ -2820,13 +2949,13 @@
       if (itajaiState.active) {
         const b = itajaiState.hasBairros ? pickBairro() : null;
         setBairroHover(b ? b.id : null);
-      } else if (state.selectedId === "costa_verde_mar" && cvmState.loaded && state.triGrid) {
+      } else if (state.selectedId && cvmState.loaded && cvmState.activeIgrId === state.selectedId && state.triGrid) {
         raycaster.setFromCamera(state.pointer, camera);
         const hit = raycastTopGrid(raycaster.ray);
         const cm = hit ? findCvmMunicipioAtUV(hit.uv.x, hit.uv.y) : null;
         setCvmHover(cm ? cm.id : null);
         if (cm) {
-          setHover("costa_verde_mar");
+          setHover(state.selectedId);
         } else {
           const r = hit ? regionAtUV(hit.uv) : null;
           setHover(r ? r.id : null);
