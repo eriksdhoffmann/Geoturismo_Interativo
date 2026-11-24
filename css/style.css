@@ -2431,11 +2431,16 @@ body.satellite-split-open .bottom-left-ecosystem-bar {
 #scMapModal.open.split-mode .sc-map-quick-bar {
   padding: 5px 12px;
   gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
 #scMapModal.open.split-mode .sc-quick-btn {
   padding: 4px 8px;
   font-size: 11px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 #scMapModal.open.split-mode .sc-map-split {
@@ -2609,6 +2614,26 @@ body.satellite-split-open .bottom-left-ecosystem-bar {
 .gsat-num-pin.cat-hospedagem,
 .sc-sidebar-num.cat-hospedagem {
   background: #dc2626;
+}
+
+.gsat-num-pin.cat-geossitios,
+.sc-sidebar-num.cat-geossitios {
+  background: #b45309;
+}
+
+.gsat-num-pin.cat-trilhas,
+.sc-sidebar-num.cat-trilhas {
+  background: #0b5d3b;
+}
+
+.gsat-num-pin.cat-natureza,
+.sc-sidebar-num.cat-natureza {
+  background: #0284c7;
+}
+
+.gsat-num-pin.cat-cultura,
+.sc-sidebar-num.cat-cultura {
+  background: #7c3aed;
 }
 
 .gsat-num-pin:hover {

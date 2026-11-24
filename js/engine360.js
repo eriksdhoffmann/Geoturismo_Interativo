@@ -628,7 +628,7 @@
         <div class="modal-3d-wrapper">
           <div class="modal-3d-TopBar">
             <span class="btn-3d-mode active" style="cursor: default;">
-              🏔️ Vale do Rio da Luz
+              🏔️ ${(window.TOUR_SC_DATA && window.TOUR_SC_DATA.tourShortName) || "Vale do Rio da Luz"}
             </span>
           </div>
 
@@ -1480,7 +1480,10 @@
     document.body.classList.toggle("satellite-split-open", splitMode);
     state.isScMapSplitOpen = splitMode;
     if (expandBtn) {
-      expandBtn.textContent = splitMode ? "⤢ Expandir Lista (26)" : "⤡ Modo Dividido (Ao Vivo)";
+      const ptCount = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
+        ? window.ROTA_LUMIAR_DATA.points.length
+        : 26;
+      expandBtn.textContent = splitMode ? `⤢ Expandir Lista (${ptCount})` : "⤡ Modo Dividido (Ao Vivo)";
     }
     if (state.leafletMap) {
       setTimeout(() => {
@@ -2059,9 +2062,8 @@
     const pts = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
       ? window.ROTA_LUMIAR_DATA.points.filter(p => typeof p.lat === "number" && typeof p.lng === "number")
       : [];
-    if (filterKey === "rio_da_luz") return pts.filter(p => p.regionKey === "rio_da_luz");
-    if (filterKey === "testo_alto") return pts.filter(p => p.regionKey === "testo_alto");
     if (filterKey === "pano360") return pts.filter(p => Boolean(p.sceneId));
+    if (filterKey && filterKey !== "all") return pts.filter(p => p.regionKey === filterKey);
     return pts;
   }
 
@@ -2083,6 +2085,8 @@
         <div style="font-size:10.5px;font-weight:800;color:#15803d;text-transform:uppercase;margin-bottom:2px;">Ponto ${pt.num} • ${pt.region}</div>
         <strong style="font-size:14px;color:#0f172a;display:block;line-height:1.25;">${pt.num}. ${pt.name}</strong>
         ${pt.description ? `<p style="font-size:11.5px;color:#334155;margin:5px 0;line-height:1.35;">${pt.description}</p>` : ""}
+        ${pt.trilha ? `<div style="font-size:10.5px;color:#0f5132;background:#ecfdf5;border:1px solid #bbf7d0;border-radius:5px;padding:4px 6px;margin:4px 0;"><strong>🥾 Trilha/Acesso:</strong> ${pt.trilha}${pt.dificuldade ? ` • <em>${pt.dificuldade}</em>` : ""}</div>` : ""}
+        ${pt.geologia ? `<div style="font-size:10.5px;color:#78350f;background:#fffbeb;border:1px solid #fde68a;border-radius:5px;padding:4px 6px;margin:4px 0;"><strong>🪨 Geologia:</strong> ${pt.geologia}</div>` : ""}
         ${pt.endereco ? `<div style="font-size:11px;color:#475569;margin:2px 0;">📍 ${pt.endereco}</div>` : ""}
         ${pt.atendimento ? `<div style="font-size:11px;color:#475569;margin:2px 0;">🕒 ${pt.atendimento}</div>` : ""}
         ${pt.telefone ? `<div style="font-size:11px;color:#475569;margin:2px 0;">📞 ${pt.telefone}</div>` : ""}
@@ -2138,8 +2142,8 @@
 
         const marker = state.leafletMarkers && state.leafletMarkers[num];
         if (state.leafletMap && marker) {
-          state.leafletMap.flyTo([pt.lat, pt.lng], pt.sceneId ? 16.5 : 15.5, { duration: 0.65 });
-          setTimeout(() => marker.openPopup(), 260);
+          state.leafletMap.flyTo([pt.lat, pt.lng], pt.sceneId ? 16 : 15, { duration: 0.35 });
+          setTimeout(() => marker.openPopup(), 420);
         }
       });
     });
@@ -2260,13 +2264,10 @@
 
     if (Array.isArray(window.ROTA_LUMIAR_ROAD_LEGS) && window.ROTA_LUMIAR_ROAD_LEGS.length > 0) {
       const visibleLegs = window.ROTA_LUMIAR_ROAD_LEGS.filter(leg => {
-        if (activeScMapFilter === "rio_da_luz") {
-          return leg.fromRegion === "rio_da_luz" && leg.toRegion === "rio_da_luz";
+        if (activeScMapFilter === "all" || activeScMapFilter === "pano360") {
+          return true;
         }
-        if (activeScMapFilter === "testo_alto") {
-          return leg.fromRegion === "testo_alto" && leg.toRegion === "testo_alto";
-        }
-        return true;
+        return leg.fromRegion === activeScMapFilter && leg.toRegion === activeScMapFilter;
       });
       visibleLegs.forEach(leg => {
         if (!Array.isArray(leg.coords) || leg.coords.length < 2) return;
@@ -2298,7 +2299,7 @@
     mapPts.forEach(pt => {
       let icon;
       if (pt.sceneId) {
-        const shortBadge = pt.num === 1 ? "🏠 1. Casa Rux 360°" : "🏡 2. Schroeder Platz 360°";
+        const shortBadge = pt.shortBadge || (pt.num === 1 ? "🏠 1. Casa Rux 360°" : "🏡 2. Schroeder Platz 360°");
         icon = window.L.divIcon({
           className: "gsat-pin-wrapper",
           iconSize: [0, 0],
@@ -2319,10 +2320,14 @@
 
       const marker = window.L.marker([pt.lat, pt.lng], {
         icon,
-        zIndexOffset: pt.sceneId ? 600 : 100 + (30 - pt.num)
+        zIndexOffset: pt.sceneId ? 600 : 100 + Math.max(0, 100 - pt.num)
       }).addTo(state.leafletMarkersLayer);
 
-      marker.bindPopup(buildRotaPointGooglePopupHTML(pt), { maxWidth: 290 });
+      marker.bindPopup(buildRotaPointGooglePopupHTML(pt), {
+        maxWidth: 290,
+        autoPanPaddingTopLeft: [16, 44],
+        autoPanPaddingBottomRight: [16, 20]
+      });
       marker.on("click", () => {
         const sidebarBtn = document.querySelector(`#scMapPointsSidebar [data-map-pt-num="${pt.num}"]`);
         if (sidebarBtn) {
@@ -2338,7 +2343,12 @@
       const curScene = window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes
         ? window.TOUR_SC_DATA.scenes[state.currentSceneId]
         : null;
-      if (curScene && curScene.coordinates) {
+      if (window.ROTA_LUMIAR_DATA && window.ROTA_LUMIAR_DATA.fitAllInRadar && focusPts.length > 1) {
+        state.leafletMap.fitBounds(window.L.latLngBounds(focusPts.map(p => [p.lat, p.lng])), {
+          padding: [55, 55],
+          maxZoom: 14
+        });
+      } else if (curScene && curScene.coordinates) {
         state.leafletMap.setView([curScene.coordinates.lat, curScene.coordinates.lng], 16, { animate: false });
       } else if (focusPts.length > 0) {
         state.leafletMap.fitBounds(window.L.latLngBounds(focusPts.map(p => [p.lat, p.lng])), {
@@ -2369,9 +2379,12 @@
     }
 
     if (!state.leafletMap) {
+      const rotaCfg = window.ROTA_LUMIAR_DATA || {};
+      const initCenter = Array.isArray(rotaCfg.center) ? rotaCfg.center : [-26.5385, -49.1465];
+      const initZoom = typeof rotaCfg.defaultZoom === "number" ? rotaCfg.defaultZoom : 16;
       state.leafletMap = window.L.map("leafletSCMap", {
-        center: [-26.5385, -49.1465],
-        zoom: 16,
+        center: initCenter,
+        zoom: initZoom,
         maxZoom: 21
       });
 
@@ -2380,7 +2393,7 @@
         {
           subdomains: ["0", "1", "2", "3"],
           maxZoom: 21,
-          attribution: "Imagens © Google Satélite • Rota Lumiar (GeoSC 360°)"
+          attribution: `Imagens © Google Satélite • ${rotaCfg.title || "Rota Lumiar (GeoSC 360°)"}`
         }
       );
       const googleSatelliteOnly = window.L.tileLayer(

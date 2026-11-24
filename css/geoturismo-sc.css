@@ -176,6 +176,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
   font-size: 12px; font-weight: 700; padding: 4px 9px; border-radius: 999px;
   border: 1.5px solid var(--c); color: color-mix(in srgb, var(--c) 70%, #0b1020); background: #fff;
 }
+.geo-card button.chip.chip-360 {
+  cursor: pointer; background: var(--c); color: #fff;
+  display: inline-flex; align-items: center; gap: 4px;
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--c) 38%, transparent);
+  transition: transform 0.15s, filter 0.15s;
+}
+.geo-card button.chip.chip-360:hover { transform: translateY(-1px); filter: brightness(1.1); }
 .geo-card details { margin-top: 6px; font-size: 13px; color: var(--muted); }
 .geo-card summary { cursor: pointer; font-weight: 700; color: var(--ink); }
 .geo-card details p { font-size: 12.5px; margin-top: 6px; max-height: 120px; overflow: auto; }
@@ -189,6 +196,57 @@ html, body { width: 100%; height: 100%; overflow: hidden; }
   padding: 12px 14px; font: 800 14px/1.2 "Inter", sans-serif; color: #fff;
   background: linear-gradient(135deg, #0f172a, #334155); box-shadow: 0 8px 18px rgba(15,23,42,0.25);
   display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.geo-card button.chip.chip-route {
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s, color 0.15s;
+}
+.geo-card button.chip.chip-route:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--c) 14%, #fff);
+}
+.geo-card .mun-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 7px;
+  max-height: 132px;
+  overflow: auto;
+}
+.geo-card .mun-pill {
+  font: 700 11px/1.2 "Inter", sans-serif;
+  padding: 4px 8px;
+  border-radius: 7px;
+  border: 1px solid rgba(15,23,42,0.16);
+  background: rgba(15,23,42,0.04);
+  color: #0f172a;
+  cursor: pointer;
+  transition: background 0.14s, border-color 0.14s, color 0.14s;
+}
+.geo-card .mun-pill:hover {
+  background: var(--c);
+  border-color: var(--c);
+  color: #fff;
+}
+.geo-cta-routes {
+  margin-top: 8px;
+  width: 100%;
+  border: 1.5px solid color-mix(in srgb, var(--c) 65%, #0f172a);
+  cursor: pointer;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font: 800 13px/1.2 "Inter", sans-serif;
+  color: #0f172a;
+  background: color-mix(in srgb, var(--c) 10%, #ffffff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: background 0.15s, color 0.15s;
+}
+.geo-cta-routes:hover {
+  background: var(--c);
+  color: #fff;
 }
 .geo-cta-360:hover { filter: brightness(1.15); }
 .geo-cta-3d { background: linear-gradient(135deg, #0f766e, #0284c7); }

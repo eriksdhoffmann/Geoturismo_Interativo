@@ -133,6 +133,7 @@
 
   const rlInit = DATA.rioDaLuz;
   const itInit = DATA.itajai3D || { lon: -48.75334, lat: -26.96899 };
+  const tsInit = DATA.timbeDoSul;
   const borderUniforms = {
     uIdTex: { value: idTex },
     uSdfTex: { value: sdfTex },
@@ -157,6 +158,12 @@
     uCvmMaxDistPx: { value: 18.0 },
     uCvmHoverId: { value: 0 },
     uCvmSelectedId: { value: 0 },
+    uShowTimbeRing: { value: 0.0 },
+    uTimbeUv: {
+      value: tsInit
+        ? new THREE.Vector2(G.A * tsInit.lon + G.B, G.C * tsInit.lat + G.D)
+        : new THREE.Vector2(-10.0, -10.0),
+    },
   };
 
   function createTerrainMaterial(baseMat) {
@@ -192,6 +199,8 @@
         uniform float uCvmMaxDistPx;
         uniform int uCvmHoverId;
         uniform int uCvmSelectedId;
+        uniform float uShowTimbeRing;
+        uniform vec2 uTimbeUv;
         ` +
         shader.fragmentShader.replace(
           "#include <output_fragment>",
@@ -271,11 +280,18 @@
             float rimF = (1.0 - smoothstep(0.0, 0.075, mFocusVal.g)) * smoothstep(0.0, 0.015, mFocusVal.g);
             gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.06, 0.48, 0.44), rimF * 0.72);
           }
-          if (uShowRioRing > 0.5) {
+          if (uShowRioRing > 0.5 || uShowTimbeRing > 0.5) {
             vec2 dUvR = fwidth(vUv * uTexSize);
             float tpsR = max(0.08, length(dUvR) * 0.7071);
-            float rDistPx = length((vUv - uRioUv) * uTexSize) / tpsR;
-            float ringA = 1.0 - smoothstep(0.9, 1.8, abs(rDistPx - 11.0));
+            float ringA = 0.0;
+            if (uShowRioRing > 0.5) {
+              float rDistPx = length((vUv - uRioUv) * uTexSize) / tpsR;
+              ringA = max(ringA, 1.0 - smoothstep(0.9, 1.8, abs(rDistPx - 11.0)));
+            }
+            if (uShowTimbeRing > 0.5) {
+              float tDistPx = length((vUv - uTimbeUv) * uTexSize) / tpsR;
+              ringA = max(ringA, 1.0 - smoothstep(0.9, 1.8, abs(tDistPx - 11.0)));
+            }
             if (ringA > 0.002) {
               gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.91, 0.12, 0.35), ringA);
             }
@@ -292,7 +308,7 @@
           `
         );
     };
-    mat.customProgramCacheKey = () => "geosc-setur15-cvm10-sdf-v5";
+    mat.customProgramCacheKey = () => "geosc-setur15-cvm10-timbe-sdf-v6";
     return mat;
   }
 
@@ -320,6 +336,7 @@
     itajaiWorld: null,
     itajaiRingsUV: null,
     itajaiBboxUV: null,
+    timbeWorld: null,
     viewOffX: 0,
     viewOffTarget: 0,
     pointer: new THREE.Vector2(),
@@ -698,6 +715,13 @@
     const rl = DATA.rioDaLuz;
     const uv = lonLatToUV(rl.lon, rl.lat);
     state.rioWorld = uvToWorld(uv.u, uv.v, 0.002);
+    TOUR_DESTS.rioDaLuz.world = state.rioWorld;
+    if (TOUR_DESTS.timbeDoSul) {
+      const ts = DATA.timbeDoSul;
+      const tuv = lonLatToUV(ts.lon, ts.lat);
+      state.timbeWorld = uvToWorld(tuv.u, tuv.v, 0.002);
+      TOUR_DESTS.timbeDoSul.world = state.timbeWorld;
+    }
     if (DATA.itajai3D) {
       const it = DATA.itajai3D;
       const iuv = lonLatToUV(it.lon, it.lat);
@@ -768,19 +792,91 @@
   const btnMunContext = $("btnMunContext");
   const labelEls = {};
   const legendEls = {};
-  let pinEl = null;
   let pinItajaiEl = null;
 
+  const TOUR_DESTS = {
+    rioDaLuz: {
+      key: "rioDaLuz",
+      data: DATA.rioDaLuz,
+      regions: ["vale_dos_encantos", "vale_europeu"],
+      badgeRegions: ["vale_dos_encantos"],
+      defaultRegion: "vale_dos_encantos",
+      badgeSubtitle: "Rota Lumiar · Foto 360° de drone",
+      pinTitle: "Entrar na foto 360° do Vale do Rio da Luz",
+      chipMatch: /^Rio da Luz/i,
+      chipLabel: "🌐 Rio da Luz · 360°",
+      ctaLabel: "🌐 Ir ao Rio da Luz · Foto 360°",
+      toastFlight: "✈️ Voando até o Vale do Rio da Luz…",
+      toastEnter: "🌐 Entrando na foto 360°…",
+      overlayTitle: "Foto 360° — Vale Tombado do Rio da Luz",
+      loadingMsg: "Abrindo a foto 360° do Vale do Rio da Luz…",
+      hash: "#rio-da-luz-360",
+      world: null,
+      pinEl: null,
+    },
+  };
+  if (DATA.timbeDoSul) {
+    TOUR_DESTS.timbeDoSul = {
+      key: "timbeDoSul",
+      data: DATA.timbeDoSul,
+      regions: ["caminho_dos_canions"],
+      badgeRegions: ["caminho_dos_canions"],
+      defaultRegion: "caminho_dos_canions",
+      badgeSubtitle: "Poço do Violão & Cachoeira da Cortina · 360°",
+      pinTitle: "Entrar nas fotos 360° de Timbé do Sul (Poço do Violão e Cachoeira da Cortina)",
+      chipMatch: /^Timbé do Sul/i,
+      chipLabel: "🌐 Timbé do Sul · 360°",
+      ctaLabel: "🌐 Ir a Timbé do Sul · Fotos 360°",
+      routesCtaLabel: "🗺️ Rotas & Trilhas (15 Municípios · 56 Pontos)",
+      munSlugs: {
+        "Araranguá": "ararangua",
+        "Balneário Arroio do Silva": "arroio_do_silva",
+        "Balneário Gaivota": "balneario_gaivota",
+        "Ermo": "ermo",
+        "Jacinto Machado": "jacinto_machado",
+        "Maracajá": "maracaja",
+        "Meleiro": "meleiro",
+        "Morro Grande": "morro_grande",
+        "Passo de Torres": "passo_de_torres",
+        "Praia Grande": "praia_grande",
+        "Santa Rosa do Sul": "santa_rosa_do_sul",
+        "Sombrio": "sombrio",
+        "São João do Sul": "sao_joao_do_sul",
+        "Timbé do Sul": "timbe_do_sul",
+        "Turvo": "turvo",
+      },
+      toastFlight: "✈️ Voando até Timbé do Sul (Serra Geral)…",
+      toastEnter: "🌐 Entrando no Poço do Violão 360°…",
+      overlayTitle: "Fotos 360° — Timbé do Sul (Poço do Violão & Cachoeira da Cortina)",
+      loadingMsg: "Abrindo as fotos 360° de Timbé do Sul…",
+      hash: "#timbe-do-sul-360",
+      world: null,
+      pinEl: null,
+    };
+  }
+
+  function destForRegion(id) {
+    const vals = Object.values(TOUR_DESTS);
+    for (let i = 0; i < vals.length; i++) {
+      if (vals[i].regions.indexOf(id) !== -1) return vals[i];
+    }
+    return null;
+  }
+
   function is360Region(id) {
-    return id === "vale_dos_encantos";
+    const vals = Object.values(TOUR_DESTS);
+    for (let i = 0; i < vals.length; i++) {
+      if (vals[i].badgeRegions.indexOf(id) !== -1) return true;
+    }
+    return false;
   }
 
   function isItajaiRegion(id) {
     return id === "costa_verde_mar" && Boolean(DATA.itajai3D);
   }
 
-  function has360Action(id) {
-    return id === "vale_dos_encantos" || id === "vale_europeu";
+  function isAuto360Region(id) {
+    return id === "vale_dos_encantos";
   }
 
   function ensureCvmLoaded() {
@@ -969,20 +1065,22 @@
       labelEls[r.id] = el;
     });
 
-    pinEl = document.createElement("button");
-    pinEl.type = "button";
-    pinEl.className = "geo-pin360";
-    pinEl.title = "Entrar na foto 360° do Vale do Rio da Luz";
-    pinEl.innerHTML =
-      '<span class="pin-card"><span class="pin-badge"><span>360°</span></span>' +
-      "<span>" + DATA.rioDaLuz.name + "<small>Rota Lumiar · Foto 360° de drone</small></span></span>" +
-      '<span class="pin-stem"></span><span class="pin-pulse"></span>';
-    pinEl.addEventListener("click", (ev) => {
-      ev.stopPropagation();
-      goToRioDaLuz(true);
+    Object.values(TOUR_DESTS).forEach((d) => {
+      const pEl = document.createElement("button");
+      pEl.type = "button";
+      pEl.className = "geo-pin360";
+      pEl.title = d.pinTitle;
+      pEl.innerHTML =
+        '<span class="pin-card"><span class="pin-badge"><span>360°</span></span>' +
+        "<span>" + d.data.name + "<small>" + d.badgeSubtitle + "</small></span></span>" +
+        '<span class="pin-stem"></span><span class="pin-pulse"></span>';
+      pEl.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        goToTour(d.key, true);
+      });
+      labelsLayer.appendChild(pEl);
+      d.pinEl = pEl;
     });
-    labelsLayer.appendChild(pinEl);
-
     if (DATA.itajai3D) {
       pinItajaiEl = document.createElement("button");
       pinItajaiEl.type = "button";
@@ -994,7 +1092,7 @@
         '<span class="pin-stem"></span><span class="pin-pulse"></span>';
       pinItajaiEl.addEventListener("click", (ev) => {
         ev.stopPropagation();
-        enterItajaiMode();
+        enterMunMode("itajai");
       });
       labelsLayer.appendChild(pinItajaiEl);
     }
@@ -1115,13 +1213,15 @@
       const r = state.regions[i];
       placeEl(labelEls[r.id], r.labelWorld);
     }
-    if (pinEl && state.rioWorld) placeEl(pinEl, state.rioWorld);
+    Object.values(TOUR_DESTS).forEach((d) => {
+      if (d.pinEl && d.world) placeEl(d.pinEl, d.world);
+    });
     if (pinItajaiEl && state.itajaiWorld) placeEl(pinItajaiEl, state.itajaiWorld);
     updateCvmLabels();
   }
 
   function refreshClasses() {
-    const showPin = !itajaiState.active && has360Action(state.selectedId);
+    const activeDest = destForRegion(state.selectedId);
     const cvmDivisionOn = !itajaiState.active && cvmState.loaded && state.selectedId === "costa_verde_mar";
     const showItajaiPin = !itajaiState.active && !cvmDivisionOn && isItajaiRegion(state.selectedId);
     state.regions.forEach((r) => {
@@ -1138,9 +1238,15 @@
         lg.classList.toggle("is-hover", hov);
       }
     });
-    if (labelEls.vale_dos_encantos) labelEls.vale_dos_encantos.classList.toggle("is-hidden", itajaiState.active || showPin);
-    if (labelEls.costa_verde_mar) labelEls.costa_verde_mar.classList.toggle("is-hidden", itajaiState.active || showItajaiPin || cvmDivisionOn);
-    if (pinEl) pinEl.classList.toggle("is-visible", showPin);
+    if (labelEls.vale_dos_encantos) {
+      labelEls.vale_dos_encantos.classList.toggle("is-hidden", itajaiState.active || activeDest === TOUR_DESTS.rioDaLuz);
+    }
+    if (labelEls.costa_verde_mar) {
+      labelEls.costa_verde_mar.classList.toggle("is-hidden", itajaiState.active || showItajaiPin || cvmDivisionOn);
+    }
+    Object.values(TOUR_DESTS).forEach((d) => {
+      if (d.pinEl) d.pinEl.classList.toggle("is-visible", !itajaiState.active && activeDest === d);
+    });
     if (pinItajaiEl) pinItajaiEl.classList.toggle("is-visible", showItajaiPin);
     updateCvmLabels();
   }
@@ -1157,7 +1263,9 @@
   function setSelected(id) {
     state.selectedId = id;
     borderUniforms.uSelectedId.value = id ? (state.idxById[id] || 0) : 0;
-    borderUniforms.uShowRioRing.value = has360Action(id) ? 1.0 : 0.0;
+    const activeDest = destForRegion(id);
+    borderUniforms.uShowRioRing.value = activeDest === TOUR_DESTS.rioDaLuz ? 1.0 : 0.0;
+    borderUniforms.uShowTimbeRing.value = TOUR_DESTS.timbeDoSul && activeDest === TOUR_DESTS.timbeDoSul ? 1.0 : 0.0;
     borderUniforms.uCvmActive.value = (!itajaiState.active && id === "costa_verde_mar" && cvmState.loaded) ? 1.0 : 0.0;
     borderUniforms.uShowItajaiRing.value = (!itajaiState.active && !cvmState.loaded && isItajaiRegion(id)) ? 1.0 : 0.0;
     if (id !== "costa_verde_mar") setCvmHover(null);
@@ -1245,12 +1353,13 @@
   ];
 
   function showCard(r) {
-    const is360 = has360Action(r.id);
+    const dest = destForRegion(r.id);
+    const munSlugs = dest && dest.munSlugs ? dest.munSlugs : null;
     const isCvm = r.id === "costa_verde_mar";
+    card.style.setProperty("--c", r.color);
     let chipsHtml = "";
-    let detailsHtml = "<details><summary>" + r.municipios.length + " municípios</summary><p>" + r.municipios.join(", ") + "</p></details>";
-    let actionHtml = '<span class="geo-soon">📷 Fotos 360° desta região em breve</span>';
-
+    let detailsHtml = "";
+    let actionHtml = "";
     if (isCvm) {
       const mList = cvmState.loaded && cvmState.municipios.length ? cvmState.municipios : CVM_FALLBACK_LIST;
       chipsHtml = mList
@@ -1264,20 +1373,34 @@
           );
         })
         .join("");
-      detailsHtml = "";
       actionHtml =
         '<button type="button" class="geo-cta-360 geo-cta-3d" data-go-mun="itajai">🏔️ Itajaí 3D (2× · 35 bairros)</button>' +
         '<button type="button" class="geo-mini-btn" style="margin-top:6px;width:100%" data-go-mun="itapema">🏝️ Itapema 3D (SEPLAN · 12 bairros)</button>';
     } else {
-      chipsHtml = r.highlights.map((h) => '<span class="chip">' + h + "</span>").join("");
-      if (is360) {
-        actionHtml =
-          '<button type="button" class="geo-cta-360" data-go360>🌐 Ir ao Rio da Luz · Foto 360°</button>' +
-          '<div class="geo-progress"><i></i></div>';
-      }
+      chipsHtml = r.highlights.map((h) => {
+        if (dest && dest.chipMatch && dest.chipMatch.test(h)) {
+          return '<button type="button" class="chip chip-360" data-go360="1" title="Clique para viajar até ' + dest.data.name + ' em 360°">' + dest.chipLabel + "</button>";
+        }
+        if (munSlugs && munSlugs[h]) {
+          return '<button type="button" class="chip chip-route" data-route-filter="' + munSlugs[h] + '" title="Abrir rotas e trilhas de ' + h + ' no satélite">' + h + " 🗺️</button>";
+        }
+        return '<span class="chip">' + h + "</span>";
+      }).join("");
+      const munsBodyHtml = munSlugs
+        ? '<div class="mun-pills">' + r.municipios.map((m) => {
+            const slug = munSlugs[m];
+            return slug
+              ? '<button type="button" class="mun-pill" data-route-filter="' + slug + '" title="Ver rotas e trilhas de ' + m + '">' + m + " 🗺️</button>"
+              : '<span class="mun-pill">' + m + "</span>";
+          }).join("") + "</div>"
+        : "<p>" + r.municipios.join(", ") + "</p>";
+      detailsHtml = "<details" + (munSlugs ? " open" : "") + "><summary>" + r.municipios.length + " municípios" + (munSlugs ? " · clique para abrir a rota" : "") + "</summary>" + munsBodyHtml + "</details>";
+      actionHtml = dest
+        ? '<button type="button" class="geo-cta-360" data-go360="1">' + dest.ctaLabel + "</button>" +
+          (dest.routesCtaLabel ? '<button type="button" class="geo-cta-routes" data-route-filter="all">' + dest.routesCtaLabel + "</button>" : "") +
+          '<div class="geo-progress"><i></i></div>'
+        : '<span class="geo-soon">📷 Fotos 360° desta região em breve</span>';
     }
-
-    card.style.setProperty("--c", r.color);
     card.innerHTML =
       '<div class="geo-card-bar"></div><div class="geo-card-body">' +
       '<button type="button" class="geo-card-close" title="Fechar e voltar à visão geral">✕</button>' +
@@ -1292,14 +1415,28 @@
     void card.offsetWidth;
     card.style.animation = "";
     card.querySelector(".geo-card-close").addEventListener("click", goOverview);
-    const cta = card.querySelector("[data-go360]");
-    if (cta) cta.addEventListener("click", () => goToRioDaLuz(true));
-    card.querySelectorAll("[data-mun-id], [data-go-mun]").forEach((el) => {
-      const mid = el.getAttribute("data-mun-id") || el.getAttribute("data-go-mun");
-      el.addEventListener("mouseenter", () => { if (isCvm) setCvmHover(mid); });
-      el.addEventListener("mouseleave", () => { if (isCvm && cvmState.hoverId === mid) setCvmHover(null); });
-      el.addEventListener("click", () => enterMunMode(mid));
-    });
+    if (isCvm) {
+      card.querySelectorAll("[data-mun-id], [data-go-mun]").forEach((el) => {
+        const mid = el.getAttribute("data-mun-id") || el.getAttribute("data-go-mun");
+        el.addEventListener("mouseenter", () => setCvmHover(mid));
+        el.addEventListener("mouseleave", () => { if (cvmState.hoverId === mid) setCvmHover(null); });
+        el.addEventListener("click", () => enterMunMode(mid));
+      });
+    }
+    if (dest) {
+      card.querySelectorAll("[data-go360]").forEach((btn) => {
+        btn.addEventListener("click", () => goToTour(dest.key, true));
+      });
+      card.querySelectorAll("[data-route-filter]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const filter = btn.getAttribute("data-route-filter") || "all";
+          const sep = dest.data.tourUrl.indexOf("?") === -1 ? "?" : "&";
+          const routeUrl = dest.data.tourUrl + sep + "action=scmap&filter=" + encodeURIComponent(filter) + "&expand=1";
+          toast("🗺️ Abrindo rotas de " + (filter === "all" ? "todos os 15 municípios" : btn.textContent.replace(" 🗺️", "").trim()) + "…", 1800);
+          open360(dest, routeUrl);
+        });
+      });
+    }
     state.viewOffTarget = window.innerWidth > 820 ? 195 : 0;
     requestRender();
   }
@@ -1368,20 +1505,22 @@
     hideHint();
     const regRad = id === "costa_verde_mar" ? 0.165 : Math.max(r.radius, 0.24);
     const v = viewFor(r.center, regRad, 46, 0);
-    if (is360Region(id)) {
+    if (isAuto360Region(id)) {
       flyTo(v.pos, v.target, 1150, () => {
-        if (!opts.noSequence) goToRioDaLuz(false);
+        if (!opts.noSequence) goToTour("rioDaLuz", false);
       });
     } else {
       flyTo(v.pos, v.target, 1150);
     }
   }
 
-  /** Zoom até o Vale Tombado do Rio da Luz e entrada na foto 360°. */
-  function goToRioDaLuz(fromClick) {
-    if (!has360Action(state.selectedId)) {
-      setSelected("vale_dos_encantos");
-      showCard(state.byId.vale_dos_encantos);
+  /** Zoom suave até o atrativo 360° (Rio da Luz ou Timbé do Sul) e entrada no tour. */
+  function goToTour(destKey, fromClick) {
+    const dest = TOUR_DESTS[destKey] || TOUR_DESTS.rioDaLuz;
+    if (!dest) return;
+    if (dest.regions.indexOf(state.selectedId) === -1 && state.byId[dest.defaultRegion]) {
+      setSelected(dest.defaultRegion);
+      showCard(state.byId[dest.defaultRegion]);
     }
     cancelSequence();
     state.seqActive = true;
@@ -1389,19 +1528,28 @@
     const flight = 1450;
     const pause = 450;
     setProgress(wait + flight + pause);
-    toast("✈️ Voando até o Vale do Rio da Luz…", wait + flight);
+    toast(dest.toastFlight, wait + flight);
     later(() => {
-      const v = viewFor(state.rioWorld, 0.14, 43, 0.14);
+      const targetWorld = dest.world || state.rioWorld;
+      const v = viewFor(targetWorld, 0.14, 43, 0.14);
       flyTo(v.pos, v.target, flight, () => {
         if (!state.seqActive) return;
-        toast("🌐 Entrando na foto 360°…", pause + 400);
+        toast(dest.toastEnter, pause + 400);
         later(() => {
           state.seqActive = false;
           setProgress(0);
-          open360();
+          open360(dest);
         }, pause);
       });
     }, wait);
+  }
+
+  function goToRioDaLuz(fromClick) {
+    goToTour("rioDaLuz", fromClick);
+  }
+
+  function goToTimbeDoSul(fromClick) {
+    goToTour("timbeDoSul", fromClick);
   }
 
   function goOverview() {
@@ -2396,21 +2544,29 @@
   // --------------------------------------------------------------------------
   const overlay = $("tour360Overlay");
   const backBtn = $("btnBackToMap");
+  const loadingTextEl = $("tour360LoadingText");
   let iframe = null;
   let unloadTimer = null;
 
-  function ensureIframe(url, title) {
+  function ensureIframe(dest, urlOverride) {
     clearTimeout(unloadTimer);
-    const targetUrl = url || DATA.rioDaLuz.tourUrl;
+    dest = dest || TOUR_DESTS.rioDaLuz;
+    const targetUrl = urlOverride || dest.data.tourUrl;
+    if (loadingTextEl) loadingTextEl.textContent = urlOverride ? "Carregando mapa satélite & rotas dos Cânions…" : dest.loadingMsg;
     if (iframe) {
-      if (iframe.getAttribute("data-src-url") === targetUrl) return iframe;
-      iframe.src = "about:blank";
-      iframe.remove();
-      iframe = null;
+      if (iframe.dataset.destKey !== dest.key || iframe.dataset.currentUrl !== targetUrl) {
+        iframe.classList.remove("is-ready");
+        iframe.title = dest.overlayTitle;
+        iframe.dataset.destKey = dest.key;
+        iframe.dataset.currentUrl = targetUrl;
+        iframe.src = targetUrl;
+      }
+      return iframe;
     }
     iframe = document.createElement("iframe");
-    iframe.setAttribute("data-src-url", targetUrl);
-    iframe.title = title || "Foto 360° — Vale Tombado do Rio da Luz";
+    iframe.title = dest.overlayTitle;
+    iframe.dataset.destKey = dest.key;
+    iframe.dataset.currentUrl = targetUrl;
     iframe.allow = "fullscreen; gyroscope; accelerometer; xr-spatial-tracking";
     iframe.setAttribute("allowfullscreen", "");
     iframe.addEventListener("load", () => iframe && iframe.classList.add("is-ready"));
@@ -2419,10 +2575,11 @@
     return iframe;
   }
 
-  function openOverlay(url, title) {
+  function open360(dest, urlOverride) {
+    dest = typeof dest === "string" ? (TOUR_DESTS[dest] || TOUR_DESTS.rioDaLuz) : (dest || TOUR_DESTS.rioDaLuz);
     cancelSequence();
-    ensureIframe(url, title);
-    const p = !itajaiState.active && state.rioWorld ? placeEl(pinEl, state.rioWorld) : { x: state.w / 2, y: state.h / 2 };
+    ensureIframe(dest, urlOverride);
+    const p = !itajaiState.active && dest.world && dest.pinEl ? placeEl(dest.pinEl, dest.world) : { x: state.w / 2, y: state.h / 2 };
     overlay.style.setProperty("--ox", p.x + "px");
     overlay.style.setProperty("--oy", p.y + "px");
     overlay.classList.add("is-open");
@@ -2432,13 +2589,9 @@
     }, 1150);
     if (!itajaiState.active) {
       try {
-        history.replaceState(null, "", "#rio-da-luz-360");
+        history.replaceState(null, "", dest.hash || "#rio-da-luz-360");
       } catch (e) { /* file:// em alguns navegadores */ }
     }
-  }
-
-  function open360() {
-    openOverlay(DATA.rioDaLuz.tourUrl, "Foto 360° — Vale Tombado do Rio da Luz");
   }
 
   function close360() {
@@ -2586,7 +2739,7 @@
     hintEl.classList.add("is-hidden");
   }
 
-  // Deep link: ?regiao=costa_verde_mar | ?municipio=itajai|itapema | #itajai-3d | #rio-da-luz-360
+  // Deep link: ?regiao=... | ?municipio=itajai|itapema|timbe_do_sul | #itajai-3d | #itapema-3d | #rio-da-luz-360 | #timbe-do-sul-360
   function handleDeepLink() {
     const params = new URLSearchParams(location.search);
     const reg = params.get("regiao");
@@ -2595,10 +2748,12 @@
       setTimeout(() => enterMunMode("itajai"), 1500);
     } else if (location.hash === "#itapema-3d") {
       setTimeout(() => enterMunMode("itapema"), 1500);
+    } else if (location.hash === "#timbe-do-sul-360" || mun === "timbe_do_sul" || mun === "timbe-do-sul") {
+      setTimeout(() => goToTour("timbeDoSul", true), 1500);
     } else if (mun) {
       setTimeout(() => enterMunMode(mun), 1500);
     } else if (location.hash === "#rio-da-luz-360") {
-      setTimeout(() => goToRioDaLuz(true), 1500);
+      setTimeout(() => goToTour("rioDaLuz", true), 1500);
     } else if (reg && state.byId[reg]) {
       setTimeout(() => selectRegion(reg, { noSequence: params.get("auto360") === "0" }), 1500);
     }
@@ -2714,5 +2869,5 @@
   resize();
 
   // API para depuração / integração
-  window.GeoturismoSC = { selectRegion, goOverview, goToRioDaLuz, enterMunMode, enterItajaiMode, exitItajaiMode, setIsolatedMode, selectBairro, open360, close360, requestRender, state, itajaiState, cvmState };
+  window.GeoturismoSC = { selectRegion, goOverview, goToRioDaLuz, goToTimbeDoSul, goToTour, enterMunMode, enterItajaiMode, exitItajaiMode, setIsolatedMode, selectBairro, open360, close360, requestRender, state, itajaiState, cvmState };
 })();

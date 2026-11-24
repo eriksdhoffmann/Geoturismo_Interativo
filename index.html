@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Geoturismo SC — Mapa 3D das Regiões Turísticas de Santa Catarina</title>
+  <link rel="icon" href="data:," />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Merriweather:wght@700;900&display=swap" rel="stylesheet" />
@@ -71,9 +72,9 @@
     <p>Carregando o relevo 3D de Santa Catarina…</p>
   </div>
 
-  <!-- Overlay da Foto 360° (abre o passeio virtual existente) -->
+  <!-- Overlay da Foto 360° (abre o passeio virtual correspondente) -->
   <div id="tour360Overlay" class="tour360-overlay" aria-hidden="true">
-    <div class="tour360-loading"><div class="geo-spinner light"></div><p>Abrindo a foto 360° do Vale do Rio da Luz…</p></div>
+    <div class="tour360-loading"><div class="geo-spinner light"></div><p id="tour360LoadingText">Abrindo a foto 360°…</p></div>
     <button type="button" id="btnBackToMap" class="tour360-back">← Voltar ao mapa de SC</button>
   </div>
 

@@ -763,9 +763,10 @@
       ctx.stroke();
 
       // Barra superior com nome da cena atual
+      const tourName = (window.TOUR_SC_DATA && window.TOUR_SC_DATA.tourShortName) || "Vale do Rio da Luz";
       const bannerText = (performance.now() < vr.toastUntil && vr.toastText)
         ? vr.toastText
-        : `Vale do Rio da Luz (RV Quest 3) • ${sc.placeMenuTitle || sc.shortTitle || ""}`;
+        : `${tourName} (RV Quest 3) • ${sc.placeMenuTitle || sc.shortTitle || ""}`;
       roundRect(ctx, 210, 4, W - 420, 38, 19);
       ctx.fillStyle = performance.now() < vr.toastUntil ? "#0b5d3b" : "rgba(15, 23, 42, 0.92)";
       ctx.fill();
@@ -778,11 +779,14 @@
       ctx.textBaseline = "middle";
       ctx.fillText(bannerText.slice(0, 68), W * 0.5, 24);
 
+      const rDataDock = window.ROTA_LUMIAR_DATA || { points: [] };
+      const hasRotaDock = rDataDock.points && rDataDock.points.length > 5;
+      const hasGlbDock = !window.TOUR_SC_DATA || window.TOUR_SC_DATA.hasGLB !== false;
       const btns = [
         { id: "dock_scenes", icon: "🌐", label: "Cenas 360°", active: vr.openPanel === "scenes", act: { type: "togglePanel", panel: "scenes" } },
-        { id: "dock_rota", icon: "🗺️", label: "Rota Lumiar (26)", active: vr.openPanel === "rota", act: { type: "togglePanel", panel: "rota" } },
+        ...(hasRotaDock ? [{ id: "dock_rota", icon: "🗺️", label: "Rota Lumiar (26)", active: vr.openPanel === "rota", act: { type: "togglePanel", panel: "rota" } }] : []),
         { id: "dock_sat", icon: "🛰️", label: "Mapa Satélite", active: vr.openPanel === "satellite", act: { type: "togglePanel", panel: "satellite" } },
-        { id: "dock_glb", icon: "🧊", label: "Maquete 3D GLB", active: vr.openPanel === "glb", act: { type: "openGLB" } },
+        ...(hasGlbDock ? [{ id: "dock_glb", icon: "🧊", label: "Maquete 3D GLB", active: vr.openPanel === "glb", act: { type: "openGLB" } }] : []),
         { id: "dock_recenter", icon: "↺", label: "Centralizar", active: false, act: { type: "recenter" } },
         { id: "dock_exit", icon: "✕", label: "Sair do RV", danger: true, active: false, act: { type: "exitVR" } }
       ];
@@ -838,7 +842,8 @@
       ctx.font = "900 30px Inter, sans-serif";
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
-      ctx.fillText("🌐 Escolher Ponto Aéreo 360° — Rio da Luz", 40, 56);
+      const shortLabel = (window.TOUR_SC_DATA && window.TOUR_SC_DATA.tourShortName) || "Rio da Luz";
+      ctx.fillText(`🌐 Escolher Ponto Aéreo 360° — ${shortLabel}`, 40, 56);
 
       // Botão Fechar
       const closeHover = vr.hoverId === "sc_close";
@@ -902,7 +907,8 @@
   function buildInfoPanel() {
     const hs = vr.activeInfoHotspot;
     if (!hs) return null;
-    const imgSrc = hs.image || "assets/fotos/riodaluz/static_vale_tombado.jpg";
+    const curSceneInfo = window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes && window.TOUR_SC_DATA.scenes[vr.sceneId];
+    const imgSrc = hs.image || (curSceneInfo && curSceneInfo.staticPhoto) || "assets/fotos/riodaluz/static_vale_tombado.jpg";
     const loadedReady = Boolean(vr.photoCache[imgSrc]?.ready);
     const sig = `${hs.id}|${vr.infoScrollLine}|${vr.hoverId}|${loadedReady}`;
 
@@ -948,7 +954,7 @@
         ctx.fillStyle = "#475569";
         ctx.font = "700 17px Inter, sans-serif";
         ctx.textAlign = "left";
-        ctx.fillText(hs.imageCaption || "Acervo Patrimonial Rio da Luz (IPHAN)", 34, 646);
+        ctx.fillText(hs.imageCaption || (window.TOUR_SC_DATA && window.TOUR_SC_DATA.tourTitle) || "Acervo Patrimonial Rio da Luz (IPHAN)", 34, 646);
       }
 
       // Botão Fechar
@@ -1313,7 +1319,7 @@
       ctx.textAlign = "left";
       ctx.textBaseline = "middle";
       ctx.font = "900 28px Inter, sans-serif";
-      ctx.fillText("🛰️ Mapa do Vale Tombado & Pontos Clicáveis (RV Quest 3)", 36, 52);
+      ctx.fillText(`🛰️ ${rData.title || "Mapa do Vale Tombado & Pontos Clicáveis"} (RV Quest 3)`, 36, 52);
 
       const closeHov = vr.hoverId === "sat_close";
       roundRect(ctx, W - 138, 28, 102, 46, 12);
@@ -1445,12 +1451,13 @@
       });
 
       // Rótulos regionais no mapa
+      const regLabels = rData.regionLabels || {};
       ctx.fillStyle = "rgba(255,255,255,0.72)";
       ctx.font = "800 14px Inter, sans-serif";
       ctx.textAlign = "left";
-      ctx.fillText("RIO DA LUZ (Jaraguá do Sul)", mapX + 20, mapY + 28);
+      ctx.fillText(regLabels.primary || "RIO DA LUZ (Jaraguá do Sul)", mapX + 20, mapY + 28);
       ctx.textAlign = "right";
-      ctx.fillText("TESTO ALTO (Pomerode)", mapX + mapW - 20, mapY + mapH - 22);
+      ctx.fillText(regLabels.secondary || "TESTO ALTO (Pomerode)", mapX + mapW - 20, mapY + mapH - 22);
       ctx.restore();
 
       // Sidebar direita: Cenas rápidas + Ponto selecionado

@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Timbé do Sul 360° — Poço do Violão &amp; Cachoeira da Cortina | Geoturismo SC</title>
+  <link rel="icon" href="data:," />
+
+  <!-- Fontes Tipográficas (Com fallback nativo caso esteja offline) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Merriweather:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet" />
+
+  <!-- Leaflet CSS/JS para o Mapa Interativo de Timbé do Sul (com fallback offline automático) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Estilos do Tour Virtual 360° -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- ========================================================================
+       1. VIEWPORT ESFÉRICO 360° (WEBGL + CAMADA DE RÓTULOS 3D + CAMADA DE HOTSPOTS)
+       ======================================================================== -->
+  <main id="panoViewport" aria-label="Visualizador Panorâmico 360 Graus — Timbé do Sul">
+    <canvas id="panoCanvas"></canvas>
+    <div id="labels3DContainer"></div>
+    <div id="hotspotsContainer"></div>
+  </main>
+
+  <!-- ========================================================================
+       3. ÍCONE LIMPO GOOGLE MAPS (CANTO SUPERIOR ESQUERDO)
+       ======================================================================== -->
+  <div id="googleMapsWidgetShell" class="gmaps-floating-shell ui-layer">
+    <button type="button" id="btnOpenSCMap" class="gmaps-icon-btn"
+      aria-label="Abrir Google Satélite com radar de visão em Timbé do Sul"
+      title="Abrir Google Satélite (Poço do Violão &amp; Cachoeira da Cortina)">
+      <svg viewBox="0 0 64 64" width="52" height="52" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <clipPath id="gmapsTileClipClean">
+            <rect x="4" y="10" width="46" height="46" rx="6" />
+          </clipPath>
+        </defs>
+        <g clip-path="url(#gmapsTileClipClean)">
+          <rect x="4" y="10" width="46" height="46" fill="#1CA261" />
+          <polygon points="4,56 50,10 50,56" fill="#E2E8F0" />
+          <polygon points="4,56 50,56 27,33" fill="#4285F4" />
+          <line x1="25" y1="31" x2="52" y2="58" stroke="#FFFFFF" stroke-width="6" />
+          <line x1="2" y1="58" x2="52" y2="8" stroke="#FACC15" stroke-width="6.5" />
+          <path d="M 25.4 19.6 A 8.4 8.4 0 1 0 27.3 23.7 L 19.0 23.7 L 19.0 26.8 L 23.7 26.8 A 5.0 5.0 0 1 1 22.8 21.8 Z" fill="#FFFFFF" />
+        </g>
+        <path d="M46 4C38.2 4 32 10.2 32 18c0 9.6 12.1 22.8 13.1 23.8.5.5 1.3.5 1.8 0C47.9 40.8 60 27.6 60 18 60 10.2 53.8 4 46 4z" fill="#EA4335" />
+        <circle cx="46" cy="18" r="5.2" fill="#801A14" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- Botão para retornar ao Mapa 3D de SC quando aberto fora do iframe -->
+  <a id="btnStandaloneBackToSCMap" href="index.html"
+    style="display:none;position:fixed;top:16px;right:16px;z-index:50;background:rgba(255,255,255,0.95);color:#0f172a;text-decoration:none;border-radius:999px;padding:10px 16px;font:800 13.5px/1 'Inter',system-ui,sans-serif;box-shadow:0 10px 24px rgba(0,0,0,0.35);"
+    title="Voltar ao Mapa 3D das Regiões Turísticas de Santa Catarina">← Mapa 3D de SC</a>
+  <script>if (window.self === window.top) { document.getElementById("btnStandaloneBackToSCMap").style.display = "inline-flex"; }</script>
+
+  <!-- ========================================================================
+       5. BARRA INFERIOR DE CONTROLES (MINIMALISTA: ▦ + ⛶ + ▶ + VR)
+       ======================================================================== -->
+  <footer class="bottom-center-dock ui-layer" role="toolbar" aria-label="Controles do Passeio Virtual">
+    <button type="button" id="btnOpenScenesGrid" class="dock-btn dock-btn-grid" title="Escolher Lugar 360° (Poço do Violão, Cachoeira da Cortina)">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+        <rect x="3" y="3" width="4.8" height="4.8" rx="0.8" />
+        <rect x="9.6" y="3" width="4.8" height="4.8" rx="0.8" />
+        <rect x="16.2" y="3" width="4.8" height="4.8" rx="0.8" />
+        <rect x="3" y="9.6" width="4.8" height="4.8" rx="0.8" />
+        <rect x="9.6" y="9.6" width="4.8" height="4.8" rx="0.8" />
+        <rect x="16.2" y="9.6" width="4.8" height="4.8" rx="0.8" />
+        <rect x="3" y="16.2" width="4.8" height="4.8" rx="0.8" />
+        <rect x="9.6" y="16.2" width="4.8" height="4.8" rx="0.8" />
+        <rect x="16.2" y="16.2" width="4.8" height="4.8" rx="0.8" />
+      </svg>
+    </button>
+    <button type="button" id="btnFullscreen" class="dock-btn" title="Alternar Tela Cheia">
+      ⛶
+    </button>
+    <button type="button" id="btnAutoRotate" class="dock-btn" title="Iniciar/Pausar Giro Automático 360°">
+      ▶
+    </button>
+    <button type="button" id="btnEnterVR" class="dock-btn dock-btn-vr"
+      aria-label="Entrar em Realidade Virtual (Meta Quest 3 / WebXR)"
+      title="Entrar em Realidade Virtual — Meta Quest 3 / WebXR">
+      <svg viewBox="0 0 24 18" width="22" height="17" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M3 2h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4.7a1.5 1.5 0 0 1-1.2-.6l-1.9-2.4a1.5 1.5 0 0 0-2.4 0l-1.9 2.4a1.5 1.5 0 0 1-1.2.6H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm4.6 4.5a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6zm8.8 0a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" />
+      </svg>
+    </button>
+  </footer>
+
+  <!-- ========================================================================
+       6. POP-UP SPLIT-VIEW (FOTO ANOTADA + TEXTO EDITORIAL)
+       ======================================================================== -->
+  <div id="splitModalBackdrop" class="split-modal-backdrop" role="dialog" aria-modal="true">
+    <div class="split-modal-window">
+      <div id="modalLeftMedia" class="modal-left-media"></div>
+      <div id="modalRightEditorial" class="modal-right-editorial"></div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       7. PAINEL DO MODO CRIADOR / EDITOR INTERATIVO 360°
+       ======================================================================== -->
+  <aside id="editorSidePanel" class="editor-side-panel ui-layer">
+    <div class="editor-panel-title">🛠️ Estúdio Criador 360° (Pitch &amp; Yaw)</div>
+    <p class="editor-panel-help">
+      <strong>Como usar:</strong> Clique em qualquer ponto da foto 360° para capturar automaticamente suas coordenadas esféricas (<em>Pitch</em> e <em>Yaw</em>) e criar um novo ponto clicável!
+    </p>
+
+    <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.25);">
+      <label class="ed-label" for="edUploadPanoInput">📷 Testar sua própria Foto 360° (.jpg/.png):</label>
+      <input type="file" id="edUploadPanoInput" accept="image/*" class="ed-input" style="margin-bottom:0;" />
+    </div>
+
+    <form id="formAddHotspot">
+      <div class="ed-field-row">
+        <div>
+          <label class="ed-label" for="edPitch">Pitch (Vertical °)</label>
+          <input type="number" step="0.1" id="edPitch" class="ed-input" value="-10.0" required />
+        </div>
+        <div>
+          <label class="ed-label" for="edYaw">Yaw (Horizontal °)</label>
+          <input type="number" step="0.1" id="edYaw" class="ed-input" value="15.0" required />
+        </div>
+      </div>
+
+      <label class="ed-label" for="edHotspotType">Tipo de Ação ao Clicar</label>
+      <select id="edHotspotType" class="ed-select">
+        <option value="info">📖 Abrir Pop-up com Foto &amp; Informações</option>
+        <option value="3d">🧊 Abrir Modelo 3D Externo (Sketchfab / Iframe)</option>
+        <option value="scene">🌐 Viajar para outra Foto 360°</option>
+      </select>
+
+      <label class="ed-label" for="edTitle">Título do Ponto Turístico / Geossítio</label>
+      <input type="text" id="edTitle" class="ed-input" placeholder="Ex: Poço do Violão ou Serra Geral" required />
+
+      <div id="edGroupInfo">
+        <label class="ed-label" for="edSubtitleLead">Destaque Verde (Subtítulo)</label>
+        <input type="text" id="edSubtitleLead" class="ed-input" placeholder="Resumo em destaque verde..." />
+
+        <label class="ed-label" for="edParagraph">Texto Explicativo</label>
+        <textarea id="edParagraph" rows="2" class="ed-textarea" placeholder="Explicação detalhada do local..."></textarea>
+
+        <label class="ed-label" for="edDidYouKnow">Quadro Amarelo "Você sabia?"</label>
+        <input type="text" id="edDidYouKnow" class="ed-input" placeholder="Curiosidade fascinante sobre o lugar..." />
+
+        <label class="ed-label" for="edImageUrl">URL ou Caminho da Foto do Pop-up</label>
+        <input type="text" id="edImageUrl" class="ed-input" placeholder="assets/fotos/timbe/static_poco_violao.jpg" />
+      </div>
+
+      <div id="edGroup3D" style="display: none;">
+        <label class="ed-label" for="ed3DUrl">Link do Modelo 3D (Sketchfab / Embed URL)</label>
+        <input type="text" id="ed3DUrl" class="ed-input" placeholder="https://sketchfab.com/models/UID/embed" />
+
+        <label class="ed-label" for="ed3DLead">Destaque Verde</label>
+        <input type="text" id="ed3DLead" class="ed-input" placeholder="Explore a maquete 3D interativa ao lado..." />
+
+        <label class="ed-label" for="ed3DDesc">Descrição do Modelo 3D</label>
+        <textarea id="ed3DDesc" rows="2" class="ed-textarea" placeholder="Detalhes sobre o relevo ou monumento 3D..."></textarea>
+      </div>
+
+      <div id="edGroupScene" style="display: none;">
+        <label class="ed-label" for="edTargetScene">Foto 360° de Destino</label>
+        <select id="edTargetScene" class="ed-select"></select>
+      </div>
+
+      <button type="submit" class="ed-btn-primary">➕ Adicionar Ponto Clicável na Esfera 360°</button>
+    </form>
+
+    <label class="ed-label" for="edExportJsonTextarea">Código JSON dos Hotspots desta Cena (para salvar em dados-timbe.js):</label>
+    <textarea id="edExportJsonTextarea" rows="4" class="ed-textarea" readonly style="font-family: monospace; font-size: 11px;"></textarea>
+    <button type="button" id="btnCopyExportJson" class="ed-btn-secondary">📋 Gerar &amp; Copiar Código JSON da Cena</button>
+  </aside>
+
+  <!-- ========================================================================
+       8. MODAL: ÍNDICE DE PANORAMAS 360° — TIMBÉ DO SUL
+       ======================================================================== -->
+  <div id="scenesGridModal" class="aux-drawer-modal ui-layer">
+    <div class="aux-modal-card">
+      <div class="aux-modal-header">
+        <h3>▦ Escolher Lugar 360° — Timbé do Sul (SC)</h3>
+        <button type="button" class="aux-close-btn" data-close-drawer="scenesGridModal">✕</button>
+      </div>
+      <div class="aux-modal-body">
+        <div id="scenesGridContainer" class="scenes-grid-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       9. MODAL: GOOGLE MAPS SATÉLITE (CONE DE VISÃO + PONTOS DE TIMBÉ DO SUL)
+       ======================================================================== -->
+  <div id="scMapModal" class="aux-drawer-modal ui-layer">
+    <div class="aux-modal-card" style="width: min(1220px, 96vw);">
+      <div class="aux-modal-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+          <svg viewBox="0 0 64 64" width="20" height="20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M32 6C20.4 6 11 15.4 11 27c0 6.1 2.7 11.7 7 15.6L32 58l14-15.4c4.3-3.9 7-9.5 7-15.6C53 15.4 43.6 6 32 6z" fill="#EA4335"/>
+            <path d="M32 6C20.4 6 11 15.4 11 27c0 3.7 1 7.2 2.7 10.2l18.3-22V6z" fill="#4285F4"/>
+            <path d="M13.7 37.2c1.2 2 2.7 3.9 4.3 5.4L32 58V35.2l-18.3 2z" fill="#FBBC04"/>
+            <path d="M32 35.2V58l14-15.4c1.6-1.5 3.1-3.3 4.3-5.4L32 15.2v20z" fill="#34A853"/>
+            <circle cx="32" cy="26" r="8.2" fill="#FFFFFF"/>
+          </svg>
+          <span>Google Satélite Ao Vivo — Rotas do Caminho dos Cânions (15 Municípios)</span>
+        </h3>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button type="button" id="btnToggleScMapExpand" class="sc-quick-btn" title="Alternar entre tela dividida ao vivo e tela cheia">
+            ⤢ Expandir Lista (56)
+          </button>
+          <button type="button" class="aux-close-btn" data-close-drawer="scMapModal">✕</button>
+        </div>
+      </div>
+      <div class="aux-modal-body sc-map-modal-body">
+        <div id="scMapQuickBar" class="sc-map-quick-bar" aria-label="Filtrar rotas por município do Caminho dos Cânions">
+          <button type="button" class="sc-quick-btn sc-filter-btn active" data-map-filter="pano360">🧭 Radar 360° (2)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="all">🎯 Todos (56 Pontos)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="timbe_do_sul">🎸 Timbé do Sul (11)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="morro_grande">🏞️ Morro Grande (9)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="praia_grande">🎈 Praia Grande (4)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="jacinto_machado">🥾 Jacinto Machado (4)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="ararangua">🌊 Araranguá (3)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="arroio_do_silva">🎣 Arroio do Silva (3)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="balneario_gaivota">🌴 Baln. Gaivota (3)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="sombrio">⛪ Sombrio (3)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="passo_de_torres">🌉 Passo de Torres (2)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="maracaja">🐒 Maracajá (2)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="meleiro">🍷 Meleiro (2)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="turvo">🌾 Turvo (3)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="ermo">🌿 Ermo (2)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="santa_rosa_do_sul">💧 Santa Rosa do Sul (2)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="sao_joao_do_sul">🍓 São João do Sul (3)</button>
+        </div>
+        <div class="sc-map-split">
+          <div id="leafletSCMap" class="sc-map-canvas"></div>
+          <aside id="scMapPointsSidebar" class="sc-map-sidebar" aria-label="Rotas e Atrativos do Caminho dos Cânions"></aside>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       10. OVERLAY DE TRANSIÇÃO DE VOO ENTRE FOTOS 360°
+       ======================================================================== -->
+  <div id="sceneTransitionOverlay" class="scene-transition-overlay">
+    <div class="transition-banner" id="transitionTextLabel">Viajando para próxima foto 360°...</div>
+  </div>
+
+  <!-- ========================================================================
+       11. STAGE DE REALIDADE VIRTUAL (META QUEST 3 WEBXR + SIMULADOR ESTÉREO)
+       ======================================================================== -->
+  <div id="vrOverlayStage" class="vr-overlay-stage" role="dialog" aria-label="Realidade Virtual Meta Quest 3">
+    <canvas id="vrWebGLCanvas" class="vr-webgl-canvas"></canvas>
+    <div id="vrSimBanner" class="vr-sim-banner">
+      <div class="vr-sim-badge">
+        <strong>🥽 Modo RV (Meta Quest 3 / WebXR)</strong>
+        <span>Arraste para olhar • Clique nos pontos 360° e no Mapa Satélite de Timbé do Sul</span>
+      </div>
+      <div class="vr-sim-actions">
+        <button type="button" id="btnVrSimToggleStereo" class="vr-sim-btn">👁️ Lentes Estéreo (ON)</button>
+        <button type="button" id="btnVrSimRecenter" class="vr-sim-btn">↺ Centralizar</button>
+        <button type="button" id="btnVrSimExit" class="vr-sim-btn vr-sim-exit">✕ Sair do RV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       SCRIPTS DA APLICAÇÃO
+       ======================================================================== -->
+  <script src="js/timbe-panos-b64.js"></script>
+  <script src="js/canions-rotas-data.js"></script>
+  <script src="js/canions-road-path.js"></script>
+  <script src="js/dados-timbe.js"></script>
+  <script src="js/glb-viewer.js"></script>
+  <script src="js/panorama-generator.js"></script>
+  <script src="js/engine360.js"></script>
+  <script src="js/vr-quest-engine.js"></script>
+  <script>
+    window.addEventListener("load", () => {
+      const params = new URLSearchParams(window.location.search);
+      const sceneParam = params.get("scene");
+      const action = params.get("action");
+      const filterParam = params.get("filter");
+      const expandParam = params.get("expand");
+      if (!sceneParam && !action && !filterParam) return;
+      setTimeout(() => {
+        if (sceneParam && window.GeoSC360 && typeof window.GeoSC360.goToScene === "function") {
+          window.GeoSC360.goToScene(sceneParam, false);
+        }
+        const pitchParam = params.get("pitch");
+        const yawParam = params.get("yaw");
+        setTimeout(() => {
+          if ((pitchParam !== null || yawParam !== null) && window.GeoSC360 && typeof window.GeoSC360.setView === "function") {
+            window.GeoSC360.setView(
+              pitchParam !== null ? Number(pitchParam) : undefined,
+              yawParam !== null ? Number(yawParam) : undefined
+            );
+          }
+          if (action === "scmap") {
+            const btn = document.getElementById("btnOpenSCMap");
+            if (btn) btn.click();
+            setTimeout(() => {
+              if (expandParam !== "0") {
+                const expBtn = document.getElementById("btnToggleScMapExpand");
+                const modalEl = document.getElementById("scMapModal");
+                if (expBtn && modalEl && modalEl.classList.contains("split-mode")) {
+                  expBtn.click();
+                }
+              }
+              if (filterParam) {
+                const fBtn = document.querySelector(`#scMapQuickBar .sc-filter-btn[data-map-filter="${filterParam}"]`);
+                if (fBtn) {
+                  fBtn.click();
+                  fBtn.scrollIntoView({ inline: "center", block: "nearest" });
+                }
+              }
+            }, 350);
+          } else if (action === "travel" && window.GeoSC360) {
+            window.GeoSC360.goToScene(params.get("to") || "cachoeira_cortina", true);
+          } else if (action === "editor") {
+            const btn = document.getElementById("btnToggleEditor");
+            if (btn) btn.click();
+          } else if (action === "vr" && window.GeoSCVR) {
+            window.GeoSCVR.enter();
+          }
+        }, sceneParam ? 500 : 0);
+      }, 900);
+    });
+  </script>
+</body>
+</html>
