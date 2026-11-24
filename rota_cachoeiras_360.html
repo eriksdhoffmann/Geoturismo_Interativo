@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Rota das Cachoeiras 360° — Geotrilhas no Satélite | Morro Grande &amp; Timbé do Sul</title>
+  <link rel="icon" href="data:," />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Merriweather:ital,wght@0,700;0,900;1,700&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body class="theme-cachoeiras">
+
+  <!-- 1. VIEWPORT ESFÉRICO 360° -->
+  <main id="panoViewport" aria-label="Visualizador Panorâmico 360 Graus — Rota das Cachoeiras">
+    <canvas id="panoCanvas"></canvas>
+    <div id="labels3DContainer"></div>
+    <div id="hotspotsContainer"></div>
+  </main>
+
+  <!-- 2. ÍCONE GOOGLE MAPS SATÉLITE (CANTO SUPERIOR ESQUERDO) -->
+  <div id="googleMapsWidgetShell" class="gmaps-floating-shell ui-layer">
+    <button type="button" id="btnOpenSCMap" class="gmaps-icon-btn"
+      aria-label="Abrir Google Satélite com as 5 Rotas das Cachoeiras"
+      title="Abrir Google Satélite (Radar 360° + 5 Georroteiros de Cachoeiras)">
+      <svg viewBox="0 0 64 64" width="52" height="52" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <defs>
+          <clipPath id="gmapsTileClipCach">
+            <rect x="4" y="10" width="46" height="46" rx="6" />
+          </clipPath>
+        </defs>
+        <g clip-path="url(#gmapsTileClipCach)">
+          <rect x="4" y="10" width="46" height="46" fill="#0f766e" />
+          <polygon points="4,56 50,10 50,56" fill="#E2E8F0" />
+          <polygon points="4,56 50,56 27,33" fill="#0284c7" />
+          <line x1="25" y1="31" x2="52" y2="58" stroke="#FFFFFF" stroke-width="6" />
+          <line x1="2" y1="58" x2="52" y2="8" stroke="#38bdf8" stroke-width="6.5" />
+          <path d="M 25.4 19.6 A 8.4 8.4 0 1 0 27.3 23.7 L 19.0 23.7 L 19.0 26.8 L 23.7 26.8 A 5.0 5.0 0 1 1 22.8 21.8 Z" fill="#FFFFFF" />
+        </g>
+        <path d="M46 4C38.2 4 32 10.2 32 18c0 9.6 12.1 22.8 13.1 23.8.5.5 1.3.5 1.8 0C47.9 40.8 60 27.6 60 18 60 10.2 53.8 4 46 4z" fill="#0ea5e9" />
+        <circle cx="46" cy="18" r="5.2" fill="#0c4a6e" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- 3. PÍLULAS DE ACESSO RÁPIDO — ROTA DAS CACHOEIRAS -->
+  <div class="cach-top-pill-bar ui-layer" aria-label="Atalhos da Rota das Cachoeiras">
+    <button type="button" id="btnSwitchToSatellite" class="cach-pill-btn" title="Abrir Satélite em Tela Cheia com Lista de Pontos">
+      🛰️ Rotas das Cachoeiras (Satélite)
+    </button>
+    <button type="button" id="btnQuickOpenRotaLumiar" class="cach-pill-btn" title="Abrir Guia Ilustrado e Diretório das 5 Geotrilhas">
+      💧 Guia das Cachoeiras (5 Rotas)
+    </button>
+  </div>
+
+  <!-- Botão para retornar ao Mapa 3D de SC quando aberto fora do iframe -->
+  <a id="btnStandaloneBackToSCMap" href="index.html"
+    style="display:none;position:fixed;top:16px;right:16px;z-index:50;background:rgba(255,255,255,0.95);color:#0f172a;text-decoration:none;border-radius:999px;padding:10px 16px;font:800 13.5px/1 'Inter',system-ui,sans-serif;box-shadow:0 10px 24px rgba(0,0,0,0.35);"
+    title="Voltar ao Mapa 3D das Regiões Turísticas de Santa Catarina">← Mapa 3D de SC</a>
+  <script>if (window.self === window.top) { document.getElementById("btnStandaloneBackToSCMap").style.display = "inline-flex"; }</script>
+
+  <!-- 4. BARRA INFERIOR DE CONTROLES -->
+  <footer class="bottom-center-dock ui-layer" role="toolbar" aria-label="Controles do Passeio Virtual">
+    <button type="button" id="btnOpenScenesGrid" class="dock-btn dock-btn-grid" title="Escolher Cachoeira 360° (Poço do Violão, Cachoeira da Cortina)">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+        <rect x="3" y="3" width="4.8" height="4.8" rx="0.8" />
+        <rect x="9.6" y="3" width="4.8" height="4.8" rx="0.8" />
+        <rect x="16.2" y="3" width="4.8" height="4.8" rx="0.8" />
+        <rect x="3" y="9.6" width="4.8" height="4.8" rx="0.8" />
+        <rect x="9.6" y="9.6" width="4.8" height="4.8" rx="0.8" />
+        <rect x="16.2" y="9.6" width="4.8" height="4.8" rx="0.8" />
+        <rect x="3" y="16.2" width="4.8" height="4.8" rx="0.8" />
+        <rect x="9.6" y="16.2" width="4.8" height="4.8" rx="0.8" />
+        <rect x="16.2" y="16.2" width="4.8" height="4.8" rx="0.8" />
+      </svg>
+    </button>
+    <button type="button" id="btnFullscreen" class="dock-btn" title="Alternar Tela Cheia">⛶</button>
+    <button type="button" id="btnAutoRotate" class="dock-btn" title="Iniciar/Pausar Giro Automático 360°">▶</button>
+    <button type="button" id="btnEnterVR" class="dock-btn dock-btn-vr"
+      aria-label="Entrar em Realidade Virtual (Meta Quest 3 / WebXR)"
+      title="Entrar em Realidade Virtual — Meta Quest 3 / WebXR">
+      <svg viewBox="0 0 24 18" width="22" height="17" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" clip-rule="evenodd" d="M3 2h18a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-4.7a1.5 1.5 0 0 1-1.2-.6l-1.9-2.4a1.5 1.5 0 0 0-2.4 0l-1.9 2.4a1.5 1.5 0 0 1-1.2.6H3a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2zm4.6 4.5a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6zm8.8 0a2.3 2.3 0 1 0 0 4.6 2.3 2.3 0 0 0 0-4.6z" />
+      </svg>
+    </button>
+  </footer>
+
+  <!-- 5. POP-UP SPLIT-VIEW -->
+  <div id="splitModalBackdrop" class="split-modal-backdrop" role="dialog" aria-modal="true">
+    <div class="split-modal-window">
+      <div id="modalLeftMedia" class="modal-left-media"></div>
+      <div id="modalRightEditorial" class="modal-right-editorial"></div>
+    </div>
+  </div>
+
+  <!-- 6. PAINEL MODO CRIADOR -->
+  <aside id="editorSidePanel" class="editor-side-panel ui-layer">
+    <div class="editor-panel-title">🛠️ Estúdio Criador 360° (Pitch &amp; Yaw)</div>
+    <p class="editor-panel-help">
+      <strong>Como usar:</strong> Clique em qualquer ponto da foto 360° para capturar automaticamente suas coordenadas esféricas.
+    </p>
+    <div style="margin-bottom: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 8px; border: 1px dashed rgba(255,255,255,0.25);">
+      <label class="ed-label" for="edUploadPanoInput">📷 Testar sua própria Foto 360° (.jpg/.png):</label>
+      <input type="file" id="edUploadPanoInput" accept="image/*" class="ed-input" style="margin-bottom:0;" />
+    </div>
+    <form id="formAddHotspot">
+      <div class="ed-field-row">
+        <div><label class="ed-label" for="edPitch">Pitch (°)</label><input type="number" step="0.1" id="edPitch" class="ed-input" value="-10.0" required /></div>
+        <div><label class="ed-label" for="edYaw">Yaw (°)</label><input type="number" step="0.1" id="edYaw" class="ed-input" value="15.0" required /></div>
+      </div>
+      <label class="ed-label" for="edHotspotType">Tipo de Ação</label>
+      <select id="edHotspotType" class="ed-select">
+        <option value="info">📖 Abrir Pop-up com Foto &amp; Informações</option>
+        <option value="3d">🧊 Abrir Modelo 3D Externo</option>
+        <option value="scene">🌐 Viajar para outra Foto 360°</option>
+      </select>
+      <label class="ed-label" for="edTitle">Título</label>
+      <input type="text" id="edTitle" class="ed-input" required />
+      <div id="edGroupInfo">
+        <label class="ed-label" for="edSubtitleLead">Subtítulo</label><input type="text" id="edSubtitleLead" class="ed-input" />
+        <label class="ed-label" for="edParagraph">Texto</label><textarea id="edParagraph" rows="2" class="ed-textarea"></textarea>
+        <label class="ed-label" for="edDidYouKnow">Você sabia?</label><input type="text" id="edDidYouKnow" class="ed-input" />
+        <label class="ed-label" for="edImageUrl">Foto</label><input type="text" id="edImageUrl" class="ed-input" />
+      </div>
+      <div id="edGroup3D" style="display: none;">
+        <label class="ed-label" for="ed3DUrl">URL 3D</label><input type="text" id="ed3DUrl" class="ed-input" />
+        <label class="ed-label" for="ed3DLead">Destaque</label><input type="text" id="ed3DLead" class="ed-input" />
+        <label class="ed-label" for="ed3DDesc">Descrição</label><textarea id="ed3DDesc" rows="2" class="ed-textarea"></textarea>
+      </div>
+      <div id="edGroupScene" style="display: none;">
+        <label class="ed-label" for="edTargetScene">Destino 360°</label><select id="edTargetScene" class="ed-select"></select>
+      </div>
+      <button type="submit" class="ed-btn-primary">➕ Adicionar Ponto</button>
+    </form>
+    <textarea id="edExportJsonTextarea" rows="3" class="ed-textarea" readonly style="font-family: monospace; font-size: 11px;"></textarea>
+    <button type="button" id="btnCopyExportJson" class="ed-btn-secondary">📋 Copiar JSON</button>
+  </aside>
+
+  <!-- 7. MODAL: GRADE DE CENAS 360° -->
+  <div id="scenesGridModal" class="aux-drawer-modal ui-layer">
+    <div class="aux-modal-card">
+      <div class="aux-modal-header">
+        <h3>▦ Escolher Cachoeira 360° — Serra Geral</h3>
+        <button type="button" class="aux-close-btn" data-close-drawer="scenesGridModal">✕</button>
+      </div>
+      <div class="aux-modal-body">
+        <div id="scenesGridContainer" class="scenes-grid-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. MODAL: GUIA ILUSTRADO DAS CACHOEIRAS (ESTILO ROTA LUMIAR, TEMA CACHOEIRAS) -->
+  <div id="rdlIllustratedModal" class="aux-drawer-modal ui-layer">
+    <div class="aux-modal-card rdl-enxaimel-card" style="width: min(1260px, 97vw);">
+      <header class="rdl-enxaimel-header">
+        <div class="rdl-enxaimel-brand">
+          <svg viewBox="0 0 40 32" width="36" height="28" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M6 26 L16 8 L23 19 L30 6 L37 26 Z" fill="none" stroke="#5eead4" stroke-width="2.2" stroke-linejoin="round"/>
+            <path d="M18 14 C18 20, 21 22, 21 28 M23 12 C23 19, 26 22, 26 28" fill="none" stroke="#38bdf8" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+          <div class="rdl-brand-titles">
+            <span class="rdl-brand-kicker">GEORROTEIROS • SERRA GERAL</span>
+            <strong class="rdl-brand-main">Rota das Cachoeiras</strong>
+          </div>
+        </div>
+
+        <nav class="rdl-enxaimel-nav" id="rdlCategoryNavBar" aria-label="Categorias da Rota das Cachoeiras">
+          <button type="button" class="rdl-nav-link active" data-cat="all">Todos (70)</button>
+          <button type="button" class="rdl-nav-link" data-cat="cachoeiras">💧 Cachoeiras</button>
+          <button type="button" class="rdl-nav-link" data-cat="geossitios">🪨 Geossítios</button>
+          <button type="button" class="rdl-nav-link" data-cat="trilhas">🥾 Trilhas</button>
+          <button type="button" class="rdl-nav-link" data-cat="apoio">🅿️ Apoio</button>
+        </nav>
+
+        <div class="rdl-enxaimel-head-actions">
+          <div class="rdl-map-mode-bar">
+            <button type="button" id="btnRdlViewDiorama" class="rdl-mode-btn active">🗺️ Mapa das 5 Rotas</button>
+            <button type="button" id="btnRdlOpenSatFromGuide" class="rdl-mode-btn" onclick="document.getElementById('btnOpenSCMap').click()">🛰️ Ver no Satélite</button>
+          </div>
+          <button type="button" class="rdl-close-cream-btn" data-close-drawer="rdlIllustratedModal" title="Fechar">✕</button>
+        </div>
+      </header>
+
+      <div class="aux-modal-body rdl-enxaimel-body">
+        <div class="rdl-top-controls-strip" id="rdlPdfToolbar" style="display: flex; margin-bottom: 10px;">
+          <div class="rdl-filter-bar" id="rdlRegionFilterBar">
+            <button type="button" class="rdl-filter-chip active" data-region="all">Todas as 5 Rotas (70)</button>
+            <button type="button" class="rdl-filter-chip" data-region="cachoeiras_mg">💧 Cachoeiras MG (16)</button>
+            <button type="button" class="rdl-filter-chip" data-region="rocinha_serra_velha">🌊 Rocinha–Serra Velha (9)</button>
+            <button type="button" class="rdl-filter-chip" data-region="figueira_fortuna">🌿 Figueira–Fortuna (13)</button>
+            <button type="button" class="rdl-filter-chip" data-region="tres_barras">🪨 Três Barras (9)</button>
+            <button type="button" class="rdl-filter-chip" data-region="intermunicipal">🗺️ Intermunicipal (23)</button>
+          </div>
+        </div>
+
+        <div class="rdl-diorama-stage">
+          <div id="rdlInteractiveMapBox" class="rdl-map-canvas-box mode-diorama"></div>
+          <div id="rdlPointDetailBox" class="rdl-point-detail-box" hidden></div>
+        </div>
+
+        <section class="rdl-directory-section" id="rdlDirectorySection" aria-label="Pontos por categoria">
+          <div id="rdlInteractiveListBox" class="rdl-enxaimel-columns"></div>
+        </section>
+
+        <div class="rdl-enxaimel-footer-info rdl-credits-slim">
+          <p id="rdlIntroLead" class="rdl-intro-note"></p>
+          <div id="rdlCreditsFooter" class="rdl-credits-line"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. MODAL: GOOGLE MAPS SATÉLITE — SEGUIR ROTAS DAS CACHOEIRAS AO VIVO -->
+  <div id="scMapModal" class="aux-drawer-modal ui-layer">
+    <div class="aux-modal-card" style="width: min(1260px, 97vw);">
+      <div class="aux-modal-header">
+        <h3 style="display:flex;align-items:center;gap:8px;">
+          <svg viewBox="0 0 64 64" width="20" height="20" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M32 6C20.4 6 11 15.4 11 27c0 6.1 2.7 11.7 7 15.6L32 58l14-15.4c4.3-3.9 7-9.5 7-15.6C53 15.4 43.6 6 32 6z" fill="#0ea5e9"/>
+            <circle cx="32" cy="26" r="8.2" fill="#FFFFFF"/>
+          </svg>
+          <span>Google Satélite Ao Vivo — Rota das Cachoeiras (5 Georroteiros • 70 Pontos)</span>
+        </h3>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button type="button" id="btnSwitchToRotaLumiar" class="sc-quick-btn sc-quick-rota" title="Abrir Guia Ilustrado das 5 Rotas">
+            💧 Guia das Cachoeiras
+          </button>
+          <button type="button" id="btnToggleScMapExpand" class="sc-quick-btn" title="Alternar entre tela dividida ao vivo e tela cheia">
+            ⤢ Expandir Lista (70)
+          </button>
+          <button type="button" class="aux-close-btn" data-close-drawer="scMapModal">✕</button>
+        </div>
+      </div>
+      <div class="aux-modal-body sc-map-modal-body">
+        <div id="scMapQuickBar" class="sc-map-quick-bar" aria-label="Filtrar georroteiros de cachoeiras no satélite">
+          <button type="button" class="sc-quick-btn sc-filter-btn active" data-map-filter="pano360">🧭 Radar 360° + Todas (70)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="all">🎯 Todas as 5 Rotas (70)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="cachoeiras_mg" style="border-color:rgba(16,185,129,0.6);">💧 Cachoeiras MG (28,1 km)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="rocinha_serra_velha" style="border-color:rgba(244,63,94,0.6);">🌊 Rocinha–Serra Velha (21,6 km)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="figueira_fortuna" style="border-color:rgba(168,85,247,0.6);">🌿 Figueira–Fortuna (24,0 km)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="tres_barras" style="border-color:rgba(245,158,11,0.6);">🪨 Três Barras (20,0 km)</button>
+          <button type="button" class="sc-quick-btn sc-filter-btn" data-map-filter="intermunicipal" style="border-color:rgba(14,165,233,0.6);">🗺️ Intermunicipal (52,3 km)</button>
+        </div>
+        <div id="scRouteSummaryStrip" class="sc-route-summary-strip">
+          <span><strong>💧 Todos os 5 Georroteiros</strong> • Clique em uma rota acima para filtrar e seguir passo a passo</span>
+          <span class="sc-leg-legend"><i class="leg-solid"></i>Pavimentada <i class="leg-dash"></i>Não Pav. <i class="leg-dot"></i>Trilha</span>
+        </div>
+        <div class="sc-map-split">
+          <div id="leafletSCMap" class="sc-map-canvas"></div>
+          <aside id="scMapPointsSidebar" class="sc-map-sidebar" aria-label="Pontos e Cachoeiras do roteiro selecionado"></aside>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. TRANSIÇÃO 360° -->
+  <div id="sceneTransitionOverlay" class="scene-transition-overlay">
+    <div class="transition-banner" id="transitionTextLabel">Viajando para próxima cachoeira 360°...</div>
+  </div>
+
+  <!-- 11. STAGE RV -->
+  <div id="vrOverlayStage" class="vr-overlay-stage" role="dialog" aria-label="Realidade Virtual Meta Quest 3">
+    <canvas id="vrWebGLCanvas" class="vr-webgl-canvas"></canvas>
+    <div id="vrSimBanner" class="vr-sim-banner">
+      <div class="vr-sim-badge">
+        <strong>🥽 Modo RV (Meta Quest 3 / WebXR)</strong>
+        <span>Arraste para olhar • Clique nos pontos 360° e nas Rotas das Cachoeiras</span>
+      </div>
+      <div class="vr-sim-actions">
+        <button type="button" id="btnVrSimToggleStereo" class="vr-sim-btn">👁️ Lentes Estéreo (ON)</button>
+        <button type="button" id="btnVrSimRecenter" class="vr-sim-btn">↺ Centralizar</button>
+        <button type="button" id="btnVrSimExit" class="vr-sim-btn vr-sim-exit">✕ Sair do RV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS DA APLICAÇÃO -->
+  <script src="js/timbe-panos-b64.js"></script>
+  <script src="js/cachoeiras-rotas-data.js"></script>
+  <script src="js/cachoeiras-road-path.js"></script>
+  <script src="js/cachoeiras-vector-map.js"></script>
+  <script src="js/dados-timbe.js"></script>
+  <script src="js/glb-viewer.js"></script>
+  <script src="js/panorama-generator.js"></script>
+  <script src="js/engine360.js"></script>
+  <script src="js/vr-quest-engine.js"></script>
+  <script>
+    window.addEventListener("load", () => {
+      const params = new URLSearchParams(window.location.search);
+      const sceneParam = params.get("scene");
+      const action = params.get("action");
+      const filterParam = params.get("filter");
+      const expandParam = params.get("expand");
+
+      // Por padrão, já abre o painel Google Satélite em modo dividido igual ao Rio da Luz
+      setTimeout(() => {
+        if (sceneParam && window.GeoSC360 && typeof window.GeoSC360.goToScene === "function") {
+          window.GeoSC360.goToScene(sceneParam, false);
+        }
+        setTimeout(() => {
+          if (action === "map") {
+            const btnGuide = document.getElementById("btnQuickOpenRotaLumiar");
+            if (btnGuide) btnGuide.click();
+          } else if (action === "travel" && window.GeoSC360) {
+            window.GeoSC360.goToScene(params.get("to") || "cachoeira_cortina", true);
+          } else if (action === "vr" && window.GeoSCVR) {
+            window.GeoSCVR.enter();
+          } else {
+            const btn = document.getElementById("btnOpenSCMap");
+            if (btn) btn.click();
+            setTimeout(() => {
+              if (expandParam === "1") {
+                const expBtn = document.getElementById("btnToggleScMapExpand");
+                const modalEl = document.getElementById("scMapModal");
+                if (expBtn && modalEl && modalEl.classList.contains("split-mode")) {
+                  expBtn.click();
+                }
+              }
+              if (filterParam) {
+                const fBtn = document.querySelector(`#scMapQuickBar .sc-filter-btn[data-map-filter="${filterParam}"]`);
+                if (fBtn) {
+                  fBtn.click();
+                  fBtn.scrollIntoView({ inline: "center", block: "nearest" });
+                }
+              }
+            }, 350);
+          }
+        }, sceneParam ? 400 : 0);
+      }, 650);
+    });
+  </script>
+</body>
+</html>

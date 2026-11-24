@@ -828,6 +828,8 @@
       chipLabel: "🌐 Timbé do Sul · 360°",
       ctaLabel: "🌐 Ir a Timbé do Sul · Fotos 360°",
       routesCtaLabel: "🗺️ Rotas & Trilhas (15 Municípios · 56 Pontos)",
+      cachoeirasUrl: "rota_cachoeiras_360.html",
+      cachoeirasCtaLabel: "💧 Rota das Cachoeiras · Satélite (5 Georroteiros)",
       munSlugs: {
         "Araranguá": "ararangua",
         "Balneário Arroio do Silva": "arroio_do_silva",
@@ -1398,6 +1400,7 @@
       actionHtml = dest
         ? '<button type="button" class="geo-cta-360" data-go360="1">' + dest.ctaLabel + "</button>" +
           (dest.routesCtaLabel ? '<button type="button" class="geo-cta-routes" data-route-filter="all">' + dest.routesCtaLabel + "</button>" : "") +
+          (dest.cachoeirasCtaLabel ? '<button type="button" class="geo-cta-routes" style="margin-top:6px;background:linear-gradient(135deg,#0284c7,#0f766e);" data-open-cachoeiras="1">' + dest.cachoeirasCtaLabel + "</button>" : "") +
           '<div class="geo-progress"><i></i></div>'
         : '<span class="geo-soon">📷 Fotos 360° desta região em breve</span>';
     }
@@ -1434,6 +1437,12 @@
           const routeUrl = dest.data.tourUrl + sep + "action=scmap&filter=" + encodeURIComponent(filter) + "&expand=1";
           toast("🗺️ Abrindo rotas de " + (filter === "all" ? "todos os 15 municípios" : btn.textContent.replace(" 🗺️", "").trim()) + "…", 1800);
           open360(dest, routeUrl);
+        });
+      });
+      card.querySelectorAll("[data-open-cachoeiras]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          toast("💧 Abrindo Rota das Cachoeiras no Satélite…", 1800);
+          open360(dest, dest.cachoeirasUrl);
         });
       });
     }

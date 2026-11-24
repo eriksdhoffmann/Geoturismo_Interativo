@@ -7,6 +7,7 @@ Inspirado na arquitetura de navegação 360° do projeto *Geohereditas (IGc-USP)
 > **Acesse a página online (GitHub Pages):**
 > - **Abrir Plataforma Completa (Mapa 3D de SC + Passeio 360°):** https://eriksdhoffmann.github.io/Geoturismo_Interativo/
 > - **Abrir Direto no Vale do Rio da Luz 360°:** https://eriksdhoffmann.github.io/Geoturismo_Interativo/rio_da_luz_360.html
+> - **Abrir Direto na Rota das Cachoeiras (Satélite + 360°):** https://eriksdhoffmann.github.io/Geoturismo_Interativo/rota_cachoeiras_360.html
 
 ---
 
@@ -56,7 +57,15 @@ Mapeamento completo segundo o mapa cultural do **Rio da Luz**:
   - **⚔️ Clubes de Tiro (*Schützenvereine*)**: *Salão Barg* (Enxaimel tombado pelo IPHAN), *Sociedade Aliança*, *Sociedade Centenário* e *Salão Vitória*
   - **⛪ Igrejas Históricas**: *Comunidade Salvador*, *Igreja Apóstolo Paulo* e *Igreja Comunidade da Paz*
 
-### 2. Tour Geral de Santa Catarina (Versão Inicial Salva) — [`tour_sc_inicial.html`](./tour_sc_inicial.html)
+### 2. Rota das Cachoeiras — Geotrilhas da Serra Geral (Morro Grande ↔ Timbé do Sul) — [`rota_cachoeiras_360.html`](./rota_cachoeiras_360.html)
+Visualização interativa no **Google Satélite Ao Vivo** (com cone de radar 360°, rotas coloridas diferenciadas entre *Pavimentada*, *Não Pavimentada* e *Trilha*, pop-ups com altitude e links para traçar rota no Google Maps) e **Guia Ilustrado das Cachoeiras** reunindo os **5 georroteiros** (**70 pontos** e **79 trechos**):
+- **💧 Cachoeiras de Morro Grande** (`28,1 km` · 16 pontos: Cachoeira do Pilão, Pedra Branca, Arco-Íris, Bizungo e Toca do Tatu)
+- **🌊 Rocinha – Serra Velha** (`21,6 km` · 9 pontos: Portal do Palmiro, Poço do Caixão e Cachoeira da Cortina 360°)
+- **🌿 Figueira – Fortuna** (`24,0 km` · 13 pontos: Cachoeira do Gavião Tesoura, Cascata do Padre, Poço do Violão 360° e Véu de Noiva)
+- **🪨 Três Barras** (`20,0 km` · 9 pontos: Contato de Depósitos, Canal Entrelaçado, Paleotoca das Três Barras, Mirante e Queda do Risco)
+- **🗺️ Roteiro Intermunicipal** (`52,3 km` · 23 pontos: Museu da Terra e da Cultura, Morro da Rampa, Cachoeiras do Rio Saltinho, Alambique Macarini, Morro da Gurita, Paredão da Areia Branca, Fenda da Raia e Rio do Salto)
+
+### 3. Tour Geral de Santa Catarina (Versão Inicial Salva) — [`tour_sc_inicial.html`](./tour_sc_inicial.html)
 - **Florianópolis**: Lagoa da Conceição, Dunas da Joaquina e Ponte Hercílio Luz
 - **Serra Catarinense**: Mirante da Serra do Rio do Rastro (SC-390) e Morro da Igreja ($1.822\text{ m}$) & Pedra Furada (Urubici)
 - **Extremo Sul**: Cânion do Itaimbezinho — Geoparque Mundial da UNESCO (Praia Grande)

@@ -1856,9 +1856,10 @@
         </div>
         <p class="rdl-detail-desc">${p.description}</p>
         <div class="rdl-detail-meta">
-          <div><strong>Atendimento:</strong> ${p.atendimento}</div>
-          <div><strong>Endereço:</strong> ${p.endereco}</div>
-          <div><strong>Tel.:</strong> ${p.telefone}</div>
+          ${p.trilha ? `<div><strong>Roteiro / Acesso:</strong> ${p.trilha}</div>` : ""}
+          ${p.atendimento ? `<div><strong>Atendimento:</strong> ${p.atendimento}</div>` : ""}
+          ${p.endereco ? `<div><strong>Localização:</strong> ${p.endereco}</div>` : ""}
+          ${p.telefone ? `<div><strong>Tel.:</strong> ${p.telefone}</div>` : ""}
           ${contactLine}
           ${emailLine}
         </div>
@@ -2125,7 +2126,7 @@
             <span class="sc-sidebar-num ${numClass}">${pt.num}</span>
             <span class="sc-sidebar-info">
               <strong class="sc-sidebar-name">${pt.name}${pt.sceneId ? " 📷 360°" : ""}</strong>
-              <span class="sc-sidebar-sub">${pt.endereco || pt.region}</span>
+              <span class="sc-sidebar-sub">${pt.trilha || pt.endereco || pt.region}</span>
             </span>
           </button>
         `;
@@ -2271,23 +2272,61 @@
       });
       visibleLegs.forEach(leg => {
         if (!Array.isArray(leg.coords) || leg.coords.length < 2) return;
+        const lineColor = leg.color || "#f59e0b";
+        const isTrail = leg.surface === "Trilha";
+        const isUnpaved = leg.surface === "Não Pavimentada";
+        const dashArray = isTrail ? "3, 7" : (isUnpaved ? "10, 6" : null);
+        const hasMeta = Boolean(leg.name);
+
         window.L.polyline(leg.coords, {
           color: "#0f172a",
-          weight: 6,
+          weight: isTrail ? 6.5 : 6,
           opacity: 0.78,
+          dashArray: dashArray,
           lineCap: "round",
           lineJoin: "round",
           interactive: false
         }).addTo(state.leafletMarkersLayer);
-        window.L.polyline(leg.coords, {
-          color: "#f59e0b",
-          weight: 3.4,
+
+        const fgLine = window.L.polyline(leg.coords, {
+          color: lineColor,
+          weight: isTrail ? 4.0 : 3.5,
           opacity: 0.96,
+          dashArray: dashArray,
           lineCap: "round",
           lineJoin: "round",
-          interactive: false
+          interactive: hasMeta
         }).addTo(state.leafletMarkersLayer);
+
+        if (hasMeta) {
+          const distKm = typeof leg.distanceM === "number" ? (leg.distanceM / 1000).toFixed(2) : "";
+          const surfIcon = isTrail ? "🥾" : (isUnpaved ? "🪨" : "🛣️");
+          fgLine.bindPopup(`
+            <div style="font-family:Inter,sans-serif;color:#0f172a;min-width:190px;">
+              <div style="font-size:10.5px;font-weight:800;color:${lineColor};text-transform:uppercase;">${surfIcon} ${leg.surface || "Trecho"}</div>
+              <strong style="font-size:13.5px;display:block;margin:2px 0;">${leg.name}</strong>
+              ${distKm ? `<div style="font-size:11.5px;color:#334155;">📏 Extensão: <strong>${distKm} km</strong></div>` : ""}
+              ${leg.trecho ? `<div style="font-size:11px;color:#64748b;">🧭 Trecho: ${leg.trecho}</div>` : ""}
+            </div>
+          `);
+        }
       });
+
+      const summaryStrip = document.getElementById("scRouteSummaryStrip");
+      if (summaryStrip) {
+        const sumM = visibleLegs.reduce((acc, l) => acc + (l.distanceM || 0), 0);
+        const trailM = visibleLegs.filter(l => l.surface === "Trilha").reduce((acc, l) => acc + (l.distanceM || 0), 0);
+        const routeMeta = window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.routes)
+          ? window.ROTA_LUMIAR_DATA.routes.find(r => r.key === activeScMapFilter)
+          : null;
+        const routeLabel = routeMeta ? `${routeMeta.icon} ${routeMeta.name}` : "💧 Todos os 5 Georroteiros";
+        summaryStrip.innerHTML = `
+          <span><strong>${routeLabel}</strong></span>
+          <span>• ${mapPts.length} pontos</span>
+          <span>• ${(sumM / 1000).toFixed(1)} km totais (${(trailM / 1000).toFixed(1)} km em trilha)</span>
+          <span class="sc-leg-legend"><i class="leg-solid"></i>Pavimentada <i class="leg-dash"></i>Não Pav. <i class="leg-dot"></i>Trilha</span>
+        `;
+      }
     } else if (mapPts.length >= 2) {
       window.L.polyline(mapPts.map(p => [p.lat, p.lng]), {
         color: "#f59e0b",
@@ -2343,7 +2382,12 @@
       const curScene = window.TOUR_SC_DATA && window.TOUR_SC_DATA.scenes
         ? window.TOUR_SC_DATA.scenes[state.currentSceneId]
         : null;
-      if (window.ROTA_LUMIAR_DATA && window.ROTA_LUMIAR_DATA.fitAllInRadar && focusPts.length > 1) {
+      if (window.ROTA_LUMIAR_DATA && window.ROTA_LUMIAR_DATA.fitAllPointsInRadar && allPts.length > 1) {
+        state.leafletMap.fitBounds(window.L.latLngBounds(allPts.map(p => [p.lat, p.lng])), {
+          padding: [42, 42],
+          maxZoom: 13
+        });
+      } else if (window.ROTA_LUMIAR_DATA && window.ROTA_LUMIAR_DATA.fitAllInRadar && focusPts.length > 1) {
         state.leafletMap.fitBounds(window.L.latLngBounds(focusPts.map(p => [p.lat, p.lng])), {
           padding: [55, 55],
           maxZoom: 14
