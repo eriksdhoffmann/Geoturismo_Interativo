@@ -2689,10 +2689,47 @@ body.satellite-split-open .bottom-left-ecosystem-bar {
   }
   .split-modal-window {
     width: 100%;
-    height: min(90dvh, 760px);
+    height: min(92dvh, 760px);
     grid-template-columns: 1fr;
-    grid-template-rows: 52% 48%;
+    grid-template-rows: 42% 58%;
     border-radius: 14px;
+  }
+  .showcase-art-panel {
+    padding: 10px 12px 28px;
+    gap: 6px;
+    justify-content: flex-start;
+    overflow-y: auto;
+  }
+  .showcase-art-badge {
+    font-size: 9.5px;
+    padding: 4px 10px;
+  }
+  .showcase-art-mat {
+    width: min(260px, 84%);
+    padding: 8px 10px;
+  }
+  .showcase-art-img,
+  .showcase-art-img.art-contain {
+    max-height: 112px;
+  }
+  .showcase-art-footer {
+    width: 96%;
+    padding: 7px 10px;
+    gap: 8px;
+  }
+  .showcase-art-caption {
+    font-size: 11px;
+  }
+  .showcase-art-address {
+    font-size: 10px;
+  }
+  .showcase-real-card img {
+    width: 68px;
+    height: 40px;
+  }
+  .photo-caption-bar {
+    font-size: 10px;
+    padding: 4px 10px;
   }
   .modal-3d-TopBar {
     padding: 6px 10px;
@@ -2718,12 +2755,100 @@ body.satellite-split-open .bottom-left-ecosystem-bar {
     right: 10px;
     width: 34px;
     height: 34px;
+    font-size: 20px;
   }
   .editorial-scroll-area {
-    padding: 16px 18px 20px;
+    padding: 14px 16px 20px;
   }
   .editorial-serif-title {
-    font-size: 21px;
+    font-size: 19px;
+    padding-right: 44px;
+    margin-bottom: 10px;
+  }
+  .editorial-green-lead {
+    font-size: 13px;
+    margin-bottom: 10px;
+  }
+  .editorial-body-p {
+    font-size: 12.8px;
+    line-height: 1.52;
+  }
+  body.satellite-split-open #panoViewport {
+    height: 55dvh;
+  }
+  body.satellite-split-open .bottom-center-dock {
+    bottom: calc(45dvh + 8px);
+  }
+  #scMapModal.open.split-mode {
+    height: 45dvh;
+  }
+  #scMapModal.open.split-mode .aux-modal-header {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  #scMapModal.open.split-mode .aux-modal-header h3 {
+    font-size: 12px;
+    min-width: 0;
+    flex: 1;
+  }
+  #scMapModal.open.split-mode .aux-modal-header h3 span {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+  #scMapModal.open.split-mode .sc-map-modal-body {
+    height: calc(100% - 40px);
+  }
+  #scMapModal.open.split-mode .sc-map-split {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+  }
+  #scMapModal.open.split-mode .sc-map-quick-bar {
+    padding: 4px 10px;
+    gap: 5px;
+    scrollbar-width: none;
+  }
+  #scMapModal.open.split-mode .sc-map-quick-bar::-webkit-scrollbar {
+    display: none;
+  }
+  #scMapModal.open.split-mode .sc-route-summary-strip {
+    display: none;
+  }
+  #scMapModal.open.split-mode .sc-quick-btn {
+    padding: 4px 7px;
+    font-size: 10.5px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .cach-top-pill-bar {
+    top: 72px;
+    left: 12px;
+    right: 12px;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .cach-top-pill-bar::-webkit-scrollbar {
+    display: none;
+  }
+  .cach-pill-btn {
+    padding: 7px 11px;
+    font-size: 11px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  body.satellite-split-open .cach-top-pill-bar,
+  body.any-modal-open .cach-top-pill-bar {
+    opacity: 0;
+    pointer-events: none;
+  }
+  #scMapModal .leaflet-control-attribution {
+    font-size: 9px !important;
+    white-space: nowrap;
+    max-width: 78vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .bottom-center-dock {
     bottom: max(12px, env(safe-area-inset-bottom));

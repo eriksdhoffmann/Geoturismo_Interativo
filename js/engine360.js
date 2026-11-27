@@ -37,6 +37,9 @@
     targetPitch: -8,
     targetHfov: 95,
     isDragging: false,
+    isTouchDrag: false,
+    velYaw: 0,
+    velPitch: 0,
     dragStartX: 0,
     dragStartY: 0,
     pointerDownX: 0,
@@ -563,14 +566,14 @@
       modalLeftContent.innerHTML = `
         <div class="annotated-photo-wrapper">
           <div class="showcase-art-panel">
-            <span class="showcase-art-badge">🏛️ ${sc.badge || "Patrimônio Cultural Tombado"}</span>
+            <span class="showcase-art-badge">${sc.badge || "Patrimônio Cultural Tombado"}</span>
             <div class="showcase-art-mat">
               <img src="${hs.image || 'assets/fotos/riodaluz/casa_rux_aquarela.png'}" alt="${hs.title}" class="showcase-art-img ${sc.coverMain ? '' : 'art-contain'}" />
             </div>
             <div class="showcase-art-footer">
               <div class="showcase-art-caption-wrap">
                 <span class="showcase-art-caption">${sc.caption || hs.title}</span>
-                ${sc.address ? `<span class="showcase-art-address">📌 ${sc.address}</span>` : ""}
+                ${sc.address ? `<span class="showcase-art-address">${sc.address}</span>` : ""}
               </div>
               ${sc.realPhoto ? `
                 <div class="showcase-real-card" title="Vista real no tour 360°">
@@ -581,7 +584,7 @@
             </div>
           </div>
           <div class="photo-caption-bar">
-            <span>📍 Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
+            <span>Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
           </div>
         </div>
       `;
@@ -601,7 +604,7 @@
             ${annotationsHTML}
           </div>
           <div class="photo-caption-bar">
-            <span>📍 Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
+            <span>Coordenadas na Esfera 360°: Pitch ${hs.pitch.toFixed(1)}° | Yaw ${hs.yaw.toFixed(1)}°</span>
           </div>
         </div>
       `;
@@ -610,6 +613,7 @@
     // Lado Direito: Card Editorial Branco com botão verde [X], título serifado e caixa "Você sabia?"
     renderRightEditorialCard(hs);
     splitModal.classList.add("open");
+    syncParentModalVisibility();
   }
 
   /**
@@ -628,7 +632,7 @@
         <div class="modal-3d-wrapper">
           <div class="modal-3d-TopBar">
             <span class="btn-3d-mode active" style="cursor: default;">
-              🏔️ ${(window.TOUR_SC_DATA && window.TOUR_SC_DATA.tourShortName) || "Vale do Rio da Luz"}
+              ${(window.TOUR_SC_DATA && window.TOUR_SC_DATA.tourShortName) || "Vale do Rio da Luz"}
             </span>
           </div>
 
@@ -638,6 +642,7 @@
 
       renderRightEditorialCard(hs);
       splitModal.classList.add("open");
+      syncParentModalVisibility();
 
       const glbContainer = document.getElementById("localGLBContainer");
       cleanupPrevious3D();
@@ -774,10 +779,31 @@
     }
   }
 
+  function syncParentModalVisibility() {
+    const anyOpen = Boolean(
+      (splitModal && splitModal.classList.contains("open")) ||
+      ["logicGuideModal", "scenesGridModal", "scMapModal", "rdlIllustratedModal"].some(id => {
+        const el = document.getElementById(id);
+        return el && el.classList.contains("open");
+      })
+    );
+    document.body.classList.toggle("any-modal-open", anyOpen);
+    const standaloneBack = document.getElementById("btnStandaloneBackToSCMap");
+    if (standaloneBack && window.self === window.top) {
+      standaloneBack.style.display = anyOpen ? "none" : "inline-flex";
+    }
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: "GEOSC_MODAL_OPEN", open: anyOpen }, "*");
+      }
+    } catch (_) {}
+  }
+
   function closeSplitModal() {
     cleanupPrevious3D();
     splitModal.classList.remove("open");
     modalLeftContent.innerHTML = "";
+    syncParentModalVisibility();
   }
 
   /**
@@ -820,17 +846,29 @@
       state.targetYaw = normalizeYaw(state.targetYaw + 0.08);
     }
 
-    // Interpolação suave (Amortecimento / Damping da câmera)
+    // Inércia fluida após soltar o dedo no toque
+    if (!state.isDragging && (Math.abs(state.velYaw) > 0.01 || Math.abs(state.velPitch) > 0.01)) {
+      state.targetYaw = normalizeYaw(state.targetYaw + state.velYaw);
+      state.targetPitch = Math.max(-85, Math.min(85, state.targetPitch + state.velPitch));
+      state.velYaw *= 0.88;
+      state.velPitch *= 0.88;
+    } else if (!state.isDragging) {
+      state.velYaw = 0;
+      state.velPitch = 0;
+    }
+
+    // Resposta mais ágil durante o toque e amortecimento suave ao soltar
+    const damp = state.isDragging ? (state.isTouchDrag ? 0.44 : 0.34) : 0.18;
     let dyaw = state.targetYaw - state.yaw;
     if (dyaw > 180) dyaw -= 360;
     if (dyaw < -180) dyaw += 360;
-    state.yaw = normalizeYaw(state.yaw + dyaw * 0.14);
+    state.yaw = normalizeYaw(state.yaw + dyaw * damp);
 
     state.targetPitch = Math.max(-85, Math.min(85, state.targetPitch));
-    state.pitch += (state.targetPitch - state.pitch) * 0.14;
+    state.pitch += (state.targetPitch - state.pitch) * damp;
 
     state.targetHfov = Math.max(38, Math.min(115, state.targetHfov));
-    state.hfov += (state.targetHfov - state.hfov) * 0.16;
+    state.hfov += (state.targetHfov - state.hfov) * 0.22;
 
     // Atualiza dimensões do Canvas WebGL em resolução física nativa (HiDPI) com proteção contra 0x0
     const { cssW, cssH, pxW, pxH } = syncCanvasResolution();
@@ -1033,6 +1071,9 @@
 
       if (activePointers.size === 1) {
         state.isDragging = true;
+        state.isTouchDrag = e.pointerType === "touch";
+        state.velYaw = 0;
+        state.velPitch = 0;
         state.dragStartX = e.clientX;
         state.dragStartY = e.clientY;
         state.pointerDownX = e.clientX;
@@ -1065,10 +1106,17 @@
       state.dragStartX = e.clientX;
       state.dragStartY = e.clientY;
 
-      // Rastreio 1:1 com a projeção esférica para que a foto 360° acompanhe o dedo sem esticar
-      const speed = computeFocalDegPerPx();
-      state.targetYaw = normalizeYaw(state.targetYaw - dx * speed);
-      state.targetPitch = Math.max(-85, Math.min(85, state.targetPitch + dy * speed));
+      // Rastreio responsivo no toque mobile (~1.95x no celular para girar rápido sem esforço)
+      const touchMult = (e.pointerType === "touch" || state.isTouchDrag) ? 1.95 : 1.15;
+      const speed = computeFocalDegPerPx() * touchMult;
+      const dYaw = -dx * speed;
+      const dPitch = dy * speed;
+      state.targetYaw = normalizeYaw(state.targetYaw + dYaw);
+      state.targetPitch = Math.max(-85, Math.min(85, state.targetPitch + dPitch));
+      if (state.isTouchDrag) {
+        state.velYaw = state.velYaw * 0.45 + Math.max(-4.5, Math.min(4.5, dYaw)) * 0.55;
+        state.velPitch = state.velPitch * 0.45 + Math.max(-2.5, Math.min(2.5, dPitch)) * 0.55;
+      }
     });
 
     function handlePointerEnd(e) {
@@ -1468,6 +1516,7 @@
           document.body.classList.remove("satellite-split-open");
           state.isScMapSplitOpen = false;
         }
+        syncParentModalVisibility();
       });
     });
   }
@@ -1483,8 +1532,12 @@
       const ptCount = (window.ROTA_LUMIAR_DATA && Array.isArray(window.ROTA_LUMIAR_DATA.points))
         ? window.ROTA_LUMIAR_DATA.points.length
         : 26;
-      expandBtn.textContent = splitMode ? `⤢ Expandir Lista (${ptCount})` : "⤡ Modo Dividido (Ao Vivo)";
+      const isMob = window.innerWidth <= 820;
+      expandBtn.textContent = splitMode
+        ? (isMob ? `Lista (${ptCount})` : `Expandir Lista (${ptCount})`)
+        : (isMob ? "Dividir" : "Modo Dividido (Ao Vivo)");
     }
+    syncParentModalVisibility();
     if (state.leafletMap) {
       setTimeout(() => {
         state.leafletMap.invalidateSize();
@@ -1502,6 +1555,7 @@
     if (splitMode) {
       activeScMapFilter = "pano360";
     }
+    syncParentModalVisibility();
     setTimeout(() => initOrUpdateLeafletMap(), 140);
   }
 
@@ -1510,6 +1564,7 @@
     if (!el) return;
     closeAuxiliaryDrawers();
     el.classList.add("open");
+    syncParentModalVisibility();
   }
 
   function toggleDrawer(id) {
@@ -1518,6 +1573,7 @@
     const isOpen = el.classList.contains("open");
     closeAuxiliaryDrawers();
     if (!isOpen) el.classList.add("open");
+    syncParentModalVisibility();
   }
 
   function closeAuxiliaryDrawers() {
@@ -1528,6 +1584,7 @@
     document.body.classList.remove("satellite-split-open");
     state.isScMapSplitOpen = false;
     setPlaceSelectorOpen(false);
+    syncParentModalVisibility();
   }
 
   /**

@@ -1104,6 +1104,15 @@
     requestRender();
   }
 
+  function setLegendCollapsed(collapsed) {
+    if (!legendBox) return;
+    legendBox.classList.toggle("is-collapsed", Boolean(collapsed));
+    if (legendMinBtn) {
+      legendMinBtn.hidden = false;
+      legendMinBtn.textContent = collapsed ? "▸" : "▾";
+    }
+  }
+
   function buildLegend() {
     legendList.innerHTML = "";
     state.regions.forEach((r) => {
@@ -1121,6 +1130,11 @@
       legendList.appendChild(li);
       legendEls[r.id] = btn;
     });
+    if (!itajaiState.active && window.innerWidth <= 820) {
+      setLegendCollapsed(true);
+    } else if (!itajaiState.active) {
+      setLegendCollapsed(false);
+    }
   }
 
   function buildLabels() {
@@ -1429,7 +1443,9 @@
       '<div class="chips" style="max-height:190px;overflow:auto;padding-right:2px">' + chipsHtml + "</div>" +
       actionHtml +
       "</div>";
+    card.classList.remove("is-mun-summary");
     card.hidden = false;
+    document.body.classList.add("has-geo-card");
     card.style.animation = "none";
     void card.offsetWidth;
     card.style.animation = "";
@@ -1476,6 +1492,8 @@
 
   function hideCard() {
     card.hidden = true;
+    card.classList.remove("is-mun-summary");
+    document.body.classList.remove("has-geo-card");
     state.viewOffTarget = 0;
     requestRender();
   }
@@ -1867,8 +1885,7 @@
     const hasB = itajaiState.hasBairros;
 
     legendBox.classList.add("is-itajai");
-    legendBox.classList.remove("is-collapsed");
-    if (legendMinBtn) { legendMinBtn.hidden = false; legendMinBtn.textContent = "▾"; }
+    setLegendCollapsed(window.innerWidth <= 820);
     if (legendSearchWrap) legendSearchWrap.hidden = !hasB;
     if (legendSearch) {
       legendSearch.value = "";
@@ -2010,7 +2027,7 @@
       '<button type="button" class="geo-card-close" title="Fechar card">✕</button>' +
       '<span class="kicker">' + igrObj.name.toUpperCase() + " · IBGE " + (mun.ibge || "") + "</span>" +
       "<h2>" + mun.name + "</h2>" +
-      "<p>" + (mun.hasGlb === false ? "Município destacado na malha estadual (GLB individual ainda não publicado no portal SEPLAN-SC)." : "Modelo tridimensional do relevo municipal (SEPLAN-SC / DITER) em visualização isolada.") + "</p>" +
+      '<p class="geo-mun-desc">' + (mun.hasGlb === false ? "Município destacado na malha estadual (GLB individual ainda não publicado no portal SEPLAN-SC)." : "Modelo tridimensional do relevo municipal (SEPLAN-SC / DITER) em visualização isolada.") + "</p>" +
       '<div class="geo-b-stats">' +
       '<div class="geo-b-stat"><div class="geo-b-stat-k">Área</div><div class="geo-b-stat-v">' + Number(mun.areaKm2 || 0).toFixed(1).replace(".", ",") + " km²</div></div>" +
       '<div class="geo-b-stat"><div class="geo-b-stat-k">Fonte 3D</div><div class="geo-b-stat-v">' + (mun.id === "itajai" ? "GeoItajaí" : "SEPLAN") + "</div></div>" +
@@ -2022,7 +2039,9 @@
       (mun.hasGlb !== false ? '<button type="button" class="geo-mini-btn" data-toggle-ctx>🗺️ Alternar Fundo SC</button>' : "") +
       "</div>" +
       "</div>";
+    card.classList.add("is-mun-summary");
     card.hidden = false;
+    document.body.classList.add("has-geo-card");
     card.style.animation = "none";
     void card.offsetWidth;
     card.style.animation = "";
@@ -2088,7 +2107,9 @@
       '<button type="button" class="geo-mini-btn" data-b-next>Próximo bairro ›</button>' +
       "</div>" +
       "</div>";
+    card.classList.remove("is-mun-summary");
     card.hidden = false;
+    document.body.classList.add("has-geo-card");
     card.style.animation = "none";
     void card.offsetWidth;
     card.style.animation = "";
@@ -2621,7 +2642,7 @@
 
     legendBox.classList.remove("is-itajai", "is-collapsed");
     legendTitle.textContent = "Mapa do Turismo · 15 IGRs (SETUR-SC)";
-    if (legendMinBtn) legendMinBtn.hidden = true;
+    setLegendCollapsed(window.innerWidth <= 820);
     if (legendSearchWrap) legendSearchWrap.hidden = true;
     if (headerKicker) headerKicker.textContent = "Geoturismo SC";
     if (headerTitle) headerTitle.textContent = "Regiões Turísticas de Santa Catarina";
@@ -2653,10 +2674,15 @@
       });
     });
   }
-  if (legendMinBtn) {
+  const legendTopBar = legendBox ? legendBox.querySelector(".geo-legend-top") : null;
+  if (legendTopBar) {
+    legendTopBar.addEventListener("click", (ev) => {
+      if (ev.target && ev.target.closest("input")) return;
+      setLegendCollapsed(!legendBox.classList.contains("is-collapsed"));
+    });
+  } else if (legendMinBtn) {
     legendMinBtn.addEventListener("click", () => {
-      const col = legendBox.classList.toggle("is-collapsed");
-      legendMinBtn.textContent = col ? "▸" : "▾";
+      setLegendCollapsed(!legendBox.classList.contains("is-collapsed"));
     });
   }
   if (btnBackSC) btnBackSC.addEventListener("click", () => exitItajaiMode("sc"));
@@ -2740,7 +2766,7 @@
   function close360() {
     const returnId = state.selectedId || "vale_dos_encantos";
     resumeLoop();
-    overlay.classList.remove("is-open");
+    overlay.classList.remove("is-open", "is-child-fullscreen", "is-child-modal-open");
     overlay.setAttribute("aria-hidden", "true");
     try {
       history.replaceState(null, "", location.pathname + location.search);
@@ -2867,8 +2893,12 @@
   });
 
   window.addEventListener("message", (ev) => {
-    if (ev && ev.data && ev.data.type === "GEOSC_PSEUDO_FULLSCREEN") {
+    if (!ev || !ev.data) return;
+    if (ev.data.type === "GEOSC_PSEUDO_FULLSCREEN") {
       overlay.classList.toggle("is-child-fullscreen", Boolean(ev.data.active));
+    } else if (ev.data.type === "GEOSC_MODAL_OPEN") {
+      const isModalOpen = ev.data.open !== undefined ? Boolean(ev.data.open) : Boolean(ev.data.active);
+      overlay.classList.toggle("is-child-modal-open", isModalOpen);
     }
   });
 
