@@ -1106,16 +1106,16 @@
       state.dragStartX = e.clientX;
       state.dragStartY = e.clientY;
 
-      // Rastreio responsivo no toque mobile (~1.95x no celular para girar rápido sem esforço)
-      const touchMult = (e.pointerType === "touch" || state.isTouchDrag) ? 1.95 : 1.15;
+      // Rastreio responsivo no toque mobile (~1.66x no celular, -15% para controle preciso)
+      const touchMult = (e.pointerType === "touch" || state.isTouchDrag) ? 1.66 : 1.15;
       const speed = computeFocalDegPerPx() * touchMult;
       const dYaw = -dx * speed;
       const dPitch = dy * speed;
       state.targetYaw = normalizeYaw(state.targetYaw + dYaw);
       state.targetPitch = Math.max(-85, Math.min(85, state.targetPitch + dPitch));
       if (state.isTouchDrag) {
-        state.velYaw = state.velYaw * 0.45 + Math.max(-4.5, Math.min(4.5, dYaw)) * 0.55;
-        state.velPitch = state.velPitch * 0.45 + Math.max(-2.5, Math.min(2.5, dPitch)) * 0.55;
+        state.velYaw = state.velYaw * 0.45 + Math.max(-3.8, Math.min(3.8, dYaw)) * 0.55;
+        state.velPitch = state.velPitch * 0.45 + Math.max(-2.1, Math.min(2.1, dPitch)) * 0.55;
       }
     });
 

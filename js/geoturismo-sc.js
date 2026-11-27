@@ -773,6 +773,8 @@
   const legendSearchWrap = $("geoLegendSearchWrap");
   const legendSearch = $("geoLegendSearch");
   const legendList = $("geoLegendList");
+  const legendDesc = $("geoLegendDesc");
+  const legendActions = $("geoLegendActions");
   const headerKicker = $("geoHeaderKicker");
   const headerTitle = $("geoHeaderTitle");
   const creditsEl = $("geoCredits");
@@ -931,7 +933,7 @@
     borderUniforms.uCvmActive.value = !itajaiState.active && state.selectedId === igrId ? 1.0 : 0.0;
 
     if (state.selectedId === igrId && state.byId[igrId] && !itajaiState.active && !itajaiState.loading) {
-      showCard(state.byId[igrId]);
+      buildRegionLegend(state.byId[igrId]);
     }
     refreshClasses();
     requestRender();
@@ -1096,6 +1098,11 @@
       const lbl = cvmState.labelEls[mun.id];
       if (lbl) lbl.classList.toggle("is-hover", mun.id === id);
     });
+    if (legendBox && legendBox.classList.contains("is-region")) {
+      legendBox.querySelectorAll("[data-mun-id]").forEach((btn) => {
+        btn.classList.toggle("is-hover", btn.getAttribute("data-mun-id") === id);
+      });
+    }
     if (card && !card.hidden) {
       card.querySelectorAll("[data-mun-id]").forEach((btn) => {
         btn.classList.toggle("is-hover", btn.getAttribute("data-mun-id") === id);
@@ -1114,6 +1121,12 @@
   }
 
   function buildLegend() {
+    if (legendBox) legendBox.classList.remove("is-region", "is-itajai");
+    if (legendTitle) legendTitle.textContent = "Mapa do Turismo · 15 IGRs (SETUR-SC)";
+    if (legendDesc) { legendDesc.hidden = true; legendDesc.textContent = ""; }
+    if (legendActions) { legendActions.hidden = true; legendActions.innerHTML = ""; }
+    if (legendSearchWrap) legendSearchWrap.hidden = true;
+    if (legendSearch) legendSearch.value = "";
     legendList.innerHTML = "";
     state.regions.forEach((r) => {
       const li = document.createElement("li");
@@ -1135,6 +1148,103 @@
     } else if (!itajaiState.active) {
       setLegendCollapsed(false);
     }
+  }
+
+  function buildRegionLegend(r) {
+    if (!r || !legendBox || !legendList) return;
+    const dest = destForRegion(r.id);
+    const igrEntry = igrCache[r.id];
+    const mList = igrEntry && igrEntry.municipios
+      ? igrEntry.municipios.slice().sort((a, b) => {
+          const a360 = a.tours360 && a.tours360.length ? 1 : 0;
+          const b360 = b.tours360 && b.tours360.length ? 1 : 0;
+          if (a360 !== b360) return b360 - a360;
+          return a.name.localeCompare(b.name, "pt-BR");
+        })
+      : (r.municipios || []).map((nm) => ({ id: null, name: nm, color: r.color, tours360: null }));
+
+    const totalM = r.municipios ? r.municipios.length : mList.length;
+    legendBox.classList.remove("is-itajai");
+    legendBox.classList.add("is-region");
+    legendBox.style.setProperty("--c", r.color);
+
+    if (headerKicker) headerKicker.textContent = "Geoturismo SC · Mapa do Turismo";
+    if (headerTitle) headerTitle.textContent = r.name + " — Municípios";
+    if (btnBackSC) btnBackSC.hidden = false;
+    if (btnBackCVM) btnBackCVM.hidden = true;
+    if (legendTitle) legendTitle.textContent = r.name + " · " + totalM + (totalM === 1 ? " município" : " municípios");
+    if (legendDesc) {
+      legendDesc.textContent = r.description || "";
+      legendDesc.hidden = !r.description;
+    }
+    if (legendSearchWrap && legendSearch) {
+      const showSearch = mList.length >= 10;
+      legendSearchWrap.hidden = !showSearch;
+      legendSearch.value = "";
+      legendSearch.placeholder = "Filtrar município de " + r.name + "…";
+    }
+
+    legendList.innerHTML = "";
+    mList.forEach((m) => {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.style.setProperty("--c", m.color || r.color);
+      if (m.id) btn.setAttribute("data-mun-id", m.id);
+      else btn.setAttribute("data-mun-name", m.name);
+      const has360 = Boolean(m.tours360 && m.tours360.length);
+      btn.title = has360
+        ? "Abrir " + m.name + " em 3D (com experiência 360°)"
+        : "Abrir " + m.name + (m.hasBairros && m.bairrosCount ? " (" + m.bairrosCount + " bairros)" : "");
+      btn.innerHTML =
+        '<span class="geo-swatch"></span><span>' + m.name + "</span>" +
+        (has360 ? '<span class="geo-legend-360">360°</span>' : "");
+      btn.addEventListener("mouseenter", () => { if (m.id) setCvmHover(m.id); });
+      btn.addEventListener("mouseleave", () => { if (m.id && cvmState.hoverId === m.id) setCvmHover(null); });
+      btn.addEventListener("click", () => {
+        if (m.id) {
+          enterMunMode(m.id, r.id);
+        } else {
+          ensureIgrLoaded(r.id).then((entry) => {
+            if (!entry) return;
+            const found = entry.municipios.find((x) => x.name === m.name);
+            if (found) enterMunMode(found.id, r.id);
+          });
+        }
+      });
+      li.appendChild(btn);
+      legendList.appendChild(li);
+    });
+
+    if (legendActions) {
+      let actionHtml = "";
+      if (dest && dest.routesCtaLabel) {
+        actionHtml += '<button type="button" class="geo-cta-routes" data-route-filter="all">' + dest.routesCtaLabel + "</button>";
+      }
+      if (dest && dest.cachoeirasCtaLabel) {
+        actionHtml += '<button type="button" class="geo-cta-routes" style="background:linear-gradient(135deg,#0284c7,#0f766e);color:#fff;border-color:transparent;" data-open-cachoeiras="1">' + dest.cachoeirasCtaLabel + "</button>";
+      }
+      legendActions.innerHTML = actionHtml;
+      legendActions.hidden = !actionHtml;
+      if (dest && actionHtml) {
+        legendActions.querySelectorAll("[data-route-filter]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            const filter = btn.getAttribute("data-route-filter") || "all";
+            const sep = dest.data.tourUrl.indexOf("?") === -1 ? "?" : "&";
+            const routeUrl = dest.data.tourUrl + sep + "action=scmap&filter=" + encodeURIComponent(filter) + "&expand=1";
+            toast("Abrindo rotas no Satélite…", 1800);
+            open360(dest, routeUrl);
+          });
+        });
+        legendActions.querySelectorAll("[data-open-cachoeiras]").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            toast("Abrindo Rota das Cachoeiras no Satélite…", 1800);
+            open360(dest, dest.cachoeirasUrl);
+          });
+        });
+      }
+    }
+    setLegendCollapsed(window.innerWidth <= 820);
   }
 
   function buildLabels() {
@@ -1552,7 +1662,8 @@
     controls.autoRotate = false;
     $("btnGeoRotate").classList.remove("is-on");
     setSelected(id);
-    showCard(r);
+    hideCard();
+    buildRegionLegend(r);
     hideHint();
     const regRad = id === "costa_verde_mar" ? 0.165 : Math.max(r.radius * 0.94, 0.21);
     const v = viewFor(r.center, regRad, 46, 0);
@@ -1605,6 +1716,10 @@
     }
     setSelected(null);
     hideCard();
+    if (headerKicker) headerKicker.textContent = "Geoturismo SC";
+    if (headerTitle) headerTitle.textContent = "Regiões Turísticas de Santa Catarina";
+    if (btnBackSC) btnBackSC.hidden = true;
+    buildLegend();
     const o = viewFor(state.overviewParams.center, state.overviewParams.radius, 40, 0);
     flyTo(o.pos, o.target, 1100);
   }
@@ -1884,7 +1999,10 @@
     const igrObj = state.byId[mun.igrId || itajaiState.igrId] || { name: "Santa Catarina" };
     const hasB = itajaiState.hasBairros;
 
+    legendBox.classList.remove("is-region");
     legendBox.classList.add("is-itajai");
+    if (legendDesc) { legendDesc.hidden = true; legendDesc.textContent = ""; }
+    if (legendActions) { legendActions.hidden = true; legendActions.innerHTML = ""; }
     setLegendCollapsed(window.innerWidth <= 820);
     if (legendSearchWrap) legendSearchWrap.hidden = !hasB;
     if (legendSearch) {
@@ -2640,7 +2758,9 @@
     controls.minDistance = 0.08;
     controls.maxDistance = 7;
 
-    legendBox.classList.remove("is-itajai", "is-collapsed");
+    legendBox.classList.remove("is-itajai", "is-region", "is-collapsed");
+    if (legendDesc) { legendDesc.hidden = true; legendDesc.textContent = ""; }
+    if (legendActions) { legendActions.hidden = true; legendActions.innerHTML = ""; }
     legendTitle.textContent = "Mapa do Turismo · 15 IGRs (SETUR-SC)";
     setLegendCollapsed(window.innerWidth <= 820);
     if (legendSearchWrap) legendSearchWrap.hidden = true;
@@ -2664,6 +2784,14 @@
 
   if (legendSearch) {
     legendSearch.addEventListener("input", () => {
+      if (!itajaiState.active && state.selectedId && legendBox && legendBox.classList.contains("is-region")) {
+        const q = (legendSearch.value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        legendList.querySelectorAll("li").forEach((li) => {
+          const norm = (li.textContent || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+          li.style.display = !q || norm.includes(q) ? "" : "none";
+        });
+        return;
+      }
       if (!itajaiState.active || !itajaiState.hasBairros) return;
       const q = (legendSearch.value || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       itajaiState.bairros.forEach((b) => {
@@ -2685,7 +2813,7 @@
       setLegendCollapsed(!legendBox.classList.contains("is-collapsed"));
     });
   }
-  if (btnBackSC) btnBackSC.addEventListener("click", () => exitItajaiMode("sc"));
+  if (btnBackSC) btnBackSC.addEventListener("click", () => (itajaiState.active ? exitItajaiMode("sc") : goOverview()));
   if (btnBackCVM) btnBackCVM.addEventListener("click", () => exitItajaiMode("cvm"));
   if (btnMunContext) {
     btnMunContext.addEventListener("click", () => {
