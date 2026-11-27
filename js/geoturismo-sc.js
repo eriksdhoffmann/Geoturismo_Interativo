@@ -2154,7 +2154,7 @@
       extraBtns +
       '<div class="geo-card-nav">' +
       '<button type="button" class="geo-mini-btn" data-back-cvm>← ' + igrObj.name + "</button>" +
-      (mun.hasGlb !== false ? '<button type="button" class="geo-mini-btn" data-toggle-ctx>🗺️ Alternar Fundo SC</button>' : "") +
+      (mun.hasGlb !== false ? '<button type="button" class="geo-mini-btn" data-toggle-ctx><img class="geo-sc-icon" src="assets/img/sc-3d-icon.png" alt="" aria-hidden="true" /> Alternar Fundo SC</button>' : "") +
       "</div>" +
       "</div>";
     card.classList.add("is-mun-summary");
